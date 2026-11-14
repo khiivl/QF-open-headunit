@@ -5,6 +5,7 @@ import com.andrerinas.openheadunit.aap.protocol.messages.Messages
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FullNavigationProfileTest {
@@ -21,7 +22,7 @@ class FullNavigationProfileTest {
 
     @Test
     fun onAnnouncesWhatZlinkAnnounces() {
-        assertEquals(4, FullNavigationProfile.versionMinor(true))
+        assertEquals(6, FullNavigationProfile.versionMinor(true))
         assertEquals(500, FullNavigationProfile.navigationIntervalMs(true))
         assertEquals("2022-03-30-438482292", FullNavigationProfile.softwareBuild(true))
         assertEquals("2.0-linux", FullNavigationProfile.softwareVersion(true))
@@ -34,8 +35,9 @@ class FullNavigationProfileTest {
     }
 
     @Test
-    fun theFullNavigationVersionStaysBelowTheOneSixFeatureSet() {
-        // nothing gated on 1.6 is switched on by this option
-        assertFalse(FullNavigationProfile.versionMinor(true) >= AapVersionNegotiation.FEATURE_MINOR_1_6)
+    fun onlyTheSwitchReachesTheOneSixMessageSet() {
+        // the phone sends NavigationState (0x8006) from 1.6 on; the default stays below it
+        assertTrue(FullNavigationProfile.versionMinor(true) >= AapVersionNegotiation.FEATURE_MINOR_1_6)
+        assertFalse(FullNavigationProfile.versionMinor(false) >= AapVersionNegotiation.FEATURE_MINOR_1_6)
     }
 }

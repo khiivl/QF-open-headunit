@@ -183,8 +183,10 @@ Which navigation messages arrive depends on the phone, which sends one of two fo
 |---|---|---|
 | messages | 32772 `NextTurnDetail`, 32773 `NextTurnDistanceEvent` | 32774 `NavigationState`, 32775 `NavigationCurrentPosition` |
 | content | one icon code, road, distance | maneuver type, lanes, cue, destination, distances, ETA |
-| when | default (this app asks for protocol 1.2) | "Full navigation data (lanes)" on (protocol 1.4, 0.5 s interval) |
+| when | default (this app asks for protocol 1.2) | "Full navigation data (lanes)" on (protocol 1.6, 0.5 s interval) |
 
-The switch announces what Zlink 6.0.38 announces with its navigation service (protocol 1.4, a 500 ms navigation interval, the
-Desktop Head Unit software build); recordings of Zlink sessions hold only the full format. It takes effect on the next connection.
+The phone picks the format from the protocol version the head unit claims: from 1.6 on the full one, below it the legacy one
+(1.4 was tested and still gets the legacy pair). The switch announces what Zlink 6.0.38 announces (protocol 1.6, a 500 ms
+navigation interval, the Desktop Head Unit software build); recordings of Zlink sessions hold only the full format. It takes
+effect on the next connection.
 32769 (start) is sent by this app to the phone when the navigation channel opens; the phone sends the turn messages only after it.

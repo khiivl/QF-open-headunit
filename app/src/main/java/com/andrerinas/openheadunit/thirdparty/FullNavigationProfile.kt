@@ -11,16 +11,22 @@ import com.andrerinas.openheadunit.aap.AapVersionNegotiation
  *  - current: INSTRUMENT_CLUSTER_NAVIGATION_STATE (0x8006) and ..._CURRENT_POSITION (0x8007): the full step with the
  *    maneuver type, lanes, cue text, destination, distances and ETA.
  *
- * Which one it picks follows the protocol version the head unit asks for. Zlink 6.0.38 asks for 1.4 together with a
- * 500 ms navigation service and receives only the current format (verified in recordings of thousands of messages, not
- * one legacy message among them); this app asks for 1.2 and receives only the legacy format. Everything else in the
- * navigation service is identical. With the switch on, this app announces what Zlink announces; with it off, nothing
- * changes.
+ * Which one it picks follows the protocol version the head unit claims in its version request, not the one the phone
+ * answers with (it answers 1.7 either way): from 1.6 on it sends the current format, below it the legacy one.
+ *  - this app asks for 1.2 and receives only the legacy format; asking for 1.4 changes nothing (tested);
+ *  - Zlink 6.0.38 asks for 1.6 and receives only the current format (recordings of thousands of messages, not one legacy
+ *    message among them); in its HUD mode it asks for 1.4 on purpose, because its HUD code only parses the legacy format;
+ *  - the MIB cluster project reports the same switch at 1.6 (its unit claims 1.5 and gets the legacy pair), and
+ *    open-android-auto notes the legacy turn event as the one for head units below 1.6.
+ * With the switch on, this app announces what Zlink announces; with it off, nothing changes.
+ *
+ * This app never answers an unknown message with "unexpected message" (that reply makes the phone reset the link), and it
+ * parses 0x8006/0x8007 itself, so claiming 1.6 does not disturb the projection.
  */
 object FullNavigationProfile {
 
-    /** the minor version Zlink 6.0.38 asks for when it announces the navigation service */
-    const val FULL_NAVIGATION_MINOR = 4
+    /** the first minor version for which the phone sends the current navigation format (what Zlink 6.0.38 asks for) */
+    const val FULL_NAVIGATION_MINOR = 6
 
     /** the release a Google Desktop Head Unit reports, as Zlink announces it */
     const val DHU_SOFTWARE_BUILD = "2022-03-30-438482292"
