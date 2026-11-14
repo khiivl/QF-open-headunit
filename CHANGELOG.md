@@ -1,4 +1,6 @@
 # Changelog
+### Unreleased
+- Added: apps the user ticks in Settings receive the phone's raw navigation and media messages (frame forwarding), with a switch for album art; nothing is sent by default, see contract/README.md
 ### 4.0.0
 - New Homescreen, favorites under the card on 16:9 units, and drawer tabs for shortcuts, thanks to @andrecuellar
 - Home: a separate switch for the widgets, and a panel opacity slider

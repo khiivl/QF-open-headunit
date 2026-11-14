@@ -2151,6 +2151,16 @@ class SettingsFragment : Fragment() {
             }
         ))
 
+        // Which installed apps may receive the phone's navigation and media messages (empty by default).
+        items.add(SettingItem.SettingEntry(
+            stableId = "thirdPartyAccess",
+            nameResId = R.string.third_party_access_title,
+            value = getString(R.string.third_party_access_hint),
+            onClick = { _ ->
+                startActivity(android.content.Intent(requireContext(), com.andrerinas.openheadunit.thirdparty.ThirdPartyAccessActivity::class.java))
+            }
+        ))
+
         // --- Input Settings ---
         items.add(SettingItem.CategoryHeader("input", R.string.category_input))
 

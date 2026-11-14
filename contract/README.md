@@ -149,3 +149,30 @@ Modes and Routines picks up.
 
 Deep links and shortcuts go through an activity, so an automation app sending them needs "Display
 over other apps". The receiver above does not — prefer it.
+
+
+## Frame forwarding (navigation and media messages for companion apps)
+
+An app the user has ticked in Settings ("Apps that receive navigation and media data") gets the phone's Android Auto
+navigation and media-playback messages **unchanged**, so it can do its own parsing (an instrument-cluster display, a logger).
+Nothing is sent while no app is ticked, and no app is ticked by default.
+
+An explicit broadcast (`setPackage`) per ticked app, per message:
+
+| | |
+|---|---|
+| action | `com.andrerinas.openheadunit.AAP_FRAME` |
+| `v` | int, contract version, `1` |
+| `channel` | String, `"nav"` or `"media"` (message ids repeat per channel) |
+| `msg` | int, the Android Auto message id as on the wire |
+| `payload` | byte[], the protobuf payload, unchanged |
+| `seq` | long, +1 per forwarded message |
+
+Forwarded: `nav` 32769 (start), 32770 (stop), 32771 (status), 32774 (`NavigationState`), 32775 (`NavigationCurrentPosition`);
+`media` 32769 (`MediaPlaybackStatus`), 32771 (`MediaMetaData`). Album art (field 4 of `MediaMetaData`) is removed unless the user
+switched "Include album art" on.
+
+Privacy: the receiving app is identified by package name and the SHA-256 digest of its signing certificate(s), pinned when the user
+ticks it; if the installed package no longer matches, nothing is sent. This replaces a signature-level permission, so receiving
+apps do not have to be signed with this app's key. Payloads are never logged or stored, and nothing is forwarded while no phone is
+projecting. A receiving app should clear its navigation state on `SESSION_STATE` `disconnected` / `failed`.

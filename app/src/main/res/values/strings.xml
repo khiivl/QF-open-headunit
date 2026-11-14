@@ -1920,4 +1920,12 @@
     <string name="audio_matching_phase_gradient_hint">Slow playback</string>
     <string name="audio_matching_option" translatable="false">%1$s\n(%2$s)</string>
     <string name="audio_matching_description">OHU remains the default. WSOLA aligns overlapping waveforms; Phase Vocoder adjusts spectral phases. Short uses a shorter analysis window. Phase Gradient integrates phase gradients to reconstruct phases. These independent methods add processing latency; their names do not rank sound quality.\n\nNative methods: PCM music. Navigation, voice responses, system sounds and AAC use OHU.\nReconnect to apply. Removed engine preferences reset to OHU.</string>
+    <string name="third_party_access_title">Apps that receive navigation and media data</string>
+    <string name="third_party_access_hint">Choose which apps get the phone\'s turn instructions and track info</string>
+    <string name="third_party_access_explainer">The phone\'s navigation (turn instructions, road names, lanes, the destination) and media (title, artist, album) messages are passed on, unchanged, only to the apps ticked below. Nothing is sent to an app that is not ticked, and no app is ticked by default. An app is identified by its name and signing certificate; if it is replaced by one signed with another key, it stops receiving until you approve it again.</string>
+    <string name="third_party_album_art">Include album art (otherwise only text)</string>
+    <string name="third_party_state_allowed">receiving</string>
+    <string name="third_party_state_changed">signature changed, approve again</string>
+    <string name="third_party_no_signature">This app has no readable signature and cannot be added.</string>
+    <string name="third_party_confirm">Let %1$s (%2$s) receive the navigation and media data of the phone? It will get turn instructions, road names, the destination and the track that is playing.</string>
 </resources>
