@@ -20,19 +20,17 @@ import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.HeadUnitScreenConfig
 import com.andrerinas.openheadunit.utils.VideoFallbackPolicy
 import com.andrerinas.openheadunit.aap.AudioSessionConfig
+import com.andrerinas.openheadunit.thirdparty.FullNavigationProfile
+import com.andrerinas.openheadunit.thirdparty.ThirdPartyAccessStore
 import com.google.protobuf.Message
 
 internal class ServiceDiscoveryResponse(context: Context, audioConfig: AudioSessionConfig, transport: AapTransport)
     : AapMessage(Channel.ID_CTR, Control.ControlMsgType.MESSAGE_SERVICE_DISCOVERY_RESPONSE_VALUE, makeProto(context, audioConfig, transport)) {
 
     companion object {
-        // The release a Google Desktop Head Unit reports (as announced by Zlink, which receives the full navigation data).
-        // Experiment: the phone may decide what navigation detail to send from the head unit it believes it is talking to.
-        private const val DHU_SOFTWARE_BUILD = "2022-03-30-438482292"
-        private const val DHU_SOFTWARE_VERSION = "2.0-linux"
-
         private fun makeProto(context: Context, audioConfig: AudioSessionConfig, transport: AapTransport): Message {
             val settings = App.provide(context).settings
+            val fullNavigation = ThirdPartyAccessStore.fullNavigation(context)
             val geometry = HeadUnitScreenConfig.announceGeometry(transport, context, context.resources.displayMetrics, settings)
 
             val services = mutableListOf<Control.Service>()
@@ -304,7 +302,7 @@ internal class ServiceDiscoveryResponse(context: Context, audioConfig: AudioSess
             val navigationStatus = Control.Service.newBuilder().also { service ->
                 service.id = Channel.ID_NAV
                 service.navigationStatusService = Control.Service.NavigationStatusService.newBuilder()
-                    .setMinimumIntervalMs(1000)
+                    .setMinimumIntervalMs(FullNavigationProfile.navigationIntervalMs(fullNavigation))
                     .setType(Control.Service.NavigationStatusService.ClusterType.ImageCodesOnly)
                     .build()
             }.build()
@@ -330,8 +328,8 @@ internal class ServiceDiscoveryResponse(context: Context, audioConfig: AudioSess
                 vehicleId = announcedVehicleId
                 headUnitModel = settings.headUnitModel
                 headUnitMake = settings.headUnitMake
-                headUnitSoftwareBuild = DHU_SOFTWARE_BUILD
-                headUnitSoftwareVersion = DHU_SOFTWARE_VERSION
+                headUnitSoftwareBuild = FullNavigationProfile.softwareBuild(fullNavigation)
+                headUnitSoftwareVersion = FullNavigationProfile.softwareVersion(fullNavigation)
                 driverPosition = if (settings.rightHandDrive) Control.DriverPosition.DRIVER_POSITION_RIGHT else Control.DriverPosition.DRIVER_POSITION_LEFT
                 canPlayNativeMediaDuringVr = false
                 hideProjectedClock = settings.hideClock
@@ -345,8 +343,8 @@ internal class ServiceDiscoveryResponse(context: Context, audioConfig: AudioSess
                     setModel(settings.vehicleModel)
                     setYear(settings.vehicleYear)
                     setVehicleId(announcedVehicleId)
-                    setHeadUnitSoftwareBuild(DHU_SOFTWARE_BUILD)
-                    setHeadUnitSoftwareVersion(DHU_SOFTWARE_VERSION)
+                    setHeadUnitSoftwareBuild(FullNavigationProfile.softwareBuild(fullNavigation))
+                    setHeadUnitSoftwareVersion(FullNavigationProfile.softwareVersion(fullNavigation))
                     // The phone stores this per head unit and reads it in a dozen places, and an
                     // absent field reads as a car. A motorcycle is the only claim it answers by
                     // recording with its own microphone, so the microphone setting overrides the

@@ -1096,7 +1096,10 @@ class AapTransport(
                 SystemClock.sleep(500)
             }
 
-            val version = Messages.versionRequest
+            // The full navigation data (lanes) needs the version Zlink asks for; see FullNavigationProfile.
+            val announcedMinor = com.andrerinas.openheadunit.thirdparty.FullNavigationProfile.versionMinor(
+                com.andrerinas.openheadunit.thirdparty.ThirdPartyAccessStore.fullNavigation(context))
+            val version = Messages.versionRequest(announcedMinor)
             var ret = -1
             var attempt = 0
             var received = false
@@ -1221,7 +1224,7 @@ class AapTransport(
                         }
                         negotiatedVersion = negotiated
                         AppLog.i("Handshake: the phone selected ${negotiated.major}.${negotiated.minor} " +
-                            "(we asked for ${AapVersionNegotiation.ANNOUNCED_MAJOR}.${AapVersionNegotiation.ANNOUNCED_MINOR}), status ${negotiated.statusName}")
+                            "(we asked for ${AapVersionNegotiation.ANNOUNCED_MAJOR}.$announcedMinor), status ${negotiated.statusName}")
                         negotiated.requestedConfig?.let {
                             AppLog.i("Handshake: the phone asks for ping timeout " +
                                 "${it.pingConfiguration.timeoutMs}ms, read timeout " +

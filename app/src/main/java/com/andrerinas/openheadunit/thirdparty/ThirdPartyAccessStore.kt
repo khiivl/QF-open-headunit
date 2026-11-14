@@ -34,10 +34,23 @@ class ThirdPartyAccessStore(context: Context) {
         get() = prefs.getBoolean(KEY_ALBUM_ART, false)
         set(value) = prefs.edit().putBoolean(KEY_ALBUM_ART, value).apply()
 
+    /** off by default: announce what Zlink announces so the phone sends the full navigation data (see [FullNavigationProfile]) */
+    var fullNavigation: Boolean
+        get() = prefs.getBoolean(KEY_FULL_NAVIGATION, false)
+        set(value) = prefs.edit().putBoolean(KEY_FULL_NAVIGATION, value).apply()
+
     companion object {
         private const val PREFS = "openhu_third_party"
         private const val KEY_ENTRIES = "entries"
         private const val KEY_ALBUM_ART = "include_album_art"
+        private const val KEY_FULL_NAVIGATION = "full_navigation"
+
+        /** the switch, read where the session is negotiated; false whenever the preferences cannot be read */
+        fun fullNavigation(context: android.content.Context?): Boolean = try {
+            context != null && ThirdPartyAccessStore(context).fullNavigation
+        } catch (e: RuntimeException) {
+            false
+        }
 
         /** digest of the signing certificate(s) of an installed package, or null if it is not installed */
         @Suppress("DEPRECATION")

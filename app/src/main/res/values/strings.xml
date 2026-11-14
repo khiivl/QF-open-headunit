@@ -1924,6 +1924,8 @@
     <string name="third_party_access_hint">Choose which apps get the phone\'s turn instructions and track info</string>
     <string name="third_party_access_explainer">The phone\'s navigation (turn instructions, road names, lanes, the destination) and media (title, artist, album) messages are passed on, unchanged, only to the apps ticked below. Nothing is sent to an app that is not ticked, and no app is ticked by default. An app is identified by its name and signing certificate; if it is replaced by one signed with another key, it stops receiving until you approve it again.</string>
     <string name="third_party_album_art">Include album art (otherwise only text)</string>
+    <string name="third_party_full_navigation">Full navigation data (lanes)</string>
+    <string name="third_party_full_navigation_explainer">Asks the phone for the detailed navigation messages (maneuver, lanes, distances, destination) instead of the simple turn icons, by announcing what Zlink announces: Android Auto protocol 1.4 and a 0.5 s navigation interval. Off: nothing changes. Takes effect on the next connection.</string>
     <string name="third_party_state_allowed">receiving</string>
     <string name="third_party_state_changed">signature changed, approve again</string>
     <string name="third_party_no_signature">This app has no readable signature and cannot be added.</string>

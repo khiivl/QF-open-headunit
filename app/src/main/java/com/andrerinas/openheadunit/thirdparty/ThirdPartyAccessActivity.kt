@@ -45,6 +45,16 @@ class ThirdPartyAccessActivity : AppCompatActivity() {
             setPadding(0, pad, 0, pad)
             setOnCheckedChangeListener { _, on -> store.includeAlbumArt = on }
         })
+        root.addView(Switch(this).apply {
+            text = getString(R.string.third_party_full_navigation)
+            isChecked = store.fullNavigation
+            setPadding(0, 0, 0, pad / 2)
+            setOnCheckedChangeListener { _, on -> store.fullNavigation = on }
+        })
+        root.addView(TextView(this).apply {
+            text = getString(R.string.third_party_full_navigation_explainer)
+            setPadding(0, 0, 0, pad)
+        })
         adapter = Adapter()
         root.addView(ListView(this).apply { this.adapter = this@ThirdPartyAccessActivity.adapter }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
