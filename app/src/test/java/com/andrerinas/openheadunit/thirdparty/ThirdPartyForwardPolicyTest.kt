@@ -47,12 +47,20 @@ class ThirdPartyForwardPolicyTest {
 
     @Test
     fun onlyTheMessagesOfTheContractAreForwarded() {
-        for (m in listOf(32769, 32770, 32771, 32774, 32775)) assertTrue("nav $m", ThirdPartyForwardPolicy.isForwarded("nav", m))
-        for (m in listOf(32772, 32773, 0, 5)) assertFalse("nav $m", ThirdPartyForwardPolicy.isForwarded("nav", m))
+        for (m in listOf(32769, 32770, 32771, 32772, 32773, 32774, 32775)) assertTrue("nav $m", ThirdPartyForwardPolicy.isForwarded("nav", m))
+        for (m in listOf(0, 5, 32776)) assertFalse("nav $m", ThirdPartyForwardPolicy.isForwarded("nav", m))
         assertTrue(ThirdPartyForwardPolicy.isForwarded("media", 32771))
         assertTrue(ThirdPartyForwardPolicy.isForwarded("media", 32769))
         assertFalse(ThirdPartyForwardPolicy.isForwarded("media", 32770))   // playback input
         assertFalse(ThirdPartyForwardPolicy.isForwarded("audio", 32774))
+    }
+
+    @Test
+    fun theTurnImageOfTheLegacyNextTurnMessageIsDropped() {
+        val keep = field(1, "Main St".toByteArray())
+        val image = byteArrayOf(0x22, 0x03, 1, 2, 3)   // field 4: the icon
+        assertArrayEquals(keep, ThirdPartyForwardPolicy.payloadFor("nav", 32772, keep + image, includeAlbumArt = true))
+        assertArrayEquals(keep + image, ThirdPartyForwardPolicy.payloadFor("nav", 32773, keep + image, includeAlbumArt = false))
     }
 
     @Test

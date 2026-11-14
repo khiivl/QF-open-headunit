@@ -19,10 +19,12 @@ object ThirdPartyForwardPolicy {
 
     const val MEDIA_METADATA_MSG = 32771
     private const val MEDIA_ALBUM_ART_FIELD = 4
+    const val NAV_NEXT_TURN_MSG = 32772
+    private const val NAV_TURN_IMAGE_FIELD = 4   // the turn icon of the legacy next-turn message: bulky, and the receiver draws its own
 
     /** the messages of the contract: navigation status, state and position, media metadata and playback status */
     fun isForwarded(channel: String, msg: Int): Boolean = when (channel) {
-        CHANNEL_NAV -> msg == 32769 || msg == 32770 || msg == 32771 || msg == 32774 || msg == 32775
+        CHANNEL_NAV -> msg == 32769 || msg == 32770 || msg == 32771 || msg == 32772 || msg == 32773 || msg == 32774 || msg == 32775
         CHANNEL_MEDIA -> msg == 32769 || msg == MEDIA_METADATA_MSG
         else -> false
     }
@@ -41,6 +43,9 @@ object ThirdPartyForwardPolicy {
     fun payloadFor(channel: String, msg: Int, payload: ByteArray, includeAlbumArt: Boolean): ByteArray? {
         if (channel == CHANNEL_MEDIA && msg == MEDIA_METADATA_MSG && !includeAlbumArt) {
             return ProtoFieldStripper.removeField(payload, MEDIA_ALBUM_ART_FIELD)
+        }
+        if (channel == CHANNEL_NAV && msg == NAV_NEXT_TURN_MSG) {
+            return ProtoFieldStripper.removeField(payload, NAV_TURN_IMAGE_FIELD)
         }
         return payload
     }

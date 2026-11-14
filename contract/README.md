@@ -168,7 +168,7 @@ An explicit broadcast (`setPackage`) per ticked app, per message:
 | `payload` | byte[], the protobuf payload, unchanged |
 | `seq` | long, +1 per forwarded message |
 
-Forwarded: `nav` 32769 (start), 32770 (stop), 32771 (status), 32774 (`NavigationState`), 32775 (`NavigationCurrentPosition`);
+Forwarded: `nav` 32769 (start), 32770 (stop), 32771 (status), 32772 (`NextTurnDetail`, turn icon removed), 32773 (`NextTurnDistanceEvent`), 32774 (`NavigationState`), 32775 (`NavigationCurrentPosition`);
 `media` 32769 (`MediaPlaybackStatus`), 32771 (`MediaMetaData`). Album art (field 4 of `MediaMetaData`) is removed unless the user
 switched "Include album art" on.
 
