@@ -94,7 +94,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
     companion object {
         const val EXTRA_BOOT_START = "com.andrerinas.openheadunit.EXTRA_BOOT_START"
 
-        private val BOOT_ACTIONS = setOf(
+        internal val BOOT_ACTIONS = setOf(
             // Standard Android boot
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_LOCKED_BOOT_COMPLETED,
@@ -115,7 +115,9 @@ class BootCompleteReceiver : BroadcastReceiver() {
             // XYAuto head units (ACC wake)
             "xy.android.acc.on",
             // Autochips / MediaTek QuickBoot units (ACC wake)
-            "autochips.intent.action.QB_POWERON"
+            "autochips.intent.action.QB_POWERON",
+            // QF head units (ACC wake), the action wRight, wDSP and wFabia's sibling apps use on the K706
+            "com.qf.action.ACC_ON"
         )
     }
 }

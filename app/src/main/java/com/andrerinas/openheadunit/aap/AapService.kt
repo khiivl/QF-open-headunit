@@ -2486,6 +2486,8 @@ class AapService : Service() {
             addAction("xy.android.acc.on")
             // Autochips / MediaTek QuickBoot units (ACC wake)
             addAction("autochips.intent.action.QB_POWERON")
+            // QF head units (ACC wake). The ACC-off counterpart is in ACC_OFF_ACTIONS.
+            addAction("com.qf.action.ACC_ON")
             // The counterparts: the car being switched off. On FYT units Android then deep-sleeps,
             // which is exactly when a session would otherwise vanish without closing. See
             // LinkLossTeardownPolicy.
@@ -4603,7 +4605,8 @@ class AapService : Service() {
         internal const val ACC_POWER_LOSS_CORROBORATION_WINDOW_MS = 5_000L
 
         /** The ACC-off counterparts of the ACC-on intents this service already listens for. */
-        private val ACC_OFF_ACTIONS = setOf(
+        internal val ACC_OFF_ACTIONS = setOf(
+            "com.qf.action.ACC_OFF",
             "com.fyt.boot.ACCOFF",
             "com.glsx.boot.ACCOFF",
             "com.cayboy.action.ACC_OFF",
