@@ -224,6 +224,14 @@ class CommManager(
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected())
 
+    /** Every change of the state goes through here, so every one is logged (from -> to, and the transport it ran over). */
+    private var connState: ConnectionState
+        get() = _connectionState.value
+        set(next) {
+            ConnectionStateLog.state(_connectionState.value, next, _connection?.type?.name)
+            _connectionState.value = next
+        }
+
     /** Callback for audio focus state changes (isPlaying). Set by AapService. */
     var onAudioFocusStateChanged: ((Boolean) -> Unit)? = null
 
@@ -540,7 +548,7 @@ class CommManager(
             // terminal token so a fresh attach/permission reply can continue this recovery.
             if (expectedState != null || recoveryOwner != null) return
             onSessionFailure?.invoke("connect_failed")
-            _connectionState.emit(ConnectionState.Error("USB permission not granted for device"))
+            connState = ConnectionState.Error("USB permission not granted for device")
             return
         }
 
@@ -591,7 +599,7 @@ class CommManager(
                 connectionAttempt = token
                 physicalConnectionReached = false
                 disconnectRequested = false
-                _connectionState.value = ConnectionState.Connecting
+                connState = ConnectionState.Connecting
                 previous = _connection
                 _connection = null
             }) return
@@ -632,7 +640,7 @@ class CommManager(
                     settings.saveLastConnection(type = Settings.CONNECTION_TYPE_USB, usbDevice = UsbDeviceCompat.getUniqueName(currentDevice))
                     if (publishIfOwned {
                         physicalConnectionReached = true
-                        _connectionState.value = ConnectionState.Connected
+                        connState = ConnectionState.Connected
                     }) return@synchronized
                 }
                 disconnect(sendByeBye = false, isUserExit = false, honorKillOnDisconnect = false, settingsRetryOwner = expectedState)
@@ -641,7 +649,7 @@ class CommManager(
             synchronized(transportLifecycleLock) {
                 if (connectionAttempt !== attempt || disconnectRequested) return
                 val published = publishIfOwned {
-                    _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
+                    connState = ConnectionState.Error("Connection failed: ${e.message}")
                 }
                 if (published) onSessionFailure?.invoke("connect_failed")
                 // A thrown open failure has the same retry policy as connect() returning false.
@@ -736,7 +744,7 @@ class CommManager(
                         physicalConnectionReached = true
                         disconnectRequested = false
                         _connection = candidate
-                        _connectionState.value = ConnectionState.Connected
+                        connState = ConnectionState.Connected
                         true
                     }
                 },
@@ -792,7 +800,7 @@ class CommManager(
             physicalConnectionReached = false
             usbSaveOwner = null
             disconnectRequested = false
-            _connectionState.value = ConnectionState.Connecting
+            connState = ConnectionState.Connecting
             val previous = _connection
             _connection = null
             token to previous
@@ -819,7 +827,7 @@ class CommManager(
                     if (socket !is NearbySocket) {
                         settings.saveLastConnection(type = Settings.CONNECTION_TYPE_WIFI, ip = socket.inetAddress?.hostAddress ?: "")
                     }
-                    _connectionState.value = ConnectionState.Connected
+                    connState = ConnectionState.Connected
                 } else {
                     disconnect(sendByeBye = false, isUserExit = false, honorKillOnDisconnect = false)
                 }
@@ -828,7 +836,7 @@ class CommManager(
             synchronized(transportLifecycleLock) {
                 if (connectionAttempt !== attempt || disconnectRequested) return
                 onSessionFailure?.invoke("connect_failed")
-                _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
+                connState = ConnectionState.Error("Connection failed: ${e.message}")
                 disconnect(sendByeBye = false, isUserExit = false, honorKillOnDisconnect = false)
             }
         } finally {
@@ -890,7 +898,7 @@ class CommManager(
             physicalConnectionReached = false
             usbSaveOwner = null
             disconnectRequested = false
-            _connectionState.value = ConnectionState.Connecting
+            connState = ConnectionState.Connecting
             val previous = _connection
             _connection = null
             token to previous
@@ -914,7 +922,7 @@ class CommManager(
                 if (opened) {
                     physicalConnectionReached = true
                     settings.saveLastConnection(type = Settings.CONNECTION_TYPE_WIFI, ip = ip)
-                    _connectionState.value = ConnectionState.Connected
+                    connState = ConnectionState.Connected
                 } else {
                     disconnect(sendByeBye = false, isUserExit = false, honorKillOnDisconnect = false)
                 }
@@ -923,7 +931,7 @@ class CommManager(
             synchronized(transportLifecycleLock) {
                 if (connectionAttempt !== attempt || disconnectRequested) return
                 onSessionFailure?.invoke("connect_failed")
-                _connectionState.value = ConnectionState.Error("Connection failed: ${e.message}")
+                connState = ConnectionState.Error("Connection failed: ${e.message}")
                 disconnect(sendByeBye = false, isUserExit = false, honorKillOnDisconnect = false)
             }
         } finally {
@@ -1039,7 +1047,7 @@ class CommManager(
                 val conn = attemptedConnection ?: return@withContext
                 val transport = synchronized(transportLifecycleLock) {
                     if (disconnectRequested || _connection !== conn || _connectionState.value !is ConnectionState.Connected) return@withContext
-                    _connectionState.value = ConnectionState.StartingTransport
+                    connState = ConnectionState.StartingTransport
                     if (_transport == null) {
                         val audioManager = context.getSystemService(Application.AUDIO_SERVICE) as AudioManager
                         val candidate = AapTransport(
@@ -1077,7 +1085,7 @@ class CommManager(
                         // The peer answered, which is what the deaf-server record claims it cannot.
                         ConnectionIssues.clear(context, ConnectionIssue.HEADUNIT_SERVER_NOT_ANSWERING)
                         settleSessionClaim(formed = true)
-                        _connectionState.value = ConnectionState.HandshakeComplete
+                        connState = ConnectionState.HandshakeComplete
                     }
                     if (live && usb) onUsbHandshakeEnded?.invoke(UsbHandshakeOutcome(
                         AapTransport.HandshakeFailure.NONE, (conn as AbstractUsbProjectionConnection).accessoryDevice, recoveryOwner, usbIdentity))
@@ -1091,7 +1099,7 @@ class CommManager(
                         // the step it had. Measured stuck on "Securing the connection" for 3m39s.
                         ConnectionStageTracker.endAttempt()
                         onSessionFailure?.invoke(if (silent) "peer_silent" else "handshake_failed")
-                        _connectionState.value = ConnectionState.Error(if (silent) ERROR_HANDSHAKE_PEER_SILENT else "Handshake failed")
+                        connState = ConnectionState.Error(if (silent) ERROR_HANDSHAKE_PEER_SILENT else "Handshake failed")
                         settleSessionClaim(formed = false)
                         // Not a user exit: nobody chose to end a session that never formed.
                         disconnect(sendByeBye = false, isUserExit = false)
@@ -1109,7 +1117,7 @@ class CommManager(
                 // to age into a backoff that no longer describes what is happening.
                 noteHandshakeOutcome(silent = false)
                 onSessionFailure?.invoke("handshake_failed")
-                _connectionState.value = ConnectionState.Error("Handshake failed: ${e.message}")
+                connState = ConnectionState.Error("Handshake failed: ${e.message}")
                 settleSessionClaim(formed = false)
                 disconnect(sendByeBye = false, isUserExit = false)
             }
@@ -1212,11 +1220,11 @@ class CommManager(
             }
             transport.startReading()
             withLiveTransport(transport, ConnectionState.HandshakeComplete) {
-                _connectionState.value = ConnectionState.TransportStarted
+                connState = ConnectionState.TransportStarted
             }
         } catch (e: Exception) {
             withLiveTransport(transport, ConnectionState.HandshakeComplete) {
-                _connectionState.value = ConnectionState.Error("Start reading failed: ${e.message}")
+                connState = ConnectionState.Error("Start reading failed: ${e.message}")
                 // Startup failed locally. Preserve automatic recovery and do not send the peer
                 // a USER_SELECTION ByeBye for an exit the user never requested.
                 disconnect(sendByeBye = false, isUserExit = false)
@@ -1227,7 +1235,7 @@ class CommManager(
     /** Reports an internal failure without applying the user's explicit Exit policy. */
     suspend fun emitError(msg: String) {
         synchronized(transportLifecycleLock) {
-            _connectionState.value = ConnectionState.Error(msg)
+            connState = ConnectionState.Error(msg)
             disconnect(sendByeBye = false, isUserExit = false)
         }
     }
@@ -1249,7 +1257,7 @@ class CommManager(
                 if (settingsRestart.acceptsSettingsRestart(_connectionState.value)) AppLog.e(msg)
                 return
             }
-            _connectionState.value = ConnectionState.Error(msg)
+            connState = ConnectionState.Error(msg)
         }
     }
 
@@ -1287,7 +1295,7 @@ class CommManager(
         // Publish cleanup before state: a reconnect observer must be able to await this job.
         _disconnectJob = _scope.launch { doDisconnect(sendByeBye = false) }
         source.retirePresentation()
-        _connectionState.value = ConnectionState.Disconnected(isClean, isUserExit = wasUserExit, wasLoopbackSession = isLoopbackSession, hadPhysicalConnection = physicalConnectionReached, settingsRetryOwner = save, endedAttempt = connectionAttempt,
+        connState = ConnectionState.Disconnected(isClean, isUserExit = wasUserExit, wasLoopbackSession = isLoopbackSession, hadPhysicalConnection = physicalConnectionReached, settingsRetryOwner = save, endedAttempt = connectionAttempt,
             reachedSsl = endedSsl, endedBy = EndCausePolicy.ofTransportQuit(isClean, wasUserExit), transport = endedType)
         if (settings.killOnDisconnect) {
             context.sendBroadcast(android.content.Intent("com.andrerinas.openheadunit.ACTION_FINISH_ACTIVITIES").apply {
@@ -1635,7 +1643,7 @@ class CommManager(
         }
         _disconnectJob = _scope.launch { doDisconnect(sendByeBye, byeByeReason, reason) }
         _transport?.retirePresentation()
-        _connectionState.value = ConnectionState.Disconnected(
+        connState = ConnectionState.Disconnected(
             isUserExit = isUserExit, reason = reason,
             settingsRetryOwner = save,
             wasLoopbackSession = isLoopbackSession,
@@ -1705,7 +1713,7 @@ class CommManager(
             connectionAttempt = null
             if (_connectionState.value !is ConnectionState.Disconnected) {
                 _transport?.retirePresentation()
-                _connectionState.value = ConnectionState.Disconnected(wasLoopbackSession = isLoopbackSession, hadPhysicalConnection = physicalConnectionReached, endedAttempt = endedAttempt,
+                connState = ConnectionState.Disconnected(wasLoopbackSession = isLoopbackSession, hadPhysicalConnection = physicalConnectionReached, endedAttempt = endedAttempt,
                     reachedSsl = reachedSsl(), transport = _connection?.type)
             }
             val transport = _transport
@@ -1852,7 +1860,7 @@ class CommManager(
             val cleanup = _scope.launch { doDisconnect(sendByeBye = true) }
             _disconnectJob = cleanup
             _transport?.retirePresentation()
-            _connectionState.value = ConnectionState.Disconnected(isClean = false, isUserExit = false, wasLoopbackSession = isLoopbackSession, hadPhysicalConnection = physicalConnectionReached, endedAttempt = connectionAttempt,
+            connState = ConnectionState.Disconnected(isClean = false, isUserExit = false, wasLoopbackSession = isLoopbackSession, hadPhysicalConnection = physicalConnectionReached, endedAttempt = connectionAttempt,
                 reachedSsl = reachedSsl(), endedBy = EndCause.LINK_GOING_DOWN, transport = _connection?.type)
             cleanup
         }

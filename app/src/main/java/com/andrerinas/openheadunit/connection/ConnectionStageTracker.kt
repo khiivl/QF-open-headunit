@@ -24,7 +24,9 @@ object ConnectionStageTracker {
 
     /** A step of the attempt already running. Ignored if it would rewind the display. */
     fun report(candidate: ConnectionStage) {
-        if (ConnectionStagePolicy.shouldApply(_stage.value, candidate)) _stage.value = candidate
+        val before = _stage.value
+        if (ConnectionStagePolicy.shouldApply(before, candidate)) _stage.value = candidate
+        ConnectionStateLog.stage(before, _stage.value, "report")
     }
 
     /** A genuine restart: the floor drops so [opening] shows even though it ranks lower. The
@@ -33,6 +35,7 @@ object ConnectionStageTracker {
         // A fresh arming is somebody asking for a connection, so the hold from the phone's own
         // exit is no longer about anything.
         phoneLeftAtMs = 0L
+        ConnectionStateLog.stage(_stage.value, opening, "beginAttempt")
         _stage.value = opening
     }
 
@@ -40,22 +43,26 @@ object ConnectionStageTracker {
     fun networkAbandoned() {
         val current = _stage.value
         val next = ConnectionStagePolicy.afterNetworkAbandoned(current)
-        if (next != current) _stage.compareAndSet(current, next)
+        if (next != current && _stage.compareAndSet(current, next)) ConnectionStateLog.stage(current, next, "networkAbandoned")
     }
 
     /** The session or attempt is over. The network line is left to whoever owns the group, which a
      *  session that ends without removing it still has. */
     fun endAttempt() {
+        ConnectionStateLog.stage(_stage.value, null, "endAttempt")
         _stage.value = null
     }
 
     /** A step that ended with nothing to show: [from] gives way to [to], and any other stage stays. */
     fun retreat(from: ConnectionStage, to: ConnectionStage) {
-        if (ConnectionStagePolicy.shouldRetreat(_stage.value, from)) _stage.value = to
+        val before = _stage.value
+        if (ConnectionStagePolicy.shouldRetreat(before, from)) _stage.value = to
+        ConnectionStateLog.stage(before, _stage.value, "retreat")
     }
 
     /** A passive wireless carrier is ready; preserve USB, completed handoffs and a hidden pill. */
     fun reportWirelessWaiting() {
+        val before = _stage.value
         _stage.update { current ->
             when (current) {
                 ConnectionStage.PREPARING_NETWORK, ConnectionStage.CREATING_NETWORK,
@@ -63,6 +70,7 @@ object ConnectionStageTracker {
                 else -> current
             }
         }
+        ConnectionStateLog.stage(before, _stage.value, "wirelessWaiting")
     }
 
     /**
@@ -72,6 +80,7 @@ object ConnectionStageTracker {
      * USB and GAL transport stages are never rewound here.
      */
     fun reportWirelessHandoffEnded() {
+        val before = _stage.value
         _stage.update { current ->
             when (current) {
                 ConnectionStage.PREPARING_NETWORK, ConnectionStage.CREATING_NETWORK,
@@ -81,6 +90,7 @@ object ConnectionStageTracker {
                 else -> current
             }
         }
+        ConnectionStateLog.stage(before, _stage.value, "handoffEnded")
     }
 
     /** The group came up, changed, or (null) went down. Equal deliveries are conflated. */
@@ -104,6 +114,7 @@ object ConnectionStageTracker {
     /** The stack is down. */
     fun clear() {
         phoneLeftAtMs = 0L
+        ConnectionStateLog.stage(_stage.value, null, "clear")
         _stage.value = null
         _network.value = null
     }
