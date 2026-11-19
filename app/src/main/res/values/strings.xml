@@ -1800,6 +1800,9 @@
     <string name="home_add_favorite">Add app</string>
     <string name="home_favorite_change">Change</string>
     <string name="home_add_to_favorites">Add to favorites</string>
+    <string name="drawer_kill_app">Kill app</string>
+    <string name="drawer_kill_app_done">%1$s was stopped</string>
+    <string name="drawer_kill_app_failed">%1$s could not be stopped. Root or the self-ADB connection is needed.</string>
     <string name="home_favorites_full">All four favorites are taken. Long-press one on the home screen to change it.</string>
     <string name="home_choose_favorite_app">Choose an app or shortcut</string>
     <string name="home_shortcut_badge">Shortcut</string>

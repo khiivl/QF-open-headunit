@@ -1603,6 +1603,24 @@ class HomeFragment : Fragment() {
                 loadFavorites()
                 true
             }
+            // Launcher mode only, like the drawer: this row is then the unit's own app bar.
+            val packageName = when (val target = appSettings.homeFavoriteApps[slot]) {
+                is FavoriteTarget.App -> target.packageName
+                is FavoriteTarget.Shortcut -> target.packageName
+                is FavoriteTarget.Empty -> null
+            }
+            if (packageName != null && appSettings.enableCarLauncher) {
+                menu.add(R.string.drawer_kill_app).setOnMenuItemClickListener {
+                    val ctx = requireContext()
+                    val label = try {
+                        ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(packageName, 0)).toString()
+                    } catch (_: Exception) {
+                        packageName
+                    }
+                    AppKiller.kill(ctx, packageName, label)
+                    true
+                }
+            }
             show()
         }
         return true

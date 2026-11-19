@@ -397,6 +397,14 @@ class AppDrawerFragment : DialogFragment() {
                 }
                 true
             }
+            // Only in launcher mode: that is when this drawer is the unit's app list, so the
+            // user has no other place to get rid of a stuck app.
+            if (App.provide(requireContext()).settings.enableCarLauncher) {
+                menu.add(R.string.drawer_kill_app).setOnMenuItemClickListener {
+                    AppKiller.kill(requireContext(), item.packageName, item.appLabel ?: item.label)
+                    true
+                }
+            }
             show()
         }
     }
