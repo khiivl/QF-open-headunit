@@ -407,6 +407,10 @@ class NativeAaHandshakeManager(
     // only between start() and stop() on that route; it replaces the RFCOMM listeners entirely
     // rather than running beside them.
     @Volatile private var moduleCarrier: ExternalModuleCarrier? = null
+    // The coroutine running the ZBT carrier's loop. That loop exits on its own when a session ends
+    // ([aaListenersClosedForSession]), so a dead job under a live [moduleCarrier] means nothing is
+    // watching the module any more.
+    @Volatile private var zbtRunJob: Job? = null
     // A WPP lease may finish after its carrier ends; only its own arming may clear the stage.
     @Volatile private var hctStageOwner: Any? = null
     // The coroutine serving [activeHandshakeLink]. Closing a superseded handshake's link only
@@ -1325,8 +1329,38 @@ class NativeAaHandshakeManager(
      * rebind the WPP TCP port the phone may have just dialled, drop the hands-free record the
      * phone keys its reconnect on, and forget credentials that still name the live network.
      */
-    @SuppressLint("MissingPermission")
     fun rearmForNextSession() {
+        rearmAndroidListeners()
+        restartZbtCarrierIfEnded(sessionEnded = true)
+    }
+
+    /**
+     * Puts the ZBT carrier's watch of the module back when its loop has already exited.
+     *
+     * The loop leaves when [aaListenersClosedForSession] is set, which a landed handoff does, and
+     * a session that ends can finish the loop's last pass a few milliseconds before the re-arm
+     * clears that flag. Nothing then reopens the channel to the daemon, so a phone coming back
+     * is never seen and a queued wake waits for an observation that cannot arrive. A fresh bring-up
+     * works only because it builds a new carrier.
+     *
+     * @param sessionEnded true from the re-arm, where the closed flag is stale and may be cleared;
+     *   false from a wake, which must not revive the carrier while a handoff holds its listeners closed
+     */
+    private fun restartZbtCarrierIfEnded(sessionEnded: Boolean) {
+        val old = moduleCarrier as? ZbtAaCarrier ?: return
+        if (!isRunning || zbtRunJob?.isActive != false) return
+        if (commManager.isConnected) return
+        if (aaListenersClosedForSession) {
+            if (!sessionEnded) return
+            aaListenersClosedForSession = false
+        }
+        AppLog.i("NativeAA: [ZBT] the carrier's loop ended with the last session, so the module is not being watched; starting it again for the phone's return.")
+        old.close()
+        startOverExternalModule()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun rearmAndroidListeners() {
         if (!isRunning) {
             // The one line whose absence made a reporter's capture unreadable: the caller has
             // already said it is reopening the listeners, and nothing here can.
@@ -2323,6 +2357,7 @@ class NativeAaHandshakeManager(
         // On the module route the poke below is meaningless: it dials the phone over the radio the
         // phone is not paired to. Ask the module to bring the link up instead. Branching here rather
         // than at the callers covers the credential path and WppAction.ResumePoke at once.
+        restartZbtCarrierIfEnded(sessionEnded = false)
         moduleCarrier?.let {
             if (it.sendsWake) ConnectionStageTracker.report(ConnectionStage.WAKING_PHONE)
             it.requestWake()
@@ -2662,6 +2697,7 @@ class NativeAaHandshakeManager(
 
     /** The WiFi button on the module route: there is no Android device to name, only the module. */
     fun wakeOverModule(): Boolean {
+        restartZbtCarrierIfEnded(sessionEnded = false)
         val carrier = moduleCarrier
         if (carrier == null) {
             // The route is still being measured; hold the wake for the channel, as triggerPoke does.
@@ -2879,7 +2915,7 @@ class NativeAaHandshakeManager(
             ConnectionStageTracker.report(ConnectionStage.WAKING_PHONE)
             carrier.requestWake()
         }
-        scope.launch(Dispatchers.IO + CoroutineName("NativeAa-ZbtCarrier")) {
+        zbtRunJob = scope.launch(Dispatchers.IO + CoroutineName("NativeAa-ZbtCarrier")) {
             try {
                 carrier.run()
             } catch (e: CancellationException) {
@@ -4320,6 +4356,7 @@ class NativeAaHandshakeManager(
         // wake requests to a dead channel.
         moduleCarrier?.close()
         moduleCarrier = null
+        zbtRunJob = null
         // Cancel / mode stop: HFP may still be up from HFP_ON before projection ever landed.
         if (Esp32RelaySession.hasSavedEsp32Relay(context)) {
             Esp32RelaySession.releaseHfp("native AA stop")
