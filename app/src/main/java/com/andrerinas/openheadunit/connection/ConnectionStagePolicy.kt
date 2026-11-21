@@ -20,6 +20,15 @@ object ConnectionStagePolicy {
     fun shouldRetreat(current: ConnectionStage?, from: ConnectionStage): Boolean = current == from
 
     /**
+     * What the pill shows for a reported stage. "Waking your phone" is only honest while there is a
+     * phone link to wake: when the Bluetooth module says no phone is connected, the wake is a
+     * request to the module that nothing can answer yet, so the pill says it is waiting instead.
+     */
+    fun stageToShow(reported: ConnectionStage, moduleReportsNoPhone: Boolean): ConnectionStage =
+        if (reported == ConnectionStage.WAKING_PHONE && moduleReportsNoPhone) ConnectionStage.WAITING_FOR_PHONE
+        else reported
+
+    /**
      * Where the display goes when the unit gives up on its own network (#1147). After a refused
      * group the pill used to keep "Creating the WiFi network" under "Android Auto is starting…"
      * for as long as the app stayed open. It falls back to waiting for the phone, and the

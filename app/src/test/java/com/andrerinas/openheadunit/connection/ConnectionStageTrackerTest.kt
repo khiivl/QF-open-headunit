@@ -12,6 +12,8 @@ class ConnectionStageTrackerTest {
     @After
     fun reset() {
         ConnectionStageTracker.clear()
+        // The module's answer outlives clear(), so a test that sets it must not leak it to the next.
+        ConnectionStageTracker.noteModuleNoPhone(false)
     }
 
     @Test
@@ -44,6 +46,39 @@ class ConnectionStageTrackerTest {
 
         ConnectionStageTracker.report(ConnectionStage.WAKING_PHONE)
         assertEquals(ConnectionStage.WAKING_PHONE, ConnectionStageTracker.stage.value)
+    }
+
+    @Test
+    fun `waking reports show as waiting while the module says no phone is connected`() {
+        ConnectionStageTracker.noteModuleNoPhone(true)
+        ConnectionStageTracker.beginAttempt(ConnectionStage.PREPARING_NETWORK)
+        ConnectionStageTracker.report(ConnectionStage.WAKING_PHONE)
+        assertEquals(ConnectionStage.WAITING_FOR_PHONE, ConnectionStageTracker.stage.value)
+    }
+
+    @Test
+    fun `a pill already on waking drops back when the module says no phone`() {
+        ConnectionStageTracker.report(ConnectionStage.WAKING_PHONE)
+        ConnectionStageTracker.noteModuleNoPhone(true)
+        assertEquals(ConnectionStage.WAITING_FOR_PHONE, ConnectionStageTracker.stage.value)
+    }
+
+    @Test
+    fun `waking shows again once a phone is connected`() {
+        ConnectionStageTracker.noteModuleNoPhone(true)
+        ConnectionStageTracker.noteModuleNoPhone(false)
+        ConnectionStageTracker.beginAttempt(ConnectionStage.PREPARING_NETWORK)
+        ConnectionStageTracker.report(ConnectionStage.WAKING_PHONE)
+        assertEquals(ConnectionStage.WAKING_PHONE, ConnectionStageTracker.stage.value)
+    }
+
+    @Test
+    fun `the module saying no phone does not pull back a phone that answered`() {
+        ConnectionStageTracker.report(ConnectionStage.PHONE_ANSWERED)
+        ConnectionStageTracker.noteModuleNoPhone(true)
+        assertEquals(ConnectionStage.PHONE_ANSWERED, ConnectionStageTracker.stage.value)
+        ConnectionStageTracker.report(ConnectionStage.WAKING_PHONE)
+        assertEquals(ConnectionStage.PHONE_ANSWERED, ConnectionStageTracker.stage.value)
     }
 
     @Test

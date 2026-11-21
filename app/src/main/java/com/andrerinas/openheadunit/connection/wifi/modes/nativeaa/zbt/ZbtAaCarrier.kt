@@ -45,6 +45,9 @@ class ZbtAaCarrier(
     private val onPhoneEvidence: () -> Unit,
     /** The module's own Bluetooth address, the first time the daemon names it. */
     private val onModuleAddress: (String) -> Unit = {},
+    /** True when the module's latest link report says no phone is connected; false when a phone is
+     *  connected, and when this carrier ends, so a stale answer outlives neither. */
+    private val onNoPhone: (Boolean) -> Unit = {},
     private val retryDelayMs: () -> Long = { ZbtAttemptPolicy.MIN_ATTEMPT_INTERVAL_MS },
     private val openChannel: (
         opening: ZbtChannelOpening,
@@ -439,6 +442,7 @@ class ZbtAaCarrier(
             observation = null
             Triple(openingChannel, channel, carrierClaim).also { carrierClaim = null }
         }
+        onNoPhone(false)
         closing.first?.close()
         runCatching { closing.second?.close() }
         closing.third?.close()
@@ -480,6 +484,7 @@ class ZbtAaCarrier(
         val previous = reportedPresence
         observed.presence = read
         reportedPresence = read
+        onNoPhone(!read.connected)
         // is_connect is field 3 in both LinkInfo variants. A missing field or the
         // separate HFP scalar is not evidence that this RFCOMM link disconnected.
         // Permit a fresh wake only after the daemon explicitly reports is_connect=0.

@@ -2903,6 +2903,8 @@ class NativeAaHandshakeManager(
                 resetHandshakeBackoff()
                 ConnectionStageTracker.report(ConnectionStage.PHONE_ANSWERED)
             },
+            // The pill must not say it is waking a phone the module reports nothing connected to.
+            onNoPhone = { noPhone -> ConnectionStageTracker.noteModuleNoPhone(noPhone) },
             // The module names its own address, and on these units nothing else could: the
             // adapter is masked and the vendor property is not always there. Without it no
             // Bluetooth service is announced and Android Auto keeps calls on the phone.

@@ -22,11 +22,31 @@ object ConnectionStageTracker {
     /** The group the pill's third line describes; null while there is none. */
     val network = _network.asStateFlow()
 
+    /**
+     * Whether the Bluetooth module's latest link report says no phone is connected. Kept across
+     * attempts, because the module only restates its link now and then and every new attempt would
+     * otherwise flash "waking" until it did. The carrier that sets it clears it when it ends.
+     */
+    @Volatile
+    private var moduleReportsNoPhone = false
+
     /** A step of the attempt already running. Ignored if it would rewind the display. */
     fun report(candidate: ConnectionStage) {
         val before = _stage.value
-        if (ConnectionStagePolicy.shouldApply(before, candidate)) _stage.value = candidate
+        val shown = ConnectionStagePolicy.stageToShow(candidate, moduleReportsNoPhone)
+        if (ConnectionStagePolicy.shouldApply(before, shown)) _stage.value = shown
         ConnectionStateLog.stage(before, _stage.value, "report")
+    }
+
+    /**
+     * The module route's link report: no phone connected ([noPhone] true) or one is, or the carrier
+     * is gone (false). While none is connected "waking" reads as waiting, and a pill already on
+     * "waking" drops back the moment the module says so.
+     */
+    fun noteModuleNoPhone(noPhone: Boolean) {
+        if (moduleReportsNoPhone == noPhone) return
+        moduleReportsNoPhone = noPhone
+        if (noPhone) retreat(ConnectionStage.WAKING_PHONE, ConnectionStage.WAITING_FOR_PHONE)
     }
 
     /** A genuine restart: the floor drops so [opening] shows even though it ranks lower. The

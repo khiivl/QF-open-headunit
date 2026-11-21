@@ -116,6 +116,26 @@ class ConnectionStagePolicyTest {
     }
 
     @Test
+    fun `waking reads as waiting while the module reports no phone`() {
+        assertEquals(
+            ConnectionStage.WAITING_FOR_PHONE,
+            ConnectionStagePolicy.stageToShow(ConnectionStage.WAKING_PHONE, moduleReportsNoPhone = true)
+        )
+        assertEquals(
+            ConnectionStage.WAKING_PHONE,
+            ConnectionStagePolicy.stageToShow(ConnectionStage.WAKING_PHONE, moduleReportsNoPhone = false)
+        )
+    }
+
+    @Test
+    fun `no phone on the module changes no other stage`() {
+        for (stage in ConnectionStage.values()) {
+            if (stage == ConnectionStage.WAKING_PHONE) continue
+            assertEquals(stage.name, stage, ConnectionStagePolicy.stageToShow(stage, moduleReportsNoPhone = true))
+        }
+    }
+
+    @Test
     fun `giving up on the network leaves any other step alone`() {
         assertEquals(null, ConnectionStagePolicy.afterNetworkAbandoned(null))
         for (stage in ConnectionStage.values()) {

@@ -29,6 +29,7 @@ class ZbtAaCarrierTest {
     private var busy = false
     private var evidence = 0
     private var canServe = true
+    private val noPhone = mutableListOf<Boolean>()
     private val logs = mutableListOf<String>()
     private val sinks = mutableListOf<ByteArrayOutputStream>()
 
@@ -88,7 +89,8 @@ class ZbtAaCarrierTest {
         serve = serve, isRunning = { running }, isFinishedForSession = { false },
         isSessionConnected = { connected }, isSettling = { false },
         isHandshakeInFlight = { busy }, mayServeHandshake = { canServe },
-        onPhoneEvidence = { evidence++ }, openChannel = { _, control, rfcomm -> factory(control, rfcomm) },
+        onPhoneEvidence = { evidence++ }, onNoPhone = { noPhone.add(it) },
+        openChannel = { _, control, rfcomm -> factory(control, rfcomm) },
         now = { wall }, elapsedNow = { elapsed }
     )
 
@@ -192,6 +194,23 @@ class ZbtAaCarrierTest {
         assertTrue("the carrier still speaks after ten quiet seconds", served)
         assertEquals(false, present)
         assertEquals(0, evidence)
+    }
+
+    // The status pill reads "waking" as "waiting" while the module says no phone is connected.
+    @Test fun `each link report says whether any phone is connected`() = runBlocking {
+        // A connected phone starts the handshake, which ends the run, so the report order is the
+        // whole observation: nothing connected, then a phone.
+        val carrier = carrier({ control, rfcomm -> open(listOf(
+            Step(presence(false)), Step(presence())
+        ), control, rfcomm) })
+        carrier.run()
+        assertEquals(listOf(true, false), noPhone)
+    }
+
+    @Test fun `closing the carrier takes back its no-phone answer`() {
+        val carrier = carrier({ control, rfcomm -> open(emptyList(), control, rfcomm) })
+        carrier.close()
+        assertEquals(listOf(false), noPhone)
     }
 
     @Test fun `a connected Android Auto phone is marked present and counts as evidence`() = runBlocking {
