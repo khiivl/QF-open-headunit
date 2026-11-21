@@ -46,6 +46,7 @@ import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.CredentialFiel
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeAaWakeDamagePolicy
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.zbt.ZbtProbe
 import com.andrerinas.openheadunit.input.MediaKeyRoutingPolicy
+import com.andrerinas.openheadunit.location.SpeedVolumePolicy
 import com.andrerinas.openheadunit.connection.wifi.direct.ObservedP2pCredentials
 import com.andrerinas.openheadunit.connection.wifi.direct.P2pIdentityEdit
 import com.andrerinas.openheadunit.connection.wifi.direct.P2pIdentityEditPolicy
@@ -101,6 +102,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.andrerinas.openheadunit.connection.wifi.modes.helper.HelperStrategy
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy
 import com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode
+import com.andrerinas.openheadunit.connection.wifi.HeadunitServerNetwork
 import com.andrerinas.openheadunit.connection.wifi.WirelessRearmPolicy
 import java.io.File
 import kotlinx.coroutines.CancellationException
@@ -132,12 +134,15 @@ class SettingsFragment : Fragment() {
     // Wireless items here only appear in Basic when the user connects wirelessly (see filterSettings).
     private val basicSettingIds = setOf(
         // General
-        "autoOptimize", "connectionMode", "appLanguage", "listenForUsbDevices",
+        "autoOptimize", "connectionMode", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
         // Wireless (shown in Basic only when WiFi is among the selected connection modes).
         // The hotspot entries come along with the transport choice: they only render once Hotspot
         // is picked, and on a device that will not let an app read its hotspot configuration the
         // manual name is the only way to finish setting the route up.
         "wifiConnectionMode",
+        // Headunit Server (Auto) only. Which network the two share is the one thing a user on the
+        // phone's hotspot has to say for the unit to wait for it, and it decides nothing else.
+        "headunitServerNetwork", "headunitServerAutoWifiScan",
         "nativeApTransport", "hotspotBand",
         // The WiFi Direct band, for the same reason as the hotspot one beside it: it is the first
         // thing to try when a wireless session connects and shows no picture, and a user sent to
@@ -205,10 +210,13 @@ class SettingsFragment : Fragment() {
     private var pendingMicInputSource by pending::micInputSource
     private var pendingEnableRotary by pending::enableRotary
     private var pendingMediaKeyRouting by pending::mediaKeyRouting
+    private var pendingVolumeKeysToPhone by pending::volumeKeysToPhone
+    private var pendingSpeedVolumeMode by pending::speedVolumeMode
     private var pendingAudioLatencyMultiplier by pending::audioLatencyMultiplier
     private var pendingAudioTimeCorrectionMode by pending::audioMatchingMode
     private var pendingUseLibusb by pending::useLibusb
     private var pendingListenForUsbDevices by pending::listenForUsbDevices
+    private var pendingUsbWirelessDongle by pending::usbWirelessDongle
     private var pendingAudioQueueCapacity by pending::audioQueueCapacity
     private var pendingShowToastMessages by pending::showToastMessages
     private var pendingScreenOrientation by pending::screenOrientation
@@ -222,10 +230,13 @@ class SettingsFragment : Fragment() {
     private var pendingWifiConnectionMode by pending::wifiConnectionMode
     private var pendingHelperConnectionStrategy by pending::helperConnectionStrategy
     private var pendingAutoEnableHotspot by pending::autoEnableHotspot
+    private var pendingHeadunitServerNetwork by pending::headunitServerNetwork
+    private var pendingHeadunitServerAutoWifiScan by pending::headunitServerAutoWifiScan
     private var pendingWaitForWifi by pending::waitForWifi
     private var pendingWaitForWifiTimeout by pending::waitForWifiTimeout
     private var pendingBluetoothManagerServiceName by pending::bluetoothManagerServiceName
     private var pendingNativeAaIgnoreExternalBt by pending::nativeAaIgnoreExternalBt
+    private var pendingNativeAaEnableBluetooth by pending::nativeAaEnableBluetooth
     private var pendingExternalBtZbtTransport by pending::externalBtZbtTransport
     private var pendingExternalBtBlinkTransport by pending::externalBtBlinkTransport
     private var pendingExternalBtZjSocketTransport by pending::externalBtZjSocketTransport
@@ -271,6 +282,7 @@ class SettingsFragment : Fragment() {
     private var pendingKillOnDisconnect by pending::killOnDisconnect
     private var pendingAutoKillOemApps by pending::autoKillOemApps
     private var pendingRaiseProjectionDuringCall by pending::raiseProjectionDuringCall
+    private var pendingShowOverLockScreen by pending::showOverLockScreen
 
     // Custom Insets
     private var pendingInsetLeft by pending::insetLeft
@@ -661,6 +673,8 @@ class SettingsFragment : Fragment() {
         pendingMicInputSource?.let { if (it != settings.micInputSource) settings.micInputSource = it }
         pendingEnableRotary?.let { if (it != settings.enableRotary) settings.enableRotary = it }
         pendingMediaKeyRouting?.let { if (it != settings.mediaKeyRouting) settings.mediaKeyRouting = it }
+        pendingVolumeKeysToPhone?.let { if (it != settings.volumeKeysToPhone) settings.volumeKeysToPhone = it }
+        pendingSpeedVolumeMode?.let { if (it != settings.speedVolumeMode) settings.speedVolumeMode = it }
         pendingAudioLatencyMultiplier?.let { if (it != settings.audioLatencyMultiplier) settings.audioLatencyMultiplier = it }
         pendingAudioTimeCorrectionMode?.let { if (it != settings.audioMatchingMode) settings.audioMatchingMode = it }
         pendingAudioQueueCapacity?.let { if (it != settings.audioQueueCapacity) settings.audioQueueCapacity = it }
@@ -696,7 +710,13 @@ class SettingsFragment : Fragment() {
         pendingKillOnDisconnect?.let { if (it != settings.rawKillOnDisconnect) settings.rawKillOnDisconnect = it }
         pendingAutoKillOemApps?.let { if (it != settings.autoKillOemApps) settings.autoKillOemApps = it }
         pendingRaiseProjectionDuringCall?.let { if (it != settings.raiseProjectionDuringCall) settings.raiseProjectionDuringCall = it }
+        pendingShowOverLockScreen?.let { if (it != settings.showOverLockScreen) settings.showOverLockScreen = it }
         pendingAutoEnableHotspot?.let { if (it != settings.autoEnableHotspot) settings.autoEnableHotspot = it }
+        // Read by every discovery sweep and by the home, so neither needs a restart. Written even
+        // when unchanged: a unit that never chose reads its choice off "Auto-Enable Hotspot", and
+        // turning that off must not move it to another network behind the user's back.
+        pendingHeadunitServerNetwork?.let { settings.headunitServerNetwork = it }
+        pendingHeadunitServerAutoWifiScan?.let { if (it != settings.headunitServerAutoWifiScan) settings.headunitServerAutoWifiScan = it }
         pendingAutoRestartWifi?.let { if (it != settings.autoRestartWifiWhenP2pStuck) settings.autoRestartWifiWhenP2pStuck = it }
         pendingUseLibusb?.let { if (it != settings.useLibusb) settings.useLibusb = it }
         pendingListenForUsbDevices?.let {
@@ -704,6 +724,7 @@ class SettingsFragment : Fragment() {
             Settings.syncListenForUsbDevicesToDeviceStorage(requireContext(), it)
             Settings.setUsbAttachedActivityEnabled(requireContext(), it)
         }
+        pendingUsbWirelessDongle?.let { if (it != settings.usbWirelessDongle) settings.usbWirelessDongle = it }
         pendingNarrowBandProfileCap?.let { if (it != settings.narrowBandProfileCap) settings.narrowBandProfileCap = it }
         pendingDebugVideoLowLatency?.let { if (it != settings.debugVideoLowLatency) settings.debugVideoLowLatency = it }
         pendingAllowExternalConfiguration?.let { if (it != settings.allowExternalConfiguration) settings.allowExternalConfiguration = it }
@@ -716,6 +737,7 @@ class SettingsFragment : Fragment() {
         pendingWaitForWifiTimeout?.let { if (it != settings.waitForWifiTimeout) settings.waitForWifiTimeout = it }
         pendingBluetoothManagerServiceName?.let { if (it != settings.bluetoothManagerServiceName) settings.bluetoothManagerServiceName = it }
         pendingNativeAaIgnoreExternalBt?.let { if (it != settings.nativeAaIgnoreExternalBt) settings.nativeAaIgnoreExternalBt = it }
+        pendingNativeAaEnableBluetooth?.let { if (it != settings.nativeAaEnableBluetooth) settings.nativeAaEnableBluetooth = it }
         pendingExternalBtZbtTransport?.let { if (it != settings.externalBtZbtTransport) settings.externalBtZbtTransport = it }
         pendingExternalBtBlinkTransport?.let { if (it != settings.externalBtBlinkTransport) settings.externalBtBlinkTransport = it }
         pendingExternalBtZjSocketTransport?.let { if (it != settings.externalBtZjSocketTransport) settings.externalBtZjSocketTransport = it }
@@ -1006,6 +1028,19 @@ class SettingsFragment : Fragment() {
             }
         ))
 
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "usbWirelessDongle",
+            nameResId = R.string.usb_wireless_dongle_label,
+            descriptionResId = R.string.usb_wireless_dongle_summary,
+            helpResId = R.string.usb_wireless_dongle_help,
+            isChecked = pendingUsbWirelessDongle ?: false,
+            onCheckedChanged = { isChecked ->
+                pendingUsbWirelessDongle = isChecked
+                checkChanges()
+                updateSettingsList()
+            }
+        ))
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             items.add(SettingItem.ToggleSettingEntry(
                 stableId = "useLibusb",
@@ -1286,9 +1321,42 @@ class SettingsFragment : Fragment() {
                 }
             ))
 
-            // Mode 1 (Auto Server) can also use the auto-hotspot feature
             if (pendingWifiConnectionMode == WifiLauncherMode.AUTO) {
-                addHotspotToggle(items)
+                // Which network the phone and this unit share. Only the phone's hotspot changes
+                // anything: the unit has to join it before there is anyone to find.
+                val networks = listOf(HeadunitServerNetwork.PHONE_HOTSPOT, HeadunitServerNetwork.UNIT_HOTSPOT, HeadunitServerNetwork.SHARED)
+                val network = pendingHeadunitServerNetwork ?: settings.headunitServerNetwork
+                items.add(SettingItem.SegmentedButtonSettingEntry(
+                    stableId = "headunitServerNetwork",
+                    nameResId = R.string.headunit_server_network_label,
+                    helpResId = R.string.headunit_server_network_help,
+                    options = networks.map { getString(headunitServerNetworkLabel(it)) },
+                    selectedIndex = networks.indexOf(network),
+                    onOptionSelected = { index ->
+                        pendingHeadunitServerNetwork = networks[index]
+                        checkChanges()
+                        updateSettingsList()
+                    }
+                ))
+                when (network) {
+                    HeadunitServerNetwork.PHONE_HOTSPOT -> items.add(SettingItem.ToggleSettingEntry(
+                        stableId = "headunitServerAutoWifiScan",
+                        nameResId = R.string.headunit_server_auto_wifi_scan,
+                        descriptionResId = R.string.headunit_server_auto_wifi_scan_summary,
+                        helpResId = R.string.headunit_server_auto_wifi_scan_help,
+                        isChecked = pendingHeadunitServerAutoWifiScan ?: false,
+                        onCheckedChanged = { isChecked ->
+                            pendingHeadunitServerAutoWifiScan = isChecked
+                            checkChanges()
+                            updateSettingsList()
+                        }
+                    ))
+                    // Mode 1 (Auto Server) can also use the auto-hotspot feature. Left as it was,
+                    // value included, under the choice it belongs to: the setting is shared with
+                    // the Helper and Native routes, so hiding it here must not change it there.
+                    HeadunitServerNetwork.UNIT_HOTSPOT -> addHotspotToggle(items)
+                    HeadunitServerNetwork.SHARED -> {}
+                }
             }
         }
 
@@ -1841,6 +1909,31 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        // Steps rather than a gain curve, so one setting works on this head unit's stream and, as
+        // Android Auto volume keys, on the phone. The help text quotes SpeedVolumePolicy's numbers.
+        val speedVolumeModes = listOf(
+            SpeedVolumePolicy.Mode.OFF,
+            SpeedVolumePolicy.Mode.LOW,
+            SpeedVolumePolicy.Mode.HIGH
+        )
+        val currentSpeedVolumeMode = pendingSpeedVolumeMode ?: SpeedVolumePolicy.Mode.OFF
+        items.add(SettingItem.SegmentedButtonSettingEntry(
+            stableId = "speedVolumeMode",
+            nameResId = R.string.speed_volume,
+            helpResId = R.string.speed_volume_help,
+            options = listOf(
+                getString(R.string.speed_volume_off),
+                getString(R.string.speed_volume_low),
+                getString(R.string.speed_volume_high)
+            ),
+            selectedIndex = speedVolumeModes.indexOf(currentSpeedVolumeMode).coerceAtLeast(0),
+            onOptionSelected = { index ->
+                pendingSpeedVolumeMode = speedVolumeModes.getOrElse(index) { SpeedVolumePolicy.Mode.OFF }
+                checkChanges()
+                updateSettingsList()
+            }
+        ))
+
         items.add(SettingItem.SettingEntry(
             stableId = "audioStreamSettings",
             nameResId = R.string.audio_stream_settings,
@@ -2111,6 +2204,20 @@ class SettingsFragment : Fragment() {
             ))
         }
 
+        // Map and directions over a locked unit; nothing a person at the unit does reaches the phone.
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "showOverLockScreen",
+            nameResId = R.string.show_over_lock_screen,
+            descriptionResId = R.string.show_over_lock_screen_summary,
+            helpResId = R.string.show_over_lock_screen_help,
+            isChecked = pendingShowOverLockScreen ?: settings.showOverLockScreen,
+            onCheckedChanged = { isChecked ->
+                pendingShowOverLockScreen = isChecked
+                checkChanges()
+                updateSettingsList()
+            }
+        ))
+
         if (!isCarLauncherActive) {
             val exitActions = arrayOf(
                 getString(R.string.aa_exit_action_oem_launcher),
@@ -2160,6 +2267,11 @@ class SettingsFragment : Fragment() {
             stableId = "keymap",
             nameResId = R.string.keymap,
             value = getString(R.string.keymap_description),
+            searchKeywords = kw(
+                R.string.action_search_keywords, R.string.action_launch_app,
+                R.string.gesture_action_exit_dialog, R.string.gesture_action_toggle_fullscreen,
+                R.string.gesture_action_night_overlay, R.string.gesture_action_dim_screen
+            ),
             onClick = { _ ->
                 try {
                     findNavController().navigate(R.id.action_settingsFragment_to_keymapFragment)
@@ -2173,6 +2285,11 @@ class SettingsFragment : Fragment() {
             stableId = "gestures",
             nameResId = R.string.gestures,
             value = getString(R.string.gestures_description),
+            searchKeywords = kw(
+                R.string.action_search_keywords, R.string.action_launch_app,
+                R.string.gesture_action_exit_dialog, R.string.gesture_action_toggle_fullscreen,
+                R.string.gesture_action_night_overlay, R.string.gesture_action_dim_screen
+            ),
             onClick = { _ ->
                 findNavController().navigate(R.id.action_settingsFragment_to_gesturesFragment)
             }
@@ -2225,6 +2342,21 @@ class SettingsFragment : Fragment() {
                 textResId = R.string.media_key_routing_hint_common
             ))
         }
+
+        // For a phone that plays its own audio: with Audio Sink on, this head unit plays the sound
+        // and its own volume is the one that matters, so this stays a choice and is off by default.
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "volumeKeysToPhone",
+            nameResId = R.string.volume_keys_to_phone,
+            descriptionResId = R.string.volume_keys_to_phone_summary,
+            helpResId = R.string.volume_keys_to_phone_help,
+            isChecked = pendingVolumeKeysToPhone ?: settings.volumeKeysToPhone,
+            onCheckedChanged = { isChecked ->
+                pendingVolumeKeysToPhone = isChecked
+                checkChanges()
+                updateSettingsList()
+            }
+        ))
 
         // --- Navigation Settings ---
         items.add(SettingItem.CategoryHeader("navigation", R.string.category_navigation))
@@ -4506,6 +4638,21 @@ class SettingsFragment : Fragment() {
                 }
             ))
 
+            if (Build.VERSION.SDK_INT <= 32) {
+                items.add(SettingItem.ToggleSettingEntry(
+                    stableId = "nativeAaEnableBluetooth",
+                    nameResId = R.string.native_aa_enable_bluetooth,
+                    descriptionResId = R.string.native_aa_enable_bluetooth_description,
+                    isChecked = pendingNativeAaEnableBluetooth ?: settings.nativeAaEnableBluetooth,
+                    searchKeywords = "topway ts9 dual bluetooth data service radio enable startup",
+                    onCheckedChanged = { isChecked ->
+                        pendingNativeAaEnableBluetooth = isChecked
+                        checkChanges()
+                        updateSettingsList()
+                    }
+                ))
+            }
+
             // An action, not a switch: the wake's cost is a property of this unit's own Bluetooth
             // stack, which is measured rather than asked. What a user can do is ask for the
             // measurement again, which is the only way back for a unit condemned by one reading.
@@ -4790,6 +4937,12 @@ class SettingsFragment : Fragment() {
         ))
     }
 
+
+    private fun headunitServerNetworkLabel(network: HeadunitServerNetwork): Int = when (network) {
+        HeadunitServerNetwork.PHONE_HOTSPOT -> R.string.headunit_server_network_phone
+        HeadunitServerNetwork.UNIT_HOTSPOT -> R.string.headunit_server_network_unit
+        HeadunitServerNetwork.SHARED -> R.string.headunit_server_network_shared
+    }
 
     private fun getAutoConnectSummary(): String {
         val order = settings.autoConnectPriorityOrder
