@@ -2886,9 +2886,11 @@ class NativeAaHandshakeManager(
                 "own Bluetooth radio."
         )
         val carrier = ZbtAaCarrier(
-            // The module's arrival is this route's "phone answered", or the pill never moves past waking.
+            // "Phone answered" needs a phone: the module saying one is connected, or the first bytes from it
+            // (both reach onPhoneEvidence below). An attempt itself is not evidence: after ten quiet
+            // seconds the carrier speaks anyway, and the module's own link state can still say no phone.
             serve = { link ->
-                ConnectionStageTracker.report(ConnectionStage.PHONE_ANSWERED)
+                if (link.peerReportedPresent) ConnectionStageTracker.report(ConnectionStage.PHONE_ANSWERED)
                 handleHandshake(link)
             },
             isRunning = { isRunning },
@@ -2897,7 +2899,10 @@ class NativeAaHandshakeManager(
             isSettling = { isHandoffSettling() },
             isHandshakeInFlight = { isHandshakeInFlight() },
             mayServeHandshake = { NativeHandoffPolicy.shouldServeHandshake(consecutiveHandshakeFailures) },
-            onPhoneEvidence = { resetHandshakeBackoff() },
+            onPhoneEvidence = {
+                resetHandshakeBackoff()
+                ConnectionStageTracker.report(ConnectionStage.PHONE_ANSWERED)
+            },
             // The module names its own address, and on these units nothing else could: the
             // adapter is masked and the vendor property is not always there. Without it no
             // Bluetooth service is announced and Android Auto keeps calls on the phone.

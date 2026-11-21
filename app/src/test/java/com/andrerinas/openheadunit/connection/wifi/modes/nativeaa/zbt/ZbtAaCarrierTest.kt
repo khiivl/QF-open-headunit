@@ -175,6 +175,39 @@ class ZbtAaCarrierTest {
         assertEquals(1, wakeCount())
     }
 
+    // The status pill's "phone answered" is reported from these two signals only (a link marked present,
+    // and onPhoneEvidence), so a blind attempt must give neither, even when the module said "no phone".
+    @Test fun `a blind attempt after the module said no phone is not evidence of a phone`() = runBlocking {
+        var served = false
+        var present: Boolean? = null
+        val carrier = carrier({ control, rfcomm -> open(listOf(
+            Step(frame(ZbtMessages.INIT_INFO)), Step(presence(false)), Step { advance(10_001) }
+        ), control, rfcomm) }, { link ->
+            served = true
+            present = link.peerReportedPresent
+            running = false
+            link.close()
+        })
+        carrier.run()
+        assertTrue("the carrier still speaks after ten quiet seconds", served)
+        assertEquals(false, present)
+        assertEquals(0, evidence)
+    }
+
+    @Test fun `a connected Android Auto phone is marked present and counts as evidence`() = runBlocking {
+        var present: Boolean? = null
+        val carrier = carrier({ control, rfcomm -> open(listOf(
+            Step(frame(ZbtMessages.INIT_INFO)), Step(presence())
+        ), control, rfcomm) }, { link ->
+            present = link.peerReportedPresent
+            running = false
+            link.close()
+        })
+        carrier.run()
+        assertEquals(true, present)
+        assertEquals(1, evidence)
+    }
+
     @Test fun `real phone bytes cancel a queued wake without losing handshake data`() = runBlocking {
         val payload = byteArrayOf(1, 2, 3)
         val carrier = carrier({ control, rfcomm -> open(listOf(
