@@ -119,6 +119,7 @@ class HomeFragment : Fragment() {
 
     private lateinit var selfModeTile: View
     private lateinit var usbTile: View
+    private lateinit var projectionTile: View
     private lateinit var settingsTile: View
     private lateinit var wifiTile: View
     private lateinit var exitButton: View
@@ -225,6 +226,7 @@ class HomeFragment : Fragment() {
         LayoutInflater.from(container.context).inflate(R.layout.fragment_home, container, true)
         selfModeTile = container.findViewById(R.id.self_mode_button)
         usbTile = container.findViewById(R.id.usb_button)
+        projectionTile = container.findViewById(R.id.projection_button)
         settingsTile = container.findViewById(R.id.settings_button)
         wifiTile = container.findViewById(R.id.wifi_button)
         exitButton = container.findViewById(R.id.exit_button)
@@ -1935,6 +1937,13 @@ class HomeFragment : Fragment() {
         exitButton.setOnClickListener { exitApp() }
         selfModeTile.setOnClickListener { onSelfModeClicked() }
         usbTile.setOnClickListener { onUsbClicked() }
+        projectionTile.setOnClickListener {
+            val ctx = requireContext()
+            val next = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.other(App.provide(ctx).settings.projectionMode)
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.set(ctx, next)
+            renderProjectionTile()
+        }
+        renderProjectionTile()
         wifiTile.setOnClickListener { onWifiClicked() }
         wifiTile.setOnLongClickListener {
             openNetworkList()
@@ -2022,6 +2031,16 @@ class HomeFragment : Fragment() {
                 startSelfMode()
             }
         }
+    }
+
+    /** The tile shows the active projection; tapping it switches to the other one. */
+    private fun renderProjectionTile() {
+        if (!::projectionTile.isInitialized) return
+        val carPlay = App.provide(requireContext()).settings.projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK
+        projectionTile.findViewById<android.widget.ImageView>(R.id.projection_icon)
+            .setImageResource(if (carPlay) R.drawable.ic_carplay else R.drawable.ic_stat_aa)
+        projectionTile.findViewById<android.widget.TextView>(R.id.projection_label)
+            .setText(if (carPlay) R.string.projection_short_carplay else R.string.projection_short_android_auto)
     }
 
     private fun onUsbClicked() {
@@ -2274,6 +2293,7 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        renderProjectionTile()
         AppLog.i("HomeFragment: onResume. isConnected=${commManager.isConnected}")
         val root = requireView()
         val homeSettings = App.provide(requireContext()).settings

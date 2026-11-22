@@ -1922,6 +1922,10 @@
     <string name="projection_mode_carplay">CarPlay (через zLink)</string>
     <string name="zlink_disconnect_carplay">Від\'єднати CarPlay</string>
     <string name="zlink_go_home">На головну</string>
+    <string name="auto_reconnect_acc_on">Перепідключатися при запуску авто</string>
+    <string name="auto_reconnect_acc_on_desc">Коли вмикається запалювання (ACC), автоматично перепідключатися до останнього телефону для Android Auto і CarPlay.</string>
+    <string name="projection_short_android_auto">Android Auto</string>
+    <string name="projection_short_carplay">CarPlay</string>
     <string name="zlink_connection_lost">З\'єднання втрачено, повторна спроба…</string>
     <string name="zlink_connecting">Підключення до CarPlay…
 Якщо нічого не відбувається, запустіть CarPlay на iPhone.</string>

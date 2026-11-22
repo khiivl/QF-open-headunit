@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import com.andrerinas.openheadunit.aap.AapService
 import com.andrerinas.openheadunit.app.AccPowerState
 import com.andrerinas.openheadunit.utils.AppLog
+import com.andrerinas.openheadunit.utils.Settings
 import java.io.Closeable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit
  * Feeds signals to [ZlinkPowerPolicy] and executes power down / wake transitions.
  */
 class ZlinkPowerReceiver : BroadcastReceiver(), Closeable {
+    @Volatile private var appContext: Context? = null
 
     private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "zlink-power-timer").also { it.isDaemon = true }
@@ -33,12 +35,18 @@ class ZlinkPowerReceiver : BroadcastReceiver(), Closeable {
             override fun onPowerOn(action: String) {
                 AppLog.i("zlink power: on triggered by $action")
                 AccPowerState.noteWake()
-                ZlinkHub.resumeOffer()
+                val ctx = appContext
+                if (ctx == null || Settings(ctx).autoReconnectOnAccOn) {
+                    ZlinkHub.resumeOffer()
+                } else {
+                    AppLog.i("zlink power: auto reconnect on ACC on is off, staying disconnected")
+                }
             }
         }
     )
 
     override fun onReceive(context: Context, intent: Intent) {
+        appContext = context.applicationContext
         val action = intent.action ?: return
         AppLog.i("zlink power: broadcast received action=$action")
         policy.onAction(action)

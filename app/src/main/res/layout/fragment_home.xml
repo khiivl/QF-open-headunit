@@ -47,6 +47,19 @@
                 android:showDividers="middle">
 
                 <LinearLayout
+                    android:id="@+id/projection_button"
+                    style="@style/HomeTile">
+                    <ImageView
+                        android:id="@+id/projection_icon"
+                        style="@style/HomeTileIcon"
+                        app:srcCompat="@drawable/ic_carplay" />
+                    <com.andrerinas.openheadunit.view.WordFitTextView
+                        android:id="@+id/projection_label"
+                        style="@style/HomeTileLabel.Wrap"
+                        android:text="@string/projection_short_carplay" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/usb_button"
                     style="@style/HomeTile">
                     <ImageView

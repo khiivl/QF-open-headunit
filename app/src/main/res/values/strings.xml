@@ -25,6 +25,10 @@
     <string name="settings_search_no_results">No settings match \"%1$s\".</string>
 
     <!-- Connection mode selector -->
+    <string name="auto_reconnect_acc_on">Reconnect when the car starts</string>
+    <string name="auto_reconnect_acc_on_desc">When the ignition comes on (ACC on), reconnect to the last phone automatically, for Android Auto and CarPlay.</string>
+    <string name="projection_short_android_auto">Android Auto</string>
+    <string name="projection_short_carplay">CarPlay</string>
     <string name="projection_mode">Phone projection</string>
     <string name="projection_mode_help">Chooses which projection this unit runs: Android Auto, or CarPlay through the zLink module. They cannot run together, because both need the Bluetooth module of the unit and the phone. In CarPlay mode Android Auto is switched off completely.</string>
     <string name="projection_mode_android_auto">Android Auto</string>

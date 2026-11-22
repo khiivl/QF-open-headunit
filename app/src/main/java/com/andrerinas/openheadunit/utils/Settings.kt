@@ -603,6 +603,11 @@ class Settings(private val context: Context) {
         }
         set(value) { prefs.edit().putInt("fullscreen-mode", value.value).apply() }
 
+    /** Reconnect to the last phone when the ignition comes on (ACC on); applies to Android Auto and CarPlay. */
+    var autoReconnectOnAccOn: Boolean
+        get() = prefs.getBoolean("auto-reconnect-acc-on", true)
+        set(value) { prefs.edit().putBoolean("auto-reconnect-acc-on", value).apply() }
+
     var projectionMode: ProjectionMode
         get() = ProjectionMode.fromInt(prefs.getInt("projection-mode", ProjectionMode.ANDROID_AUTO.value))
         set(value) { prefs.edit().putInt("projection-mode", value.value).apply() }

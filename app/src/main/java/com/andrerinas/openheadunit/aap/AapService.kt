@@ -876,7 +876,12 @@ class AapService : Service() {
                         AppLog.i("WakeDetect: extras: $extrasStr")
                     }
                     // Any OEM boot/ACC intent received dynamically = definite wake
-                    onHibernateWake(action)
+                    if (this@AapService.settings.autoReconnectOnAccOn) {
+                        onHibernateWake(action)
+                    } else {
+                        AccPowerState.noteWake()
+                        AppLog.i("WakeDetect: auto reconnect on ACC on is off, not reconnecting ($action)")
+                    }
                 }
             }
         }

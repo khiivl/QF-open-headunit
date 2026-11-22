@@ -134,7 +134,7 @@ class SettingsFragment : Fragment() {
     // Wireless items here only appear in Basic when the user connects wirelessly (see filterSettings).
     private val basicSettingIds = setOf(
         // General
-        "autoOptimize", "connectionMode", "projectionMode", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
+        "autoOptimize", "connectionMode", "projectionMode", "autoReconnectOnAccOn", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
         // Wireless (shown in Basic only when WiFi is among the selected connection modes).
         // The hotspot entries come along with the transport choice: they only render once Hotspot
         // is picked, and on a device that will not let an app read its hotspot configuration the
@@ -959,6 +959,17 @@ class SettingsFragment : Fragment() {
                 }
             ))
         }
+
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "autoReconnectOnAccOn",
+            nameResId = R.string.auto_reconnect_acc_on,
+            descriptionResId = R.string.auto_reconnect_acc_on_desc,
+            isChecked = settings.autoReconnectOnAccOn,
+            onCheckedChanged = { isChecked ->
+                settings.autoReconnectOnAccOn = isChecked
+                updateSettingsList()
+            }
+        ))
 
         // Language Selector
         val availableLocales = LocaleHelper.getAvailableLocales(requireContext())
@@ -3380,20 +3391,7 @@ class SettingsFragment : Fragment() {
             .setTitle(R.string.projection_mode)
             .setSingleChoiceItems(labels, modes.indexOf(settings.projectionMode)) { dialog, which ->
                 val chosen = modes[which]
-                if (chosen != settings.projectionMode) {
-                    settings.projectionMode = chosen
-                    if (chosen == Settings.ProjectionMode.CARPLAY_ZLINK) {
-                        // Tear down any Android Auto session and leave the service idle; it ignores starts in this mode.
-                        ContextCompat.startForegroundService(requireContext(), Intent(requireContext(), AapService::class.java).apply {
-                            action = AapService.ACTION_STOP_SERVICE
-                        })
-                    } else if (settings.hideZlinkUi) {
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.applyVisibility(requireContext().applicationContext, false)
-                        }
-                    }
-                    com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(requireContext())
-                }
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.set(requireContext(), chosen)
                 dialog.dismiss()
                 updateSettingsList()
             }
