@@ -137,6 +137,7 @@ import com.andrerinas.openheadunit.main.SettingsActivity
 import com.andrerinas.openheadunit.main.FloatingButtonManager
 import com.andrerinas.openheadunit.utils.ScreenPower
 import com.andrerinas.openheadunit.utils.Settings
+import com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy
 import com.andrerinas.openheadunit.utils.VpnControl
 import com.andrerinas.openheadunit.utils.protoUint32ToLong
 
@@ -1220,6 +1221,13 @@ class AapService : Service() {
             startForegroundWithCurrentTypes()
         } catch (e: Exception) {
             AppLog.e("ForegroundServiceStartNotAllowedException/Exception caught in onCreate: ${e.message}", e)
+            stopSelf()
+            return
+        }
+        // CarPlay mode keeps Android Auto off, including the Wi-Fi and Bluetooth bring-up that follows in
+        // this method: it would wake the phone over the module that CarPlay needs.
+        if (!ProjectionModePolicy.androidAutoEnabled(settings.projectionMode)) {
+            AppLog.i("AapService: CarPlay mode is on, not starting Android Auto")
             stopSelf()
             return
         }
@@ -2468,26 +2476,8 @@ class AapService : Service() {
             // Standard boot (dynamic duplicate — BootCompleteReceiver handles manifest side)
             addAction(Intent.ACTION_BOOT_COMPLETED)
             addAction(Intent.ACTION_LOCKED_BOOT_COMPLETED)
-            // Quick boot variants
-            addAction("android.intent.action.QUICKBOOT_POWERON")
-            addAction("com.htc.intent.action.QUICKBOOT_POWERON")
-            // MediaTek IPO (Instant Power On)
-            addAction("com.mediatek.intent.action.QUICKBOOT_POWERON")
-            addAction("com.mediatek.intent.action.BOOT_IPO")
-            // FYT / GLSX head units (ACC ignition wake)
-            addAction("com.fyt.boot.ACCON")
-            addAction("com.glsx.boot.ACCON")
-            addAction("android.intent.action.ACTION_MT_COMMAND_SLEEP_OUT")
-            // Microntek / MTCD / PX3 head units (ACC wake)
-            addAction("com.cayboy.action.ACC_ON")
-            addAction("com.carboy.action.ACC_ON")
-            // XYAuto head units (ACC wake). Sent without the background flag, so only this
-            // runtime receiver can hear it, and only in a process that survived the sleep.
-            addAction("xy.android.acc.on")
-            // Autochips / MediaTek QuickBoot units (ACC wake)
-            addAction("autochips.intent.action.QB_POWERON")
-            // QF head units (ACC wake). The ACC-off counterpart is in ACC_OFF_ACTIONS.
-            addAction("com.qf.action.ACC_ON")
+            // Quick boot and ACC-on variants
+            ACC_ON_ACTIONS.forEach { addAction(it) }
             // The counterparts: the car being switched off. On FYT units Android then deep-sleeps,
             // which is exactly when a session would otherwise vanish without closing. See
             // LinkLossTeardownPolicy.
@@ -3705,6 +3695,14 @@ class AapService : Service() {
             return START_NOT_STICKY
         }
 
+        // CarPlay mode keeps Android Auto off: every start command except Stop ends here.
+        if (!ProjectionModePolicy.androidAutoServiceMayHandle(settings.projectionMode, intent?.action, ACTION_STOP_SERVICE)) {
+            AppLog.i("AapService: CarPlay mode is on, ignoring ${intent?.action}")
+            stopForegroundForShutdown()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         // An automation command may ask for the session without the screen; latch it before any
         // branch below can reach a raise.
         if (intent?.getBooleanExtra(EXTRA_NO_UI, false) == true) {
@@ -4620,6 +4618,22 @@ class AapService : Service() {
             "com.microntek.boot.ACCOFF",
             "android.intent.action.QUICKBOOT_POWEROFF",
             "com.htc.intent.action.QUICKBOOT_POWEROFF"
+        )
+
+        /** The ACC-on intents this service listens for to detect wake. */
+        internal val ACC_ON_ACTIONS = setOf(
+            "android.intent.action.QUICKBOOT_POWERON",
+            "com.htc.intent.action.QUICKBOOT_POWERON",
+            "com.mediatek.intent.action.QUICKBOOT_POWERON",
+            "com.mediatek.intent.action.BOOT_IPO",
+            "com.fyt.boot.ACCON",
+            "com.glsx.boot.ACCON",
+            "android.intent.action.ACTION_MT_COMMAND_SLEEP_OUT",
+            "com.cayboy.action.ACC_ON",
+            "com.carboy.action.ACC_ON",
+            "xy.android.acc.on",
+            "autochips.intent.action.QB_POWERON",
+            "com.qf.action.ACC_ON"
         )
 
 

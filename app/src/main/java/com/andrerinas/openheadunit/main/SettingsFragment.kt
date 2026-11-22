@@ -134,7 +134,7 @@ class SettingsFragment : Fragment() {
     // Wireless items here only appear in Basic when the user connects wirelessly (see filterSettings).
     private val basicSettingIds = setOf(
         // General
-        "autoOptimize", "connectionMode", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
+        "autoOptimize", "connectionMode", "projectionMode", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
         // Wireless (shown in Basic only when WiFi is among the selected connection modes).
         // The hotspot entries come along with the transport choice: they only render once Hotspot
         // is picked, and on a device that will not let an app read its hotspot configuration the
@@ -281,6 +281,7 @@ class SettingsFragment : Fragment() {
 
     private var pendingKillOnDisconnect by pending::killOnDisconnect
     private var pendingAutoKillOemApps by pending::autoKillOemApps
+    private var pendingHideZlinkUi by pending::hideZlinkUi
     private var pendingRaiseProjectionDuringCall by pending::raiseProjectionDuringCall
     private var pendingShowOverLockScreen by pending::showOverLockScreen
 
@@ -709,6 +710,14 @@ class SettingsFragment : Fragment() {
 
         pendingKillOnDisconnect?.let { if (it != settings.rawKillOnDisconnect) settings.rawKillOnDisconnect = it }
         pendingAutoKillOemApps?.let { if (it != settings.autoKillOemApps) settings.autoKillOemApps = it }
+        pendingHideZlinkUi?.let { isChecked ->
+            if (isChecked != settings.hideZlinkUi) {
+                settings.hideZlinkUi = isChecked
+                viewLifecycleOwner.lifecycleScope.launch {
+                    com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.applyVisibility(requireContext().applicationContext, isChecked)
+                }
+            }
+        }
         pendingRaiseProjectionDuringCall?.let { if (it != settings.raiseProjectionDuringCall) settings.raiseProjectionDuringCall = it }
         pendingShowOverLockScreen?.let { if (it != settings.showOverLockScreen) settings.showOverLockScreen = it }
         pendingAutoEnableHotspot?.let { if (it != settings.autoEnableHotspot) settings.autoEnableHotspot = it }
@@ -925,6 +934,31 @@ class SettingsFragment : Fragment() {
             value = connectionModesLabel(),
             onClick = { showConnectionModeDialog() }
         ))
+
+        // Phone projection: Android Auto or CarPlay (via the zLink daemon). Exclusive; see ProjectionModePolicy.
+        items.add(SettingItem.SettingEntry(
+            stableId = "projectionMode",
+            nameResId = R.string.projection_mode,
+            value = getString(
+                if (settings.projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) R.string.projection_mode_carplay
+                else R.string.projection_mode_android_auto
+            ),
+            onClick = { showProjectionModeDialog() }
+        ))
+
+        if (settings.projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) {
+            items.add(SettingItem.ToggleSettingEntry(
+                stableId = "hideZlinkUi",
+                nameResId = R.string.zlink_hide_ui,
+                descriptionResId = R.string.zlink_hide_ui_desc,
+                isChecked = pendingHideZlinkUi ?: (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.isUiHidden(requireContext()) ?: settings.hideZlinkUi),
+                onCheckedChanged = { isChecked ->
+                    pendingHideZlinkUi = isChecked
+                    checkChanges()
+                    updateSettingsList()
+                }
+            ))
+        }
 
         // Language Selector
         val availableLocales = LocaleHelper.getAvailableLocales(requireContext())
@@ -3339,6 +3373,33 @@ class SettingsFragment : Fragment() {
         return m.widthPixels to m.heightPixels
     }
 
+    private fun showProjectionModeDialog() {
+        val modes = Settings.ProjectionMode.values()
+        val labels = arrayOf(getString(R.string.projection_mode_android_auto), getString(R.string.projection_mode_carplay))
+        MaterialAlertDialogBuilder(requireContext(), R.style.DarkAlertDialog)
+            .setTitle(R.string.projection_mode)
+            .setSingleChoiceItems(labels, modes.indexOf(settings.projectionMode)) { dialog, which ->
+                val chosen = modes[which]
+                if (chosen != settings.projectionMode) {
+                    settings.projectionMode = chosen
+                    if (chosen == Settings.ProjectionMode.CARPLAY_ZLINK) {
+                        // Tear down any Android Auto session and leave the service idle; it ignores starts in this mode.
+                        ContextCompat.startForegroundService(requireContext(), Intent(requireContext(), AapService::class.java).apply {
+                            action = AapService.ACTION_STOP_SERVICE
+                        })
+                    } else if (settings.hideZlinkUi) {
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.applyVisibility(requireContext().applicationContext, false)
+                        }
+                    }
+                    com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(requireContext())
+                }
+                dialog.dismiss()
+                updateSettingsList()
+            }
+            .show()
+    }
+
     private fun showConnectionModeDialog() {
         val order = listOf(
             Settings.ConnectionMode.USB,
@@ -5464,8 +5525,8 @@ class SettingsFragment : Fragment() {
                 btnRestore.isEnabled = backend != OemAppManager.ExecutionBackend.NONE && status.isInstalled
 
                 btnShowCommands.setOnClickListener {
-                    val disableCmds = OemAppManager.getDisableCommands(status).joinToString("\n")
-                    val restoreCmds = OemAppManager.getRestoreCommands(status).joinToString("\n")
+                    val disableCmds = OemAppManager.getDisableCommands(context, status).joinToString("\n")
+                    val restoreCmds = OemAppManager.getRestoreCommands(context, status).joinToString("\n")
                     val fullMsg = "--- " + getString(R.string.oem_app_btn_disable) + " ---\n" + disableCmds + "\n\n--- " + getString(R.string.oem_app_btn_restore) + " ---\n" + restoreCmds
 
                     MaterialAlertDialogBuilder(context, R.style.DarkAlertDialog)

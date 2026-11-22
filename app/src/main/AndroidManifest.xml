@@ -243,6 +243,14 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- CarPlay picture from the zLink daemon via the local tee feed (tools/zlink-tee). -->
+        <activity
+            android:name=".connection.zlinkcarplay.ZlinkCarPlayActivity"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".main.SettingsActivity"
             android:label="@string/settings"
@@ -275,6 +283,10 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </service>
+        <service
+            android:name=".connection.zlinkcarplay.ZlinkService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
         <service android:name=".location.GpsLocationService" />
         <service
             android:name=".main.FloatingButtonService"

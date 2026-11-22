@@ -1684,6 +1684,10 @@
     <string name="home_subtitle_usb">Через USB-кабель</string>
     <string name="home_subtitle_wifi">Через Wi-Fi</string>
     <string name="home_subtitle_self">Запускає Android Auto просто на магнітолі</string>
+    <string name="home_kicker_carplay">CarPlay</string>
+    <string name="home_title_carplay_ready">Під\'єднати CarPlay</string>
+    <string name="home_action_connect_carplay">Під\'єднати CarPlay</string>
+    <string name="home_action_return_to_carplay">Повернутися до CarPlay</string>
     <string name="home_action_back_to_android_auto">Назад до Android Auto</string>
     <string name="home_action_connect_now">Підключити</string>
     <string name="home_action_search_again">Шукати знову</string>
@@ -1915,4 +1919,12 @@
     <string name="home_hotspot_not_found">Wi-Fi не підключено. Чи ввімкнено точку доступу телефона?</string>
     <string name="home_wifi_hotspot_hint">Чи ввімкнено точку доступу телефона?</string>
     <string name="home_wifi_off_hint">Увімкніть для підключення</string>
+    <string name="projection_mode_carplay">CarPlay (через zLink)</string>
+    <string name="zlink_disconnect_carplay">Від\'єднати CarPlay</string>
+    <string name="zlink_go_home">На головну</string>
+    <string name="zlink_connection_lost">З\'єднання втрачено, повторна спроба…</string>
+    <string name="zlink_connecting">Підключення до CarPlay…</string>
+    <string name="zlink_hide_ui">Сховати екрани zLink</string>
+    <string name="zlink_hide_ui_desc">Тримає zLink у фоновому режимі, щоб CarPlay відображався лише в Open Headunit</string>
+    <string name="zlink_hide_ui_help">Якщо увімкнено, приховує лаунчер та екрани zLink через Package Manager, залишаючи активними його фонові служби. Вимкнення відновлює звичайну іконку та екрани zLink.</string>
 </resources>

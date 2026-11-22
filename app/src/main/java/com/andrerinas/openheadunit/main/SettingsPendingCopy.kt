@@ -115,6 +115,7 @@ class SettingsPendingCopy {
     var hideBatteryLevel: Boolean? = null
     var hidePhoneSignal: Boolean? = null
     var hideClock: Boolean? = null
+    var hideZlinkUi: Boolean? = null
 
     fun loadFrom(settings: Settings) {
         useGps = settings.useGpsForNavigation
@@ -215,6 +216,7 @@ class SettingsPendingCopy {
         hideBatteryLevel = settings.hideBatteryLevel
         hidePhoneSignal = settings.hidePhoneSignal
         hideClock = settings.hideClock
+        hideZlinkUi = settings.hideZlinkUi
     }
 
     fun differsFrom(settings: Settings): Boolean =
@@ -315,5 +317,6 @@ class SettingsPendingCopy {
         systemVolumeOffset != settings.systemVolumeOffset ||
         hideBatteryLevel != settings.hideBatteryLevel ||
         hidePhoneSignal != settings.hidePhoneSignal ||
-        hideClock != settings.hideClock
+        hideClock != settings.hideClock ||
+        hideZlinkUi != settings.hideZlinkUi
 }

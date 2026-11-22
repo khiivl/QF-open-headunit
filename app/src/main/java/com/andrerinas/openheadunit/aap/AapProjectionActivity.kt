@@ -123,6 +123,16 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
     private var ownedSurface: android.view.Surface? = null
     private var overlayState = OverlayState.STARTING
     private val watchdogHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val backKeyPolicy = com.andrerinas.openheadunit.input.BackKeyPolicy()
+    private val backKeyLongPressRunnable = Runnable {
+        if (backKeyPolicy.onTimerExpired() == com.andrerinas.openheadunit.input.BackKeyPolicy.Action.SHOW_EXIT_DIALOG) {
+            showExitDialog()
+        }
+    }
+    private val backKeyUpRunnable = Runnable {
+        AppLog.i("AapProjectionActivity: back key pulse release (UP)")
+        commManager.sendKey(KeyEvent.KEYCODE_BACK, false, null, "physical-back")
+    }
     private val isProjectionPausedByDevice: Boolean
         get() = commManager.isProjectionVideoFocusSuppressed
 
@@ -1413,6 +1423,9 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         watchdogHandler.removeCallbacks(videoWatchdogRunnable)
         watchdogHandler.removeCallbacks(reconnectingWatchdog)
         watchdogHandler.removeCallbacks(exitRunnable)
+        watchdogHandler.removeCallbacks(backKeyLongPressRunnable)
+        watchdogHandler.removeCallbacks(backKeyUpRunnable)
+        backKeyPolicy.reset()
         if (isOrientationReceiverRegistered) {
             unregisterReceiver(orientationReceiver)
             isOrientationReceiverRegistered = false
@@ -2884,7 +2897,37 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
             return true
         }
 
-        if (event.keyCode == KeyEvent.KEYCODE_BACK || ProjectionKeyPolicy.isVolumeKey(event.keyCode)) {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                val isLong = event.isLongPress || (event.flags and KeyEvent.FLAG_LONG_PRESS) != 0
+                val act = backKeyPolicy.onKeyDown(event.eventTime, event.repeatCount > 0, isLong)
+                if (act == com.andrerinas.openheadunit.input.BackKeyPolicy.Action.SHOW_EXIT_DIALOG) {
+                    watchdogHandler.removeCallbacks(backKeyLongPressRunnable)
+                    showExitDialog()
+                } else if (event.repeatCount == 0) {
+                    watchdogHandler.removeCallbacks(backKeyLongPressRunnable)
+                    watchdogHandler.postDelayed(backKeyLongPressRunnable, backKeyPolicy.longPressTimeoutMs)
+                }
+            } else if (action == KeyEvent.ACTION_UP) {
+                watchdogHandler.removeCallbacks(backKeyLongPressRunnable)
+                val act = backKeyPolicy.onKeyUp(event.eventTime)
+                if (act == com.andrerinas.openheadunit.input.BackKeyPolicy.Action.SHOW_EXIT_DIALOG) {
+                    showExitDialog()
+                } else if (act == com.andrerinas.openheadunit.input.BackKeyPolicy.Action.FORWARD_BACK) {
+                    if (commManager.connectionState.value is CommManager.ConnectionState.TransportStarted) {
+                        AppLog.i("AapProjectionActivity: forwarding back key pulse to AA (DOWN now, UP in 60ms)")
+                        watchdogHandler.removeCallbacks(backKeyUpRunnable)
+                        commManager.sendKey(KeyEvent.KEYCODE_BACK, true, event.downTime, "physical-back")
+                        watchdogHandler.postDelayed(backKeyUpRunnable, 60L)
+                    } else {
+                        showExitDialog()
+                    }
+                }
+            }
+            return true
+        }
+
+        if (ProjectionKeyPolicy.isVolumeKey(event.keyCode)) {
             return super.dispatchKeyEvent(event)
         }
 

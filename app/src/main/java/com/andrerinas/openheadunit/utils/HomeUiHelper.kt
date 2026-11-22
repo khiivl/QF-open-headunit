@@ -355,10 +355,21 @@ object HomeUiHelper {
         palette: Palette,
         tiles: Map<Connection, TileState> = emptyMap()
     ) {
+        val isCarPlay = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(settings.projectionMode)
         Connection.values().forEach { connection ->
             val tile = rootView.findViewById<ViewGroup>(tileId(connection)) ?: return@forEach
             tile.visibility = if (connection in barConnections) View.VISIBLE else View.GONE
             val label = (0 until tile.childCount).map { tile.getChildAt(it) }.filterIsInstance<TextView>().firstOrNull()
+            val iconView = (0 until tile.childCount).map { tile.getChildAt(it) }.filterIsInstance<ImageView>().firstOrNull()
+            if (isCarPlay) {
+                iconView?.setImageResource(R.drawable.ic_carplay)
+            } else {
+                when (connection) {
+                    Connection.USB -> iconView?.setImageResource(R.drawable.ic_usb_white)
+                    Connection.WIFI -> iconView?.setImageResource(R.drawable.ic_network_wifi_white)
+                    Connection.SELF -> iconView?.setImageResource(R.drawable.ic_launch_white)
+                }
+            }
             // The name from the XML, kept so a tile that stops connecting gets it back.
             val name = (label?.getTag(R.id.home_tile_name) as? CharSequence)
                 ?: label?.text?.also { label.setTag(R.id.home_tile_name, it) }
@@ -563,20 +574,21 @@ object HomeUiHelper {
         val action = rootView.findViewById<TextView>(R.id.home_primary_action)
         val icon = rootView.findViewById<ImageView>(R.id.home_primary_icon)
         val usbAsWireless = settings.usbWirelessDongle
-        kicker?.text = context.getString(kickerRes(decision, usbAsWireless))
-        title?.text = title(context, decision, phoneName, usbAsWireless)
+        val isCarPlay = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(settings.projectionMode)
+        kicker?.text = context.getString(kickerRes(decision, usbAsWireless, isCarPlay))
+        title?.text = title(context, decision, phoneName, usbAsWireless, isCarPlay)
         subtitle?.text = stage?.let { context.getString(it.label) } ?: context.getString(subtitleRes(decision, usbAsWireless))
-        val actionLabel = context.getString(actionRes(decision, usbAsWireless))
+        val actionLabel = context.getString(actionRes(decision, usbAsWireless, isCarPlay))
         action?.contentDescription = actionLabel
         // fitCardWidth() may have dropped the icon for a card too narrow for icon and label.
         val actionIconFittedOff = action?.getTag(R.id.home_action_icon_fit) == contentWidthOf(rootView)
         if (!actionIconFittedOff) action?.setTag(R.id.home_action_icon_fit, null)
         fun actionText(@ColorInt color: Int): CharSequence =
             if (actionIconFittedOff) actionLabel
-            else withLeadingIcon(context, actionIconRes(decision, usbAsWireless), actionLabel, color)
+            else withLeadingIcon(context, actionIconRes(decision, usbAsWireless, isCarPlay), actionLabel, color)
         // Nothing to start while a connection is on its way; Cancel is the one thing left to do.
         action?.visibility = if (connecting) View.GONE else View.VISIBLE
-        icon?.setImageResource(iconRes(decision.primary))
+        icon?.setImageResource(iconRes(decision.primary, isCarPlay))
         val cancel = rootView.findViewById<TextView>(R.id.home_primary_cancel)
         // The status pill's X lived here before: it stops the bring-up, listening included.
         cancel?.visibility = if (reconnecting || stage != null) View.VISIBLE else View.GONE
@@ -882,10 +894,11 @@ object HomeUiHelper {
     private const val BAND_WASH_ALPHA_DARK = 0x59
 
     /** What the main button leads with: the link for a connect, the arrow back to a session. */
-    internal fun actionIconRes(decision: Decision, usbAsWireless: Boolean = false): Int = when (decision.status) {
-        Status.ACTIVE_SESSION -> R.drawable.ic_launch_white
-        Status.SEARCHING -> R.drawable.ic_refresh_white
-        Status.RECONNECTING -> R.drawable.ic_link_white
+    internal fun actionIconRes(decision: Decision, usbAsWireless: Boolean = false, isCarPlay: Boolean = false): Int = when {
+        isCarPlay -> R.drawable.ic_carplay
+        decision.status == Status.ACTIVE_SESSION -> R.drawable.ic_launch_white
+        decision.status == Status.SEARCHING -> R.drawable.ic_refresh_white
+        decision.status == Status.RECONNECTING -> R.drawable.ic_link_white
         else -> when (decision.primary) {
             Connection.USB -> if (usbAsWireless) R.drawable.ic_link_white else R.drawable.ic_usb_white
             Connection.WIFI -> R.drawable.ic_link_white
@@ -1085,9 +1098,10 @@ object HomeUiHelper {
         Connection.SELF -> palette.self
     }
 
-    internal fun kickerRes(decision: Decision, usbAsWireless: Boolean = false): Int = when (decision.status) {
-        Status.ACTIVE_SESSION -> R.string.home_kicker_active
-        Status.RECONNECTING -> R.string.home_kicker_last_connection
+    internal fun kickerRes(decision: Decision, usbAsWireless: Boolean = false, isCarPlay: Boolean = false): Int = when {
+        isCarPlay -> R.string.home_kicker_carplay
+        decision.status == Status.ACTIVE_SESSION -> R.string.home_kicker_active
+        decision.status == Status.RECONNECTING -> R.string.home_kicker_last_connection
         else -> when (decision.primary) {
             Connection.USB -> if (usbAsWireless) R.string.home_kicker_wireless else R.string.home_kicker_cable
             Connection.WIFI -> R.string.home_kicker_wireless
@@ -1095,14 +1109,14 @@ object HomeUiHelper {
         }
     }
 
-    internal fun title(context: Context, decision: Decision, phoneName: String?, usbAsWireless: Boolean = false): String = when (decision.status) {
+    internal fun title(context: Context, decision: Decision, phoneName: String?, usbAsWireless: Boolean = false, isCarPlay: Boolean = false): String = when (decision.status) {
         Status.ACTIVE_SESSION -> context.getString(R.string.home_title_active)
-        Status.RECONNECTING -> context.getString(R.string.home_title_reconnecting)
+        Status.RECONNECTING -> if (isCarPlay) context.getString(R.string.home_title_carplay_ready) else context.getString(R.string.home_title_reconnecting)
         Status.CONNECTING -> context.getString(R.string.home_title_connecting)
         Status.SEARCHING -> context.getString(R.string.home_title_searching)
         Status.PHONE_DETECTED -> phoneName?.let { context.getString(R.string.home_title_phone_detected, it) }
             ?: context.getString(R.string.home_title_phone_detected_generic)
-        Status.WAITING, Status.READY -> context.getString(
+        Status.WAITING, Status.READY -> if (isCarPlay) context.getString(R.string.home_title_carplay_ready) else context.getString(
             when (decision.primary) {
                 Connection.USB -> if (usbAsWireless) R.string.home_title_wifi_ready else R.string.home_title_usb_ready
                 Connection.WIFI -> R.string.home_title_wifi_ready
@@ -1307,21 +1321,22 @@ object HomeUiHelper {
         else -> R.string.home_subtitle_self
     }
 
-    internal fun actionRes(decision: Decision, usbAsWireless: Boolean = false): Int = when (decision.status) {
-        Status.ACTIVE_SESSION -> R.string.home_action_back_to_android_auto
-        Status.RECONNECTING -> R.string.home_action_connect_now
+    internal fun actionRes(decision: Decision, usbAsWireless: Boolean = false, isCarPlay: Boolean = false): Int = when (decision.status) {
+        Status.ACTIVE_SESSION -> if (isCarPlay) R.string.home_action_return_to_carplay else R.string.home_action_back_to_android_auto
+        Status.RECONNECTING -> if (isCarPlay) R.string.home_action_connect_carplay else R.string.home_action_connect_now
         Status.SEARCHING -> R.string.home_action_search_again
-        else -> when (decision.primary) {
+        else -> if (isCarPlay) R.string.home_action_connect_carplay else when (decision.primary) {
             Connection.USB -> if (usbAsWireless) R.string.home_action_connect_wireless_dongle else R.string.home_action_connect_usb
             Connection.WIFI -> R.string.home_action_connect_wifi
             Connection.SELF -> R.string.home_action_start_self_mode
         }
     }
 
-    private fun iconRes(connection: Connection): Int = when (connection) {
-        Connection.USB -> R.drawable.ic_usb_white
-        Connection.WIFI -> R.drawable.ic_network_wifi_white
-        Connection.SELF -> R.drawable.ic_launch_white
+    private fun iconRes(connection: Connection, isCarPlay: Boolean = false): Int = when {
+        isCarPlay -> R.drawable.ic_carplay
+        connection == Connection.USB -> R.drawable.ic_usb_white
+        connection == Connection.WIFI -> R.drawable.ic_network_wifi_white
+        else -> R.drawable.ic_launch_white
     }
 
     private fun rounded(color: Int, radiusPx: Float) = GradientDrawable().apply {

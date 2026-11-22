@@ -46,4 +46,20 @@ class HomeUiHelperDongleLabelsTest {
         assertEquals(R.string.home_subtitle_wifi, HomeUiHelper.subtitleRes(d, usbAsWireless = true))
         assertEquals(R.string.home_action_connect_wifi, HomeUiHelper.actionRes(d, usbAsWireless = true))
     }
+
+    @Test
+    fun `active session in carplay mode shows return to carplay action and carplay kicker and carplay icon`() {
+        val d = decision(Connection.WIFI, Status.ACTIVE_SESSION)
+        assertEquals(R.string.home_kicker_carplay, HomeUiHelper.kickerRes(d, isCarPlay = true))
+        assertEquals(R.string.home_action_return_to_carplay, HomeUiHelper.actionRes(d, isCarPlay = true))
+        assertEquals(R.drawable.ic_carplay, HomeUiHelper.actionIconRes(d, isCarPlay = true))
+    }
+
+    @Test
+    fun `ready in carplay mode shows connect carplay action and carplay kicker and carplay icon`() {
+        val d = decision(Connection.WIFI, Status.READY)
+        assertEquals(R.string.home_kicker_carplay, HomeUiHelper.kickerRes(d, isCarPlay = true))
+        assertEquals(R.string.home_action_connect_carplay, HomeUiHelper.actionRes(d, isCarPlay = true))
+        assertEquals(R.drawable.ic_carplay, HomeUiHelper.actionIconRes(d, isCarPlay = true))
+    }
 }

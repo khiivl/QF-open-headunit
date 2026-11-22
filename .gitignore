@@ -82,3 +82,11 @@ deploy_old_tablet.sh
 .antigravitycli
 .agents
 dev-note8.ps1
+
+# Vendor binaries and disassembly dumps (proprietary vendor files kept outside repo)
+tools/zlink-tee/*.so
+tools/zlink-tee/*.dex
+tools/zlink-tee/*.apk
+*.so
+*.dex
+

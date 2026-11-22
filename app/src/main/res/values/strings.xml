@@ -25,6 +25,17 @@
     <string name="settings_search_no_results">No settings match \"%1$s\".</string>
 
     <!-- Connection mode selector -->
+    <string name="projection_mode">Phone projection</string>
+    <string name="projection_mode_help">Chooses which projection this unit runs: Android Auto, or CarPlay through the zLink module. They cannot run together, because both need the Bluetooth module of the unit and the phone. In CarPlay mode Android Auto is switched off completely.</string>
+    <string name="projection_mode_android_auto">Android Auto</string>
+    <string name="projection_mode_carplay">CarPlay (via zLink)</string>
+    <string name="zlink_disconnect_carplay">Disconnect CarPlay</string>
+    <string name="zlink_go_home">Go home</string>
+    <string name="zlink_connection_lost">Connection lost, retrying…</string>
+    <string name="zlink_connecting">Connecting to CarPlay…</string>
+    <string name="zlink_hide_ui">Hide OEM zLink screens</string>
+    <string name="zlink_hide_ui_desc">Keeps zLink in the background so CarPlay renders only in Open Headunit</string>
+    <string name="zlink_hide_ui_help">When enabled, hides zLink\'s launcher icon and activities using Android\'s Package Manager while keeping its background services alive. Disabling this restores zLink\'s normal app icon and screens.</string>
     <string name="connection_mode">Connection mode</string>
     <string name="connection_mode_help">Chooses how this unit connects to the phone: USB, Wi-Fi, Self Mode, or any mix. The home screen and the settings show only the options for the ways you choose. If Wi-Fi is not chosen, the app does not start wireless in the background.</string>
     <string name="connection_kind_usb_cable">USB cable (direct)</string>
@@ -1832,6 +1843,10 @@
     <string name="home_subtitle_usb_dongle">Wirelessly</string>
     <string name="home_subtitle_wifi">Over WiFi</string>
     <string name="home_subtitle_self">Runs Android Auto on the radio itself</string>
+    <string name="home_kicker_carplay">CarPlay</string>
+    <string name="home_title_carplay_ready">Connect to CarPlay</string>
+    <string name="home_action_connect_carplay">Connect CarPlay</string>
+    <string name="home_action_return_to_carplay">Return to CarPlay</string>
     <string name="home_action_back_to_android_auto">Back to Android Auto</string>
     <string name="home_action_connect_now">Connect now</string>
     <string name="home_action_search_again">Search again</string>

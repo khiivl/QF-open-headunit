@@ -1,0 +1,9 @@
+# zlink-redirect.rc
+# Installs iptables REDIRECT rules on boot before the zLink daemon starts,
+# redirecting root (uid 0) daemon connections to OHU's in-process ZlinkProxy.
+
+on early-boot
+    exec - root root -- /system/bin/iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 1666 -m owner --uid-owner 0 -j REDIRECT --to-ports 11666
+    exec - root root -- /system/bin/iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 1777 -m owner --uid-owner 0 -j REDIRECT --to-ports 11777
+    exec - root root -- /system/bin/iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 1888 -m owner --uid-owner 0 -j REDIRECT --to-ports 11888
+    exec - root root -- /system/bin/iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 1999 -m owner --uid-owner 0 -j REDIRECT --to-ports 11999

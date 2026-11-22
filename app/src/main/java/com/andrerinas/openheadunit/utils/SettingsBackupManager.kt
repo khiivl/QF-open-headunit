@@ -57,6 +57,8 @@ object SettingsBackupManager {
         "advanced-settings-active" to ValueType.BOOLEAN,
         "settings-rail-collapsed" to ValueType.BOOLEAN,
         "connection-modes" to ValueType.STRING_SET,
+        "projection-mode" to ValueType.INT,
+        "hide-zlink-ui" to ValueType.BOOLEAN,
         "primary-connection" to ValueType.INT,
         "ui-scale-exit-dialog-percent" to ValueType.INT,
         Settings.KEY_AUTO_RESUME_PLAYBACK_ON_RECONNECT to ValueType.BOOLEAN,

@@ -47,6 +47,7 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         super.onCreate()
         instance = this
         registerActivityLifecycleCallbacks(this)
+        com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(this)
 
         try {
             val packageReceiver = object : BroadcastReceiver() {

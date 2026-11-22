@@ -88,6 +88,13 @@ adb shell am start -a android.intent.action.VIEW -d "headunit://connect?ip=192.1
 
 The [Automation guide](https://github.com/andreknieriem/open-headunit/wiki/Automation) lists every command.
 
+### CarPlay Mode (QF / zLink units)
+On head units equipped with the zLink daemon (such as the QF K706), Open Headunit supports a native **CarPlay mode**:
+- **Seamless Projection**: Open Headunit receives the CarPlay H.264 video feed and raw PCM audio, rendering the iPhone's CarPlay interface directly inside Open Headunit with immersive hardware decoding.
+- **License Untouched**: The system zLink application remains in the loop to handle licensing, identity, and cryptographic handshakes; Open Headunit acts as an in-process transparent proxy.
+- **Vehicle Integration**: Includes responsive multi-touch injection, ignition / ACC power synchronization (auto-pause on ACC-off and resume on wake), Back button menu (Go home / Disconnect), and automatic reconnect handling with retry overlay.
+- **Setup**: In Open Headunit Settings, set **Projection mode** to **CarPlay**.
+
 ## Known Issues
 - **Google Maps in Portrait Mode:** Touch interactions (searching, scrolling) within Google Maps may not work as expected when using Portrait Mode on some devices. **Fix:** Try reducing the **Pixel density (DPI)** setting to **below 200** (e.g., 190) in the app settings. This often restores full functionality.
 - **Wireless Connection Drops:** If the connection drops frequently, disable **"WiFi Assistant"** or **"Switch between networks"** in your phone's WiFi settings to prevent it from killing the connection due to "no internet." Check battery saving options.

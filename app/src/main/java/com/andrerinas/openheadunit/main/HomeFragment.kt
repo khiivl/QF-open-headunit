@@ -297,6 +297,28 @@ class HomeFragment : Fragment() {
             }
         }
 
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+                App.provide(requireContext()).settings.projectionMode
+            )
+        ) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    launch {
+                        com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.sessionStateFlow.collect {
+                            renderHome()
+                        }
+                    }
+                    launch {
+                        com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.hasActiveSessionFlow.collect { active ->
+                            if (lastSessionActive != null && lastSessionActive != active) showFirstPage(animate = false)
+                            lastSessionActive = active
+                            renderHome()
+                        }
+                    }
+                }
+            }
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 AapService.scanningState.collect { renderHome() }
@@ -589,16 +611,36 @@ class HomeFragment : Fragment() {
      * which is already true while the connection is being secured: that part is a step the card
      * names now, not a session to go back to.
      */
-    private fun sessionLive(): Boolean = commManager.connectionState.value.let {
-        it is CommManager.ConnectionState.HandshakeComplete || it is CommManager.ConnectionState.TransportStarted
+    private fun sessionLive(): Boolean {
+        val ctx = context ?: return false
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+                App.provide(ctx).settings.projectionMode
+            )
+        ) {
+            return com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.hasActiveSession
+        }
+        return commManager.connectionState.value.let {
+            it is CommManager.ConnectionState.HandshakeComplete || it is CommManager.ConnectionState.TransportStarted
+        }
     }
 
     /** What the session, or the attempt in flight, goes over. Null without a connection. */
-    private fun transportConnection(): HomePrimaryPolicy.Connection? = when {
-        !commManager.isConnected -> null
-        commManager.isUsbSession -> HomePrimaryPolicy.Connection.USB
-        commManager.isLoopbackSession -> HomePrimaryPolicy.Connection.SELF
-        else -> HomePrimaryPolicy.Connection.WIFI
+    private fun transportConnection(): HomePrimaryPolicy.Connection? {
+        val ctx = context ?: return null
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+                App.provide(ctx).settings.projectionMode
+            )
+        ) {
+            return if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.hasActiveSession) {
+                HomePrimaryPolicy.Connection.WIFI
+            } else null
+        }
+        return when {
+            !commManager.isConnected -> null
+            commManager.isUsbSession -> HomePrimaryPolicy.Connection.USB
+            commManager.isLoopbackSession -> HomePrimaryPolicy.Connection.SELF
+            else -> HomePrimaryPolicy.Connection.WIFI
+        }
     }
 
     /**
@@ -1909,7 +1951,18 @@ class HomeFragment : Fragment() {
         }
     }
 
+    /** In CarPlay mode every connect button leads to the CarPlay screen; Android Auto stays off. */
+    private fun openCarPlayIfSelected(): Boolean {
+        if (!com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+                App.provide(requireContext()).settings.projectionMode)) return false
+        com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.resumeOffer()
+        startActivity(Intent(requireContext(),
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkCarPlayActivity::class.java))
+        return true
+    }
+
     private fun onPrimaryActionClicked() {
+        if (openCarPlayIfSelected()) return
         val decision = decision ?: return
         when (decision.status) {
             HomePrimaryPolicy.Status.ACTIVE_SESSION -> openProjection()
@@ -1943,6 +1996,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun onSelfModeClicked() {
+        if (openCarPlayIfSelected()) return
         if (showsBringUp(HomePrimaryPolicy.Connection.SELF)) return
         if (commManager.isConnected) {
             openProjection()
@@ -1971,6 +2025,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun onUsbClicked() {
+        if (openCarPlayIfSelected()) return
         if (showsBringUp(HomePrimaryPolicy.Connection.USB)) return
         // Already connected to Android Auto - just show projection
         if (commManager.isConnected) {
@@ -2059,6 +2114,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun onWifiClicked() {
+        if (openCarPlayIfSelected()) return
         if (showsBringUp(HomePrimaryPolicy.Connection.WIFI)) return
         // With a session up the wireless tile is the way back to it, the same as the USB one. It
         // used to do nothing, and on a page without the main button nothing else led back.

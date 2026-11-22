@@ -139,28 +139,44 @@ object OemAppManager {
     }
 
     suspend fun checkAvailableBackend(): ExecutionBackend = withContext(Dispatchers.IO) {
-        if (LibsuAvailability.usable() && Shell.isAppGrantedRoot() == true) {
-            return@withContext ExecutionBackend.ROOT
+        if (LibsuAvailability.usable()) {
+            if (Shell.isAppGrantedRoot() == null) {
+                try { Shell.getShell() } catch (_: Throwable) {}
+            }
+            if (Shell.isAppGrantedRoot() == true) {
+                return@withContext ExecutionBackend.ROOT
+            }
         }
-        if (AdbManager.isAdbPortOpen()) {
+        if (AdbManager.isAdbPortOpen() || AdbManager.isAdbPortOpen(9876)) {
             return@withContext ExecutionBackend.ADB
         }
         ExecutionBackend.NONE
     }
 
     suspend fun executeCommand(context: Context, command: String): Pair<Int, String> = withContext(Dispatchers.IO) {
-        if (LibsuAvailability.usable() && Shell.isAppGrantedRoot() == true) {
-            try {
-                val result = Shell.cmd(command).exec()
-                val out = (result.out + result.err).joinToString("\n").trim()
-                return@withContext Pair(result.code, out)
-            } catch (e: Exception) {
-                AppLog.e("OemAppManager: Root execution failed: ${e.message}", e)
+        if (LibsuAvailability.usable()) {
+            if (Shell.isAppGrantedRoot() == null) {
+                try { Shell.getShell() } catch (_: Throwable) {}
+            }
+            if (Shell.isAppGrantedRoot() == true) {
+                try {
+                    val result = Shell.cmd(command).exec()
+                    val out = (result.out + result.err).joinToString("\n").trim()
+                    return@withContext Pair(result.code, out)
+                } catch (e: Exception) {
+                    AppLog.e("OemAppManager: Root execution failed: ${e.message}", e)
+                }
             }
         }
 
-        // Fall back to Self-ADB (localhost:5555)
-        AdbManager.exec(context, command)
+        // Fall back to Self-ADB (localhost:5555 or localhost:9876)
+        if (AdbManager.isAdbPortOpen(5555)) {
+            AdbManager.exec(context, command, 5555)
+        } else if (AdbManager.isAdbPortOpen(9876)) {
+            AdbManager.exec(context, command, 9876)
+        } else {
+            AdbManager.exec(context, command)
+        }
     }
 
     suspend fun detectApps(context: Context, checkDaemons: Boolean = false): List<OemAppStatus> = withContext(Dispatchers.IO) {
@@ -204,7 +220,11 @@ object OemAppManager {
         statuses
     }
 
-    fun getDisableCommands(status: OemAppStatus): List<String> {
+    fun getDisableCommands(context: Context? = null, status: OemAppStatus): List<String> {
+        if (context != null && status.target.id == "zlink" && Settings(context).projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) {
+            val pkg = status.installedPackage ?: status.target.packageCandidates.first()
+            return com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.buildHideCommands(pkg)
+        }
         val cmds = mutableListOf<String>()
         val pkg = status.installedPackage ?: status.target.packageCandidates.first()
         cmds.add("pm disable-user --user 0 $pkg")
@@ -215,7 +235,11 @@ object OemAppManager {
         return cmds
     }
 
-    fun getRestoreCommands(status: OemAppStatus): List<String> {
+    fun getRestoreCommands(context: Context? = null, status: OemAppStatus): List<String> {
+        if (context != null && status.target.id == "zlink" && Settings(context).projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) {
+            val pkg = status.installedPackage ?: status.target.packageCandidates.first()
+            return com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.buildRestoreCommands(pkg)
+        }
         val cmds = mutableListOf<String>()
         val pkg = status.installedPackage ?: status.target.packageCandidates.first()
         cmds.add("pm enable --user 0 $pkg")
@@ -226,7 +250,7 @@ object OemAppManager {
     }
 
     suspend fun disableTarget(context: Context, status: OemAppStatus): Pair<Boolean, String> {
-        val cmds = getDisableCommands(status)
+        val cmds = getDisableCommands(context, status)
         val combined = cmds.joinToString(" ; ")
         AppLog.i("OemAppManager: Disabling ${status.target.displayName} with: $combined")
         val (code, out) = executeCommand(context, combined)
@@ -235,7 +259,7 @@ object OemAppManager {
     }
 
     suspend fun restoreTarget(context: Context, status: OemAppStatus): Pair<Boolean, String> {
-        val cmds = getRestoreCommands(status)
+        val cmds = getRestoreCommands(context, status)
         val combined = cmds.joinToString(" ; ")
         AppLog.i("OemAppManager: Restoring ${status.target.displayName} with: $combined")
         val (code, out) = executeCommand(context, combined)

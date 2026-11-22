@@ -603,6 +603,14 @@ class Settings(private val context: Context) {
         }
         set(value) { prefs.edit().putInt("fullscreen-mode", value.value).apply() }
 
+    var projectionMode: ProjectionMode
+        get() = ProjectionMode.fromInt(prefs.getInt("projection-mode", ProjectionMode.ANDROID_AUTO.value))
+        set(value) { prefs.edit().putInt("projection-mode", value.value).apply() }
+
+    var hideZlinkUi: Boolean
+        get() = prefs.getBoolean("hide-zlink-ui", false)
+        set(value) { prefs.edit().putBoolean("hide-zlink-ui", value).apply() }
+
     var leftTwoFingerGesture: GestureAction
         get() = GestureAction.fromInt(prefs.getInt("left-two-finger-gesture", GestureAction.EXIT_DIALOG.value))
             ?: GestureAction.EXIT_DIALOG
@@ -2539,6 +2547,17 @@ class Settings(private val context: Context) {
         companion object {
             private val map = values().associateBy(FullscreenMode::value)
             fun fromInt(value: Int) = map[value]
+        }
+    }
+
+    /** Which phone projection this unit runs. The two are exclusive: they fight for the Bluetooth module and the phone. */
+    enum class ProjectionMode(val value: Int) {
+        ANDROID_AUTO(0),
+        /** CarPlay through the zLink daemon (see connection/zlinkcarplay); Android Auto stays off. */
+        CARPLAY_ZLINK(1);
+
+        companion object {
+            fun fromInt(value: Int): ProjectionMode = values().firstOrNull { it.value == value } ?: ANDROID_AUTO
         }
     }
 
