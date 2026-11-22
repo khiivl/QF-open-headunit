@@ -441,16 +441,21 @@ object ZlinkHub {
         }
     }
 
+    @Volatile private var proxyDropper: (() -> Unit)? = null
+
+    fun setProxyDropper(dropper: (() -> Unit)?) { proxyDropper = dropper }
+
     fun resumeOffer() {
         synchronized(this) {
             scheduler?.shutdownNow()
             scheduler = null
         }
         sessionMonitor.reset()
-        val frame = holdPolicy.resumeOffer(subscribers.size)
-        if (frame != null) {
-            writeToDaemon(frame)
-        }
+        holdPolicy.resumeOffer(subscribers.size)
+        // Re-arming the offer alone does not bring the phone back. Dropping the daemon's connections makes it
+        // run its own session end and restart, which is what reconnects the phone by itself.
+        AppLog.i("zlink hub: resuming, dropping daemon connections so the daemon restarts and the phone reconnects")
+        proxyDropper?.invoke()
         if (subscribers.isNotEmpty()) {
             requestKeyframe()
         }

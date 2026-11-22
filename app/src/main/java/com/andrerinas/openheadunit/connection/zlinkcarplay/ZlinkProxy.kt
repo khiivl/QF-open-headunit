@@ -24,6 +24,7 @@ class ZlinkProxy {
     private val serverThreads = ArrayList<Thread>()
 
     fun start() {
+        ZlinkHub.setProxyDropper { dropConnections() }
         if (running) return
         running = true
         for (port in PORTS) {
@@ -35,7 +36,18 @@ class ZlinkProxy {
         }
     }
 
+    /**
+     * Closes every live daemon and app connection. The daemon then runs its own session end ("control
+     * Service is down": Bluetooth recovery for CarPlay, restart) and reconnects, which is what brings a
+     * disconnected phone back by itself, exactly as after any normal session end.
+     */
+    fun dropConnections() {
+        for (sock in activeSockets) { try { sock.close() } catch (_: Exception) {} }
+        activeSockets.clear()
+    }
+
     fun stop() {
+        ZlinkHub.setProxyDropper(null)
         running = false
         for (ss in serverSockets) {
             try { ss.close() } catch (_: Exception) {}
