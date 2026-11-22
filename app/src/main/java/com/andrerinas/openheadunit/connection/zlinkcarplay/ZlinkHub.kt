@@ -78,7 +78,9 @@ object ZlinkHub {
         if (existing == null) {
             getOrCreateVideoSink(surface)
         } else {
+            val same = existing.isCurrentSurface(surface)
             existing.attachSurface(surface)
+            if (!same) existing.redrawFrom(replayCache.getReplayFrames())
         }
     }
 

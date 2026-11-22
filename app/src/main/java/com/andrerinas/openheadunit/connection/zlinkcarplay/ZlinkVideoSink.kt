@@ -79,7 +79,39 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         AppLog.i("zlink video: detached surface, decoder continues running warm in background")
     }
 
-    fun feed(unit: ZlinkWire.VideoUnit) {
+    private val feedLock = Any()
+    @Volatile private var generation = 0
+
+    fun feed(unit: ZlinkWire.VideoUnit) = synchronized(feedLock) { feedLocked(unit) }
+
+    fun isCurrentSurface(surface: Surface): Boolean = currentSurface === surface && isAttached
+
+    /**
+     * A still CarPlay screen sends no frames, so after the output surface changes the new surface would stay
+     * black until something moves. This decodes the cached picture group again from its keyframe; the
+     * held-last-frame logic then draws the final picture.
+     */
+    fun redrawFrom(frames: List<ZlinkWire.Frame>) {
+        if (frames.isEmpty()) return
+        Thread({
+            synchronized(feedLock) {
+                val c = codec ?: return@synchronized
+                try {
+                    live = false
+                    generation++
+                    c.flush()
+                    for (f in frames) ZlinkWire.parseVideo(f.payload)?.let { feedLocked(it) }
+                    AppLog.i("zlink video: redrew ${frames.size} cached frames on the new surface")
+                } catch (e: Exception) {
+                    AppLog.w("zlink video: redraw failed: ${e.message}")
+                } finally {
+                    live = true
+                }
+            }
+        }, "zlink-redraw").also { it.isDaemon = true }.start()
+    }
+
+    private fun feedLocked(unit: ZlinkWire.VideoUnit) {
         when (unit.nalType) {
             7 -> {
                 // The daemon sends SPS and PPS together in one message, split by a start code.
@@ -187,8 +219,10 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
             // While the replay is muted the newest decoded frame is held back, not dropped. CarPlay sends
             // nothing for a still screen, so without it the picture would stay black until something moved.
             var pending = -1
+            var gen = generation
             while (running) {
                 try {
+                    if (gen != generation) { pending = -1; gen = generation }
                     val i = c.dequeueOutputBuffer(info, 50_000)
                     if (i >= 0) {
                         decodedCount++
@@ -204,6 +238,10 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
                         c.releaseOutputBuffer(pending, true)
                         pending = -1
                     }
+                } catch (e: IllegalStateException) {
+                    // A flush invalidates the buffer we were holding; carry on with the next frame.
+                    pending = -1
+                    if (!running) break
                 } catch (e: Exception) {
                     if (running) AppLog.w("zlink video: output ended: ${e.message}")
                     break
