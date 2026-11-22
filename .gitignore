@@ -90,3 +90,4 @@ tools/zlink-tee/*.apk
 *.so
 *.dex
 
+dist/
