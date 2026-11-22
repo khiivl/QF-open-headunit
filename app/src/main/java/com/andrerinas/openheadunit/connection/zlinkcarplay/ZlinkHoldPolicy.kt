@@ -45,6 +45,9 @@ class ZlinkHoldPolicy {
             } else {
                 frame
             }
+        } else if (offerSuspended && ZlinkMessage.fieldValue(frame, 7) != 0L) {
+            // After a user Disconnect the daemon restarts and the app offers CarPlay again by itself; keep it off.
+            ZlinkMessage.withMode(frame, 0)
         } else {
             frame
         }

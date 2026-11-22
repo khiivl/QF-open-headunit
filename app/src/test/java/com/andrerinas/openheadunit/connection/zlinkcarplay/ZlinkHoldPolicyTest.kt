@@ -103,4 +103,14 @@ class ZlinkHoldPolicyTest {
         assertEquals(2L, ZlinkMessage.fieldValue(resumeFrame!!, 7))
         assertFalse(policy.offerSuspended)
     }
+
+    @Test fun suspendedOfferKeepsTheAppsOwnCarPlayOfferOff() {
+        val policy = ZlinkHoldPolicy()
+        policy.onAppInitFrame(build0x102(0), subscriberCount = 1)
+        policy.suspendOffer()
+
+        // The daemon restarts after a Disconnect and the app offers wireless CarPlay itself
+        val forwarded = policy.onAppInitFrame(build0x102(2), subscriberCount = 0)
+        assertEquals(0L, ZlinkMessage.fieldValue(forwarded, 7))
+    }
 }

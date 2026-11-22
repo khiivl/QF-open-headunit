@@ -237,9 +237,10 @@ object ZlinkHub {
     fun setDaemonControl(out: OutputStream?, lock: Any) {
         daemonCtrlOut = out
         daemonCtrlLock = lock
-        // If the daemon control channel is connected and we are not suspended (or a subscriber is waiting),
+        // If the daemon control channel is connected and the offer is not suspended (a user Disconnect stays off even
+        // though the service itself is always subscribed),
         // offer mode 2 immediately.
-        if (out != null && (!holdPolicy.offerSuspended || subscribers.isNotEmpty())) {
+        if (out != null && !holdPolicy.offerSuspended) {
             val toSend = holdPolicy.resumeOffer(subscribers.size)
             if (toSend != null) {
                 writeToDaemon(toSend)
@@ -428,6 +429,9 @@ object ZlinkHub {
         videoSink?.release()
         videoSink = null
         sessionMonitor.markGaveUp()
+        // Link mode 0 only stops offering CarPlay; a session that is already up keeps running and the unit's Bluetooth
+        // screen stays locked. Dropping the daemon connections makes it restart, which really ends the session.
+        proxyDropper?.invoke()
         // A user Disconnect stays disconnected until CarPlay is connected again (Connect button, opening the CarPlay
         // screen, or ACC returning); nothing resumes it on a timer.
     }
