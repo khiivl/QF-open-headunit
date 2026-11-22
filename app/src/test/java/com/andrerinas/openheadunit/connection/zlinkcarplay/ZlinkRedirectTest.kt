@@ -1,6 +1,7 @@
 package com.andrerinas.openheadunit.connection.zlinkcarplay
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -43,5 +44,11 @@ class ZlinkRedirectTest {
             val target = p + 10000
             assertTrue(removeCmd.contains("iptables -t nat -C OUTPUT -p tcp -d 127.0.0.1 --dport $p -m owner --uid-owner 0 -j REDIRECT --to-ports $target 2>/dev/null && iptables -t nat -D OUTPUT -p tcp -d 127.0.0.1 --dport $p -m owner --uid-owner 0 -j REDIRECT --to-ports $target || true"))
         }
+    }
+
+    @Test fun ensureIsSkippedRightAfterASuccessButNotBefore() {
+        assertTrue(ZlinkRedirect.shouldEnsure(nowMs = 1_000L, lastOkMs = 0L))
+        assertFalse(ZlinkRedirect.shouldEnsure(nowMs = 11_000L, lastOkMs = 1_000L))
+        assertTrue(ZlinkRedirect.shouldEnsure(nowMs = 31_001L, lastOkMs = 1_000L))
     }
 }

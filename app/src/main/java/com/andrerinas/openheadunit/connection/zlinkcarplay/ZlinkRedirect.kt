@@ -4,6 +4,7 @@ import android.content.Context
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.OemAppManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -54,27 +55,49 @@ object ZlinkRedirect {
      * Idempotently installs the redirect rules using available root or self-ADB backend.
      * Safe to call from any thread; dispatches to [Dispatchers.IO].
      */
-    suspend fun ensureRedirectRules(context: Context): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        val backend = OemAppManager.checkAvailableBackend()
-        AppLog.i("zlink redirect: ensuring iptables rules using backend $backend")
-        val cmd = buildEnsureCommand()
-        val (code, out) = OemAppManager.executeCommand(context, cmd)
-        val success = code == 0
-        AppLog.i("zlink redirect: ensure completed with code=$code backend=$backend out=$out")
-        Pair(success, out)
+    suspend fun ensureRedirectRules(context: Context): Pair<Boolean, String> = ensureMutex.withLock {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!shouldEnsure(now, lastEnsureOkMs)) return@withLock Pair(true, "recently ensured")
+        withContext(Dispatchers.IO) {
+            val backend = OemAppManager.checkAvailableBackend()
+            AppLog.i("zlink redirect: ensuring iptables rules using backend $backend")
+            val cmd = buildEnsureCommand()
+            val (code, out) = OemAppManager.executeCommand(context, cmd)
+            val success = code == 0
+            if (success) { lastEnsureOkMs = android.os.SystemClock.elapsedRealtime(); lastRemoveOkMs = 0L }
+            AppLog.i("zlink redirect: ensure completed with code=$code backend=$backend out=$out")
+            Pair(success, out)
+        }
     }
+
+    // The service is started from several places at once (app start, mode switch), and each start asks for the rules.
+    // One check at a time, and none at all right after a successful one.
+    private val ensureMutex = kotlinx.coroutines.sync.Mutex()
+    @Volatile private var lastEnsureOkMs = 0L
+    private const val ENSURE_COALESCE_MS = 30_000L
+
+    /** Whether the rules need checking again: not within [ENSURE_COALESCE_MS] of the last success. */
+    fun shouldEnsure(nowMs: Long, lastOkMs: Long): Boolean = lastOkMs == 0L || nowMs - lastOkMs >= ENSURE_COALESCE_MS
 
     /**
      * Removes the redirect rules using available root or self-ADB backend.
      * Safe to call from any thread; dispatches to [Dispatchers.IO].
      */
-    suspend fun removeRedirectRules(context: Context): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        val backend = OemAppManager.checkAvailableBackend()
-        AppLog.i("zlink redirect: removing iptables rules using backend $backend")
-        val cmd = buildRemoveCommand()
-        val (code, out) = OemAppManager.executeCommand(context, cmd)
-        val success = code == 0
-        AppLog.i("zlink redirect: remove completed with code=$code backend=$backend out=$out")
-        Pair(success, out)
+    suspend fun removeRedirectRules(context: Context): Pair<Boolean, String> = ensureMutex.withLock {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!shouldEnsure(now, lastRemoveOkMs)) return@withLock Pair(true, "recently removed")
+        lastEnsureOkMs = 0L
+        withContext(Dispatchers.IO) {
+            val backend = OemAppManager.checkAvailableBackend()
+            AppLog.i("zlink redirect: removing iptables rules using backend $backend")
+            val cmd = buildRemoveCommand()
+            val (code, out) = OemAppManager.executeCommand(context, cmd)
+            val success = code == 0
+            if (success) lastRemoveOkMs = android.os.SystemClock.elapsedRealtime()
+            AppLog.i("zlink redirect: remove completed with code=$code backend=$backend out=$out")
+            Pair(success, out)
+        }
     }
+
+    @Volatile private var lastRemoveOkMs = 0L
 }
