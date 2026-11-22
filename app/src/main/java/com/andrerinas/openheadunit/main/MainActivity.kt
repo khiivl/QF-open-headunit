@@ -103,6 +103,10 @@ class MainActivity : BaseActivity() {
     private val finishReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: Intent) {
             if (intent.action == "com.andrerinas.openheadunit.ACTION_FINISH_ACTIVITIES") {
+                if (intent.getBooleanExtra(AapService.EXTRA_KEEP_HOME, false)) {
+                    AppLog.i("MainActivity: Received finish request for a mode switch. Staying open.")
+                    return
+                }
                 AppLog.i("MainActivity: Received finish request. Closing.")
                 finishAffinity()
             }

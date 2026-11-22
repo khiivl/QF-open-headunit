@@ -3718,8 +3718,10 @@ class AapService : Service() {
         if (intent?.action == ACTION_STOP_SERVICE) {
             AppLog.i("Stop action received. Broadcasting finish request to activities.")
             destroyIsUserStop = true
+            val keepHome = intent.getBooleanExtra(EXTRA_KEEP_HOME, false)
             sendBroadcast(Intent("com.andrerinas.openheadunit.ACTION_FINISH_ACTIVITIES").apply {
                 setPackage(packageName)
+                putExtra(EXTRA_KEEP_HOME, keepHome)
             })
             stopForegroundForShutdown()
             // Asked before the disconnect, and the latch made before it too. The teardown that
@@ -4566,6 +4568,8 @@ class AapService : Service() {
         const val ACTION_NEARBY_CONNECT             = "com.andrerinas.openheadunit.ACTION_NEARBY_CONNECT"
         const val ACTION_CHECK_USB                 = "com.andrerinas.openheadunit.ACTION_CHECK_USB"
         const val ACTION_STOP_SERVICE              = "com.andrerinas.openheadunit.aap.action.STOP_SERVICE"
+        /** With a stop request: the home screen stays open (a projection mode switch, not a quit). */
+        const val EXTRA_KEEP_HOME = "keep_home"
         const val ACTION_DISCONNECT                = "com.andrerinas.openheadunit.ACTION_DISCONNECT"
         const val ACTION_REQUEST_NIGHT_MODE_UPDATE = "com.andrerinas.openheadunit.aap.action.REQUEST_NIGHT_MODE_UPDATE"
         const val ACTION_NIGHT_MODE_CHANGED      = "com.andrerinas.openheadunit.ACTION_NIGHT_MODE_CHANGED"

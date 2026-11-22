@@ -9,6 +9,7 @@ import com.andrerinas.openheadunit.utils.OemAppManager
 import com.andrerinas.openheadunit.utils.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** The one place that changes the phone projection mode, shared by the Settings row and the Home tile. */
@@ -29,12 +30,14 @@ object ProjectionSwitcher {
             // Tear down any Android Auto session and leave the service idle; it ignores starts in this mode.
             ContextCompat.startForegroundService(app, Intent(app, AapService::class.java).apply {
                 action = AapService.ACTION_STOP_SERVICE
+                putExtra(AapService.EXTRA_KEEP_HOME, true)
             })
         } else {
             // A CarPlay session must not outlive the switch: the hotspot can stay up and keep the iPhone connected.
             ZlinkHub.endSession(ZlinkHub.EndReason.USER)
             CoroutineScope(Dispatchers.IO).launch {
-                if (settings.hideZlinkUi) ZlinkScreenPolicy.applyVisibility(app, false)
+                // zLink's screens stay hidden: changing them stops its app, and the unit then opens its own
+                // Bluetooth screen over OHU at every restart.
                 // Only the WiFi Direct strategy needs the station side; the hotspot strategy keeps zLink's hotspot.
                 if (settings.nativeApStrategy == com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.WIFI_DIRECT) {
                     bringStationWifiUp(app)
@@ -53,7 +56,49 @@ object ProjectionSwitcher {
             }
         }
         ZlinkService.sync(app)
+        reclaimForeground(app)
     }
+
+    /**
+     * The unit's own Bluetooth screen opens itself whenever a phone connects or leaves the Bluetooth module, which a
+     * mode switch always causes. For a short while after a switch, bring OHU back when that screen has taken over.
+     */
+    private fun reclaimForeground(app: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            var reclaimed = 0
+            repeat(RECLAIM_WINDOW_SECONDS) {
+                delay(1_000)
+                if (reclaimed >= RECLAIM_MAX) return@launch
+                val (code, out) = OemAppManager.executeCommand(app, "dumpsys activity activities | grep -m1 mResumedActivity")
+                if (code == 0 && out.contains(UNIT_BLUETOOTH_PACKAGE)) {
+                    reclaimed++
+                    AppLog.i("projection switch: the unit's Bluetooth screen took over, returning to the home screen ($reclaimed)")
+                    try {
+                        app.startActivity(homeIntent(app))
+                    } catch (e: Exception) {
+                        AppLog.w("projection switch: could not return to the home screen: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun homeIntent(app: Context): Intent {
+        val isHome = com.andrerinas.openheadunit.utils.CarLauncherManager.isDefaultLauncher(app)
+        val intent = if (isHome) {
+            Intent(app, com.andrerinas.openheadunit.main.MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_HOME)
+            }
+        } else {
+            Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+        }
+        return intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    private const val RECLAIM_WINDOW_SECONDS = 20
+    private const val RECLAIM_MAX = 3
+    private const val UNIT_BLUETOOTH_PACKAGE = "com.qf.bluetooth"
 
     /**
      * CarPlay leaves zLink's hotspot running. The radio cannot run it and a WiFi Direct group together, and an app
