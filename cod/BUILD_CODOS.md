@@ -35,11 +35,15 @@ system/etc/permissions/privapp-permissions-openheadunit.xml
 - Never `adb install` this app: a copy in `/data/app` hides the system copy (and another signer is refused). The 4.1.0-beta1
   on stand 198 (`/data/app`, debuggable, another signer) has to be removed first; that is the owner's decision.
 - `ro.control_privapp_permissions=enforce` on the stand: `privapp-permissions-openheadunit.xml` lists every privileged
-  permission the APK requests. After any manifest change re-read the merged manifest and update the XML before building the
-  module.
+  permission the APK requests. On the A14 of stand 198 two requested permissions are privileged: `TURN_SCREEN_ON`
+  (`signature|privileged|appop`) and `READ_LOGS` (`signature|privileged|development`); the allow-list check runs for every
+  privileged package except `android`, even with the platform signature. After any manifest change re-read the merged
+  manifest, check the protection levels, and update the XML before building the module.
+- Native libraries: the APK is built with `extractNativeLibs=false` and stored, 16 KiB-aligned `.so` files for
+  `arm64-v8a` and `armeabi-v7a` only (a bundled priv-app is not extracted). Checks used:
+  `unzip -lv OpenHeadunit.apk | grep "\.so$"` (all `Stored`) and `zipalign -c -P 16 4 OpenHeadunit.apk`.
 - 📻 Not verified on a unit: that the app boots as uid 1000 under the A14 sepolicy, that `pm`/`am`/`svc` run from its
-  domain, and that the compressed native libraries (`extractNativeLibs=true`, minSdk 21) load from the overlaid
-  priv-app. If the libraries fail to load, build with `useLegacyPackaging = false` (stored libraries, mapped from the APK).
+  domain, and that the libraries load from the overlaid priv-app.
 
 ## Tests
 

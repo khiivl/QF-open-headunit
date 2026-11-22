@@ -54,6 +54,16 @@ Nothing in `cpp/` or in the `contract` module uses `su`, libsu or ADB.
 route and shows its own message (`auto_restart_wifi_system`); the OEM-apps dialog shows `oem_app_backend_system`
 ("Execution method: system app (uid 1000)"). No UI is redesigned: that is Volodymyr's later work.
 
+## Other `codos` differences (not about root)
+
+- **No HOME filter.** The launcher role lives only in the developer section (owner's rule), so the `codos` manifest
+  overlay replaces `CarLauncherAlias` with a copy that has no `HOME` intent filter. The component still exists, so
+  `CarLauncherManager` can toggle it by name without an exception; enabling it does not make the app a home app. The
+  other flavors keep the filter.
+- **ARM only.** `codos` ships `arm64-v8a` and `armeabi-v7a`; x86 / x86_64 are left out of the system image.
+- **Native libraries stored, not extracted.** A bundled `/system/priv-app` gets no extraction, so `codos` packs the
+  `.so` files uncompressed and page-aligned (`useLegacyPackaging = false`, `extractNativeLibs=false`).
+
 ## Not here, on purpose
 
 No licence check and no CoD-firmware binding (contract §0). The package id stays `com.andrerinas.headunitrevived`; the
