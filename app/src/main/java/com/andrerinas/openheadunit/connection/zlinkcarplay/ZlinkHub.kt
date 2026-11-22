@@ -426,19 +426,8 @@ object ZlinkHub {
         videoSink?.release()
         videoSink = null
         sessionMonitor.markGaveUp()
-        if (reason == EndReason.USER) {
-            // Suspend for 20 seconds, then resume
-            synchronized(this) {
-                scheduler?.shutdownNow()
-                val s = Executors.newSingleThreadScheduledExecutor { r ->
-                    Thread(r, "zlink-offer-resumer").also { it.isDaemon = true }
-                }
-                scheduler = s
-                s.schedule({
-                    resumeOffer()
-                }, 20, TimeUnit.SECONDS)
-            }
-        }
+        // A user Disconnect stays disconnected until CarPlay is connected again (Connect button, opening the CarPlay
+        // screen, or ACC returning); nothing resumes it on a timer.
     }
 
     @Volatile private var proxyDropper: (() -> Unit)? = null
@@ -446,6 +435,9 @@ object ZlinkHub {
     fun setProxyDropper(dropper: (() -> Unit)?) { proxyDropper = dropper }
 
     fun resumeOffer() {
+        // Only an offer that was actually suspended (user Disconnect, ACC off) needs the daemon restarted. The
+        // CarPlay screen also calls this on every resume, and that must never disturb a live session.
+        val wasSuspended = holdPolicy.offerSuspended
         synchronized(this) {
             scheduler?.shutdownNow()
             scheduler = null
@@ -454,8 +446,10 @@ object ZlinkHub {
         holdPolicy.resumeOffer(subscribers.size)
         // Re-arming the offer alone does not bring the phone back. Dropping the daemon's connections makes it
         // run its own session end and restart, which is what reconnects the phone by itself.
-        AppLog.i("zlink hub: resuming, dropping daemon connections so the daemon restarts and the phone reconnects")
-        proxyDropper?.invoke()
+        if (wasSuspended) {
+            AppLog.i("zlink hub: resuming, dropping daemon connections so the daemon restarts and the phone reconnects")
+            proxyDropper?.invoke()
+        }
         if (subscribers.isNotEmpty()) {
             requestKeyframe()
         }
