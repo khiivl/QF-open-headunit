@@ -436,6 +436,14 @@ object ZlinkHub {
         // screen, or ACC returning); nothing resumes it on a timer.
     }
 
+    /**
+     * Keeps CarPlay from connecting on its own, for a switch into CarPlay mode: it starts only when the user
+     * connects it (Connect button or opening the CarPlay screen). Nothing is torn down here.
+     */
+    fun holdOffUntilConnect() {
+        writeToDaemon(holdPolicy.suspendOffer())
+    }
+
     @Volatile private var proxyDropper: (() -> Unit)? = null
 
     fun setProxyDropper(dropper: (() -> Unit)?) { proxyDropper = dropper }

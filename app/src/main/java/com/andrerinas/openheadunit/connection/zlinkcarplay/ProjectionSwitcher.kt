@@ -24,6 +24,8 @@ object ProjectionSwitcher {
         if (settings.projectionMode == mode) return
         settings.projectionMode = mode
         if (mode == Settings.ProjectionMode.CARPLAY_ZLINK) {
+            // The phone connects only once the user presses Connect, not the moment the mode changes.
+            ZlinkHub.holdOffUntilConnect()
             // Tear down any Android Auto session and leave the service idle; it ignores starts in this mode.
             ContextCompat.startForegroundService(app, Intent(app, AapService::class.java).apply {
                 action = AapService.ACTION_STOP_SERVICE
