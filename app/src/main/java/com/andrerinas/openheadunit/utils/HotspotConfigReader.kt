@@ -61,6 +61,24 @@ object HotspotConfigReader {
         } catch (e: Exception) {
             AppLog.e("HotspotConfigReader: Failed to access WifiManager: ${e.message}")
         }
-        return null
+        return readFromHostapd(context)
+    }
+
+    /**
+     * Last resort: a unit whose hotspot is run by hostapd itself has nothing in the Android settings, but its
+     * configuration file can be read with the app's own shell. Never on the main thread.
+     */
+    private fun readFromHostapd(context: Context): Pair<String, String>? {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return null
+        return try {
+            val (code, out) = kotlinx.coroutines.runBlocking {
+                OemAppManager.executeCommand(context.applicationContext, HostapdConfig.READ_COMMAND)
+            }
+            if (code != 0) return null
+            HostapdConfig.parse(out)?.also { AppLog.i("HotspotConfigReader: hotspot '${it.first}' read from the hostapd configuration") }
+        } catch (e: Exception) {
+            AppLog.d("HotspotConfigReader: could not read the hostapd configuration: ${e.message}")
+            null
+        }
     }
 }
