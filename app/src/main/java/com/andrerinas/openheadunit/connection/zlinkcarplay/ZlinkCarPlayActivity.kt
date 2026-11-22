@@ -34,7 +34,6 @@ class ZlinkCarPlayActivity : BaseActivity() {
     private lateinit var connectingView: TextView
     private lateinit var container: FrameLayout
     private var subscription: Closeable? = null
-    private var audio: ZlinkAudioSink? = null
     private var backDialog: AlertDialog? = null
     @Volatile private var videoW = 1024
     @Volatile private var videoH = 608
@@ -117,8 +116,6 @@ class ZlinkCarPlayActivity : BaseActivity() {
     // A fresh feed subscription replays the current picture group, so each surface starts cleanly.
     private fun attach(holder: SurfaceHolder) {
         ZlinkHub.attachSurface(holder.surface)
-        val a = ZlinkAudioSink()
-        audio = a
 
         if ((ZlinkHub.videoSink?.decodedCount ?: 0L) > 0L) {
             videoActive = true
@@ -136,9 +133,6 @@ class ZlinkCarPlayActivity : BaseActivity() {
                     }
                     ZlinkWire.CH_REPLAY_END -> {
                         ZlinkHub.videoSink?.markLive()
-                    }
-                    ZlinkWire.CH_AUDIO -> if (frame.type == ZlinkWire.TYPE_AUDIO) {
-                        ZlinkWire.parseAudio(frame.payload)?.let { a.feed(it) }
                     }
                 }
             }
@@ -298,8 +292,6 @@ class ZlinkCarPlayActivity : BaseActivity() {
         backDialog = null
         subscription?.close()
         subscription = null
-        audio?.release()
-        audio = null
         ZlinkHub.detachSurface()
         videoActive = false
     }

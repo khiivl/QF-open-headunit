@@ -33,6 +33,9 @@ class ZlinkService : Service() {
     @Volatile private var lastRaiseMs = 0L
     @Volatile private var sessionRaised = false
 
+    // The CarPlay audio belongs to the service, not the screen, so music keeps playing on the home screen.
+    @Volatile private var audioSink: ZlinkAudioSink? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -56,6 +59,12 @@ class ZlinkService : Service() {
         if (hubSubscription == null) {
             hubSubscription = ZlinkHub.subscribe(object : ZlinkHub.Listener {
                 override fun onFrame(frame: ZlinkWire.Frame) {
+                    if (frame.channel == ZlinkWire.CH_AUDIO && frame.type == ZlinkWire.TYPE_AUDIO) {
+                        ZlinkWire.parseAudio(frame.payload)?.let { chunk ->
+                            val sink = audioSink ?: ZlinkAudioSink().also { audioSink = it }
+                            sink.feed(chunk)
+                        }
+                    }
                     if (frame.channel == ZlinkWire.CH_VIDEO && frame.type == ZlinkWire.TYPE_VIDEO) {
                         val unit = ZlinkWire.parseVideo(frame.payload) ?: return
                         if (unit.nalType == 7 && !sessionRaised) {
@@ -69,6 +78,8 @@ class ZlinkService : Service() {
                 override fun onSessionState(state: ZlinkSessionState) {
                     if (state == ZlinkSessionState.GAVE_UP) {
                         sessionRaised = false
+                        audioSink?.release()
+                        audioSink = null
                     }
                 }
             })
@@ -131,6 +142,8 @@ class ZlinkService : Service() {
         powerReceiver = null
         hubSubscription?.close()
         hubSubscription = null
+        audioSink?.release()
+        audioSink = null
         sessionRaised = false
         proxy?.stop()
         proxy = null
