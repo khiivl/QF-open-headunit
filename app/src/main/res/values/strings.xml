@@ -1547,6 +1547,7 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="auto_restart_wifi_title">Restart WiFi when WiFi Direct gets stuck</string>
     <string name="auto_restart_wifi_description">Switches WiFi off and on by itself if WiFi Direct jams, which can happen after the app is closed mid-session. Needs root or local ADB. Never runs during a session.</string>
     <string name="auto_restart_wifi_summary">Restart WiFi by itself if WiFi Direct jams. Needs root or local ADB.</string>
+    <string name="auto_restart_wifi_system">Running as a system app. WiFi will restart by itself if WiFi Direct gets stuck.</string>
     <string name="auto_restart_wifi_root_granted">Root granted. WiFi will restart by itself if WiFi Direct gets stuck.</string>
     <string name="auto_restart_wifi_adb">Local ADB found. WiFi will restart by itself if WiFi Direct gets stuck.</string>
     <string name="auto_restart_wifi_unavailable">No root or local ADB on this unit, so the banner will offer a one-tap WiFi restart instead.</string>
@@ -1762,6 +1763,7 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="oem_app_management_help">Finds factory apps on this unit that take over USB or Bluetooth connections before this app can. You can disable and stop each one, or restore it later. This needs root, or ADB over the network on port 5555 of this unit. An option disables these apps each time this app starts.</string>
     <string name="oem_app_management_desc">Detect and disable conflicting apps (Zlink, AutoKit, etc.).</string>
     <string name="oem_app_explanation">Factory headunit companion apps (e.g. Zlink, AutoKit, SpeedPlay) often intercept USB and Bluetooth connections, preventing Open Headunit from connecting. You can disable them via Root or Self-ADB (port 5555).</string>
+    <string name="oem_app_backend_system">Execution method: system app (uid 1000)</string>
     <string name="oem_app_backend_root">Execution method: Root (su) available</string>
     <string name="oem_app_backend_adb">Execution method: Self-ADB (127.0.0.1:5555) connected</string>
     <string name="oem_app_backend_none">Execution method: None. Enable Wireless Debugging or run \"adb tcpip 5555\"</string>
