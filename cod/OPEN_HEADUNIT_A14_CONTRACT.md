@@ -51,6 +51,19 @@ The 4.1.0-beta1 now on stand 198 (`/data/app`, DEBUGGABLE, another signer) is a 
   `openheadunit` | `zlink`.
 - The inactive app is not auto-started and its launcher entry is hidden. Z-Link's licence files in
   `/great/protect_dir/.zjinnova/` are never touched.
+- 🔴 **Bluetooth: when Open Headunit is NOT the chosen projection app, it registers nothing on Bluetooth and does not
+  react to USB attach** (📻 stand 198, 22–23.11.2026):
+  - What it did: the placeholder's `NativeAaHandshakeManager` registers on the SoC Bluetooth an RFCOMM server with the
+    Android Auto wireless UUID `4de17a00-52cb-11e6-bdf4-0800200c9a66` («AndroidAuto»), plus a «Hands-Free Unit» HFP
+    record. Z-Link serves that same UUID on the car Bluetooth module.
+  - Its `UsbAttachedActivity` came up at boot on the hub/Ethernet attach.
+  - What followed: from 23:52, when it was installed, the owner's phone never opened Z-Link's AA channel. Z-Link cycled
+    its hotspot every ~8 s and the phone reboot did not help.
+  - The fix that worked (23.11 00:14): Open Headunit disabled, then the owner RE-PAIRED the phone with the unit's
+    Bluetooth. Wireless Z-Link came up and stays up with Ethernet back.
+  - ❓ Open Headunit is the prime suspect, but this is not proven: it was not re-enabled to reproduce.
+  - Rule from here on: the AA UUID, the HFP record and the USB-attach entry are registered only while
+    `cod_projection_app` = `openheadunit`. They are released at once when the switch moves to Z-Link.
 
 ## 4. Sound on CoD OS — facts the app must respect
 - **Android's digital gain is pinned at unity** (BitPerfect / repair «unity gate»). The audible volume is the **MCU's**,
