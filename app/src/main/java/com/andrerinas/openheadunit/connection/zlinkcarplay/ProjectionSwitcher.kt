@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.andrerinas.openheadunit.aap.AapService
+import com.andrerinas.openheadunit.utils.AppLog
+import com.andrerinas.openheadunit.utils.OemAppManager
 import com.andrerinas.openheadunit.utils.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,9 +28,22 @@ object ProjectionSwitcher {
             ContextCompat.startForegroundService(app, Intent(app, AapService::class.java).apply {
                 action = AapService.ACTION_STOP_SERVICE
             })
-        } else if (settings.hideZlinkUi) {
-            CoroutineScope(Dispatchers.IO).launch { ZlinkScreenPolicy.applyVisibility(app, false) }
+        } else {
+            CoroutineScope(Dispatchers.IO).launch {
+                if (settings.hideZlinkUi) ZlinkScreenPolicy.applyVisibility(app, false)
+                bringStationWifiUp(app)
+            }
         }
         ZlinkService.sync(app)
+    }
+
+    /**
+     * CarPlay leaves zLink's hotspot running. The radio cannot run it and a WiFi Direct group together, and an app
+     * may not switch the station side on (Android 10), so Android Auto's group never formed after a switch. The
+     * shell can: turning the station Wi-Fi on makes the hotspot give way.
+     */
+    private suspend fun bringStationWifiUp(context: Context) {
+        val (code, out) = OemAppManager.executeCommand(context, "svc wifi enable")
+        AppLog.i("projection switch: station Wi-Fi enable finished with code=$code $out")
     }
 }
