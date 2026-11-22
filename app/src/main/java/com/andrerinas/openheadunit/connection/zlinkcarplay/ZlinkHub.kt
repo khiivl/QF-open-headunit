@@ -35,6 +35,10 @@ object ZlinkHub {
 
     @Volatile private var sessionActive = false
 
+    /** True after a Disconnect or a mode switch, until the user connects CarPlay again. */
+    val isOfferSuspended: Boolean
+        get() = holdPolicy.offerSuspended
+
     val hasActiveSession: Boolean
         get() = !holdPolicy.offerSuspended && sessionActive && sessionMonitor.state == ZlinkSessionState.CONNECTED
 
@@ -184,9 +188,10 @@ object ZlinkHub {
      * Subscribes a listener to the CarPlay feed. Replays the cached GOP to the subscriber
      * before delivering live frames.
      */
-    fun subscribe(listener: Listener): Closeable {
-        // Subscribing indicates explicit intent to view CarPlay; cancel any suspension and resume
-        resumeOffer()
+    fun subscribe(listener: Listener, userIntent: Boolean = true): Closeable {
+        // Opening the CarPlay screen indicates explicit intent to view CarPlay; cancel any suspension and resume.
+        // The always-on service subscription is not an intent: it must not undo a Disconnect or a mode switch.
+        if (userIntent) resumeOffer()
         val oldCount = subscribers.size
         val id = subIdSeq.incrementAndGet()
         lateinit var sub: Subscriber

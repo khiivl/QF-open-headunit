@@ -246,6 +246,8 @@ class ZlinkCarPlayActivity : BaseActivity() {
                 when (which) {
                     0 -> {
                         ZlinkHub.endSession(ZlinkHub.EndReason.USER)
+                        // Land on the home screen, not on whatever app happened to be behind this screen.
+                        moveToBackground()
                         finish()
                     }
                     1 -> {

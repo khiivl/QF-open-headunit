@@ -23,9 +23,9 @@ class ZlinkHoldPolicy {
     fun onSubscriberCountChanged(oldCount: Int, newCount: Int): ByteArray? {
         val last = lastInitFrame ?: return null
         return if (oldCount == 0 && newCount > 0) {
-            // First subscriber arrived: hold wireless CarPlay and cancel any suspension
-            offerSuspended = false
-            ZlinkMessage.withMode(last, 2)
+            // First subscriber arrived: hold wireless CarPlay. A suspension stays: only the user lifts it
+            // (the hub does that before subscribing for the CarPlay screen), not the always-on service.
+            if (offerSuspended) null else ZlinkMessage.withMode(last, 2)
         } else {
             // Backgrounding (e.g. going Home) does NOT restore mode 0,
             // keeping wireless CarPlay alive.

@@ -31,9 +31,14 @@ object ProjectionSwitcher {
                 action = AapService.ACTION_STOP_SERVICE
             })
         } else {
+            // A CarPlay session must not outlive the switch: the hotspot can stay up and keep the iPhone connected.
+            ZlinkHub.endSession(ZlinkHub.EndReason.USER)
             CoroutineScope(Dispatchers.IO).launch {
                 if (settings.hideZlinkUi) ZlinkScreenPolicy.applyVisibility(app, false)
-                bringStationWifiUp(app)
+                // Only the WiFi Direct strategy needs the station side; the hotspot strategy keeps zLink's hotspot.
+                if (settings.nativeApStrategy == com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.WIFI_DIRECT) {
+                    bringStationWifiUp(app)
+                }
                 // CarPlay mode stops the Android Auto service. Starting it again arms its wireless transport
                 // (the same plain start the boot receiver makes), so a phone that is already connected over
                 // Bluetooth is picked up without going back to the Home screen first.

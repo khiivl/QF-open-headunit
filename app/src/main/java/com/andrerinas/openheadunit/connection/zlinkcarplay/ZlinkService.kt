@@ -14,6 +14,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.andrerinas.openheadunit.R
 import com.andrerinas.openheadunit.utils.AppLog
+import com.andrerinas.openheadunit.utils.OemAppManager
 import com.andrerinas.openheadunit.utils.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,8 +48,11 @@ class ZlinkService : Service() {
 
         CoroutineScope(Dispatchers.IO).launch {
             ZlinkRedirect.ensureRedirectRules(applicationContext)
-            if (Settings(applicationContext).hideZlinkUi) {
+            if (Settings(applicationContext).hideZlinkUi && ZlinkScreenPolicy.isUiHidden(applicationContext) != true) {
                 ZlinkScreenPolicy.applyVisibility(applicationContext, true)
+                // Changing the app's screens stops its process, and the daemon restarts in a loop until the app is
+                // back. Starting the app's own background service brings it up again.
+                OemAppManager.executeCommand(applicationContext, ZLINK_DAEMON_START)
             }
         }
 
@@ -82,7 +86,7 @@ class ZlinkService : Service() {
                         audioSink = null
                     }
                 }
-            })
+            }, userIntent = false)
         }
 
         if (powerReceiver == null) {
@@ -101,6 +105,8 @@ class ZlinkService : Service() {
 
     private fun raiseProjection(): Boolean {
         if (ZlinkCarPlayActivity.isResumed) return true
+        // Held off (Disconnect, mode switch): the user connects CarPlay themselves, nothing opens on its own.
+        if (ZlinkHub.isOfferSuspended) return true
         val now = System.currentTimeMillis()
         if (now - lastRaiseMs < RAISE_COOLDOWN_MS) return false
         lastRaiseMs = now
@@ -151,6 +157,8 @@ class ZlinkService : Service() {
     }
 
     companion object {
+        private const val ZLINK_DAEMON_START =
+            "am start-foreground-service -n com.zjinnova.zlink/com.zjinnova.android.zlink.features.service.DaemonService"
         private const val CHANNEL = "zlink_carplay"
         private const val NOTIFICATION_ID = 0x5A11
         private const val RAISE_COOLDOWN_MS = 5_000L
