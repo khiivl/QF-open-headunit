@@ -4930,13 +4930,18 @@ class SettingsFragment : Fragment() {
     private fun probeWifiRestartRoute() {
         viewLifecycleOwner.lifecycleScope.launch {
             val ctx = context ?: return@launch
-            val rootGranted = WifiStackRecovery.requestRoot()
+            // CoD OS: the app is the system uid; there is nothing to ask for and nothing to verify.
+            // Guarded by CODOS so the other flavors do not touch the backend probe before requestRoot.
+            val systemRoute = com.andrerinas.openheadunit.BuildConfig.CODOS &&
+                WifiStackRecovery.availableRoute() == OemAppManager.ExecutionBackend.SYSTEM
+            val rootGranted = !systemRoute && WifiStackRecovery.requestRoot()
             settings.wifiRestartRootGranted = rootGranted
-            val adbVerified = !rootGranted &&
+            val adbVerified = !systemRoute && !rootGranted &&
                 WifiStackRecovery.availableRoute() == OemAppManager.ExecutionBackend.ADB &&
                 WifiStackRecovery.verifyAdb(ctx.applicationContext)
             settings.wifiRestartAdbVerified = adbVerified
             val message = when {
+                systemRoute -> R.string.auto_restart_wifi_system
                 rootGranted -> R.string.auto_restart_wifi_root_granted
                 adbVerified -> R.string.auto_restart_wifi_adb
                 else -> R.string.auto_restart_wifi_unavailable
@@ -5482,6 +5487,10 @@ class SettingsFragment : Fragment() {
             when (backend) {
                 OemAppManager.ExecutionBackend.ROOT -> {
                     tvBackendStatus.setText(R.string.oem_app_backend_root)
+                    tvBackendStatus.setTextColor(ContextCompat.getColor(context, R.color.brand_primary))
+                }
+                OemAppManager.ExecutionBackend.SYSTEM -> {
+                    tvBackendStatus.setText(R.string.oem_app_backend_system)
                     tvBackendStatus.setTextColor(ContextCompat.getColor(context, R.color.brand_primary))
                 }
                 OemAppManager.ExecutionBackend.ADB -> {
