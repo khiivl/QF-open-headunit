@@ -453,10 +453,14 @@ object ZlinkHub {
 
     fun setProxyDropper(dropper: (() -> Unit)?) { proxyDropper = dropper }
 
-    fun resumeOffer() {
+    /**
+     * [force]: restart the daemon link even if the offer was not suspended. A fresh Connect needs it: the unit's
+     * Bluetooth module may still be set up for Android Auto, and only a daemon restart sets it up for CarPlay again.
+     */
+    fun resumeOffer(force: Boolean = false) {
         // Only an offer that was actually suspended (user Disconnect, ACC off) needs the daemon restarted. The
         // CarPlay screen also calls this on every resume, and that must never disturb a live session.
-        val wasSuspended = holdPolicy.offerSuspended
+        val wasSuspended = holdPolicy.offerSuspended || force
         synchronized(this) {
             scheduler?.shutdownNow()
             scheduler = null

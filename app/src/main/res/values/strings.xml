@@ -2013,4 +2013,5 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="home_hotspot_not_found">No WiFi joined. Is the phone’s hotspot on?</string>
     <string name="home_wifi_hotspot_hint">Is the phone’s hotspot on?</string>
     <string name="home_wifi_off_hint">Turn it on to connect</string>
+    <string name="bluetooth_settings_short">Bluetooth</string>
 </resources>

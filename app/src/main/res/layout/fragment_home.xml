@@ -93,6 +93,18 @@
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/bluetooth_button"
+                    style="@style/HomeTile"
+                    android:visibility="gone">
+                    <ImageView
+                        style="@style/HomeTileIcon"
+                        app:srcCompat="@drawable/ic_bluetooth_white_24dp" />
+                    <com.andrerinas.openheadunit.view.WordFitTextView
+                        style="@style/HomeTileLabel.Wrap"
+                        android:text="@string/bluetooth_settings_short" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/settings_button"
                     style="@style/HomeTile">
                     <ImageView

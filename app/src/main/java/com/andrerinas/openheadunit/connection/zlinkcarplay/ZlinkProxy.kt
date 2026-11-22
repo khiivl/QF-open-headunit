@@ -17,7 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * Listens on 127.0.0.1 ports 11666, 11777, 11888, 11999 (offset +10000) and pairs each daemon
  * connection with upstream 127.0.0.1:1666/1777/1888/1999.
  */
-class ZlinkProxy {
+class ZlinkProxy(private val onNothingToDrop: () -> Unit = {}) {
     @Volatile private var running = false
     private val serverSockets = CopyOnWriteArrayList<ServerSocket>()
     private val activeSockets = CopyOnWriteArrayList<Socket>()
@@ -42,6 +42,12 @@ class ZlinkProxy {
      * disconnected phone back by itself, exactly as after any normal session end.
      */
     fun dropConnections() {
+        // Nothing here means the daemon is connected to the zLink app directly (the connections were made before the
+        // redirect existed), so closing ours would change nothing: the owner restarts the app instead.
+        if (activeSockets.isEmpty()) {
+            onNothingToDrop()
+            return
+        }
         for (sock in activeSockets) { try { sock.close() } catch (_: Exception) {} }
         activeSockets.clear()
     }

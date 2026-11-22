@@ -121,6 +121,7 @@ class HomeFragment : Fragment() {
     private lateinit var usbTile: View
     private lateinit var projectionTile: View
     private lateinit var settingsTile: View
+    private var bluetoothTile: View? = null
     private lateinit var wifiTile: View
     private lateinit var exitButton: View
     private lateinit var appsButton: View
@@ -228,6 +229,7 @@ class HomeFragment : Fragment() {
         usbTile = container.findViewById(R.id.usb_button)
         projectionTile = container.findViewById(R.id.projection_button)
         settingsTile = container.findViewById(R.id.settings_button)
+        bluetoothTile = container.findViewById(R.id.bluetooth_button)
         wifiTile = container.findViewById(R.id.wifi_button)
         exitButton = container.findViewById(R.id.exit_button)
         appsButton = container.findViewById(R.id.apps_button)
@@ -1952,6 +1954,7 @@ class HomeFragment : Fragment() {
         settingsTile.setOnClickListener {
             startActivity(Intent(requireContext(), SettingsActivity::class.java))
         }
+        setUpUnitBluetoothTile()
         primaryAction?.setOnClickListener { onPrimaryActionClicked() }
         primaryCancel?.setOnClickListener { onPrimaryCancelClicked() }
         favoriteSlots.forEachIndexed { slot, slotView ->
@@ -1960,11 +1963,31 @@ class HomeFragment : Fragment() {
         }
     }
 
+    /**
+     * Opens the unit's own Bluetooth app, where the phones are paired and swapped. Only on a unit that has it, and
+     * only where the layout has the tile.
+     */
+    private fun setUpUnitBluetoothTile() {
+        val tile = bluetoothTile ?: return
+        val launch = Intent().setClassName(UNIT_BLUETOOTH_PACKAGE, "$UNIT_BLUETOOTH_PACKAGE.BluetoothActivity")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val present = requireContext().packageManager.resolveActivity(launch, 0) != null
+        tile.visibility = if (present) View.VISIBLE else View.GONE
+        tile.setOnClickListener {
+            try {
+                startActivity(launch)
+            } catch (e: Exception) {
+                AppLog.w("HomeFragment: could not open the unit's Bluetooth app: ${e.message}")
+            }
+        }
+    }
+
     /** In CarPlay mode every connect button leads to the CarPlay screen; Android Auto stays off. */
     private fun openCarPlayIfSelected(): Boolean {
         if (!com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
                 App.provide(requireContext()).settings.projectionMode)) return false
-        com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.resumeOffer()
+        val hub = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub
+        hub.resumeOffer(force = !hub.hasActiveSession)
         startActivity(Intent(requireContext(),
             com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkCarPlayActivity::class.java))
         return true
@@ -3275,6 +3298,7 @@ class HomeFragment : Fragment() {
     }
 
     companion object {
+        private const val UNIT_BLUETOOTH_PACKAGE = "com.qf.bluetooth"
         private const val STATE_PENDING_WIDGET_ID = "home_pending_widget_id"
         private const val STATE_PENDING_WIDGET_PAGE = "home_pending_widget_page"
         private const val UNAVAILABLE_FAVORITE_ALPHA = 0.45f

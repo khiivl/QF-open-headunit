@@ -404,7 +404,10 @@ object HomeUiHelper {
             if (state != TileState.CONNECTING) stopTileShine(tile)
         }
 
-        // Color on the bar means a connection, so Settings stays neutral.
+        // Color on the bar means a connection, so Bluetooth and Settings stay neutral.
+        rootView.findViewById<ViewGroup>(R.id.bluetooth_button)?.let {
+            paintTile(it, tileBackground(context, palette), palette.text, palette.text)
+        }
         val settingsTile = rootView.findViewById<ViewGroup>(R.id.settings_button) ?: return
         paintTile(settingsTile, tileBackground(context, palette), palette.text, palette.text)
     }

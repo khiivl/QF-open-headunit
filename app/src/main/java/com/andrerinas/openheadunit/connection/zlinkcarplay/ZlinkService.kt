@@ -57,7 +57,7 @@ class ZlinkService : Service() {
         }
 
         if (proxy == null) {
-            proxy = ZlinkProxy().also { it.start() }
+            proxy = ZlinkProxy(onNothingToDrop = { restartZlinkApp() }).also { it.start() }
         }
 
         if (hubSubscription == null) {
@@ -101,6 +101,15 @@ class ZlinkService : Service() {
         }
 
         return START_STICKY
+    }
+
+    /** Stops the zLink app and starts its background service again; the daemon then reconnects through the proxy. */
+    private fun restartZlinkApp() {
+        AppLog.i("zlink service: the daemon is not connected through the proxy, restarting the zLink app")
+        val app = applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            OemAppManager.executeCommand(app, "am force-stop com.zjinnova.zlink ; $ZLINK_DAEMON_START")
+        }
     }
 
     private fun raiseProjection(): Boolean {
