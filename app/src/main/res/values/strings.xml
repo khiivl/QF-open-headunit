@@ -32,7 +32,8 @@
     <string name="zlink_disconnect_carplay">Disconnect CarPlay</string>
     <string name="zlink_go_home">Go home</string>
     <string name="zlink_connection_lost">Connection lost, retrying…</string>
-    <string name="zlink_connecting">Connecting to CarPlay…</string>
+    <string name="zlink_connecting">Connecting to CarPlay…
+If nothing happens, start CarPlay on your iPhone.</string>
     <string name="zlink_hide_ui">Hide OEM zLink screens</string>
     <string name="zlink_hide_ui_desc">Keeps zLink in the background so CarPlay renders only in Open Headunit</string>
     <string name="zlink_hide_ui_help">When enabled, hides zLink\'s launcher icon and activities using Android\'s Package Manager while keeping its background services alive. Disabling this restores zLink\'s normal app icon and screens.</string>

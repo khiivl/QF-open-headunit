@@ -1923,7 +1923,8 @@
     <string name="zlink_disconnect_carplay">Від\'єднати CarPlay</string>
     <string name="zlink_go_home">На головну</string>
     <string name="zlink_connection_lost">З\'єднання втрачено, повторна спроба…</string>
-    <string name="zlink_connecting">Підключення до CarPlay…</string>
+    <string name="zlink_connecting">Підключення до CarPlay…
+Якщо нічого не відбувається, запустіть CarPlay на iPhone.</string>
     <string name="zlink_hide_ui">Сховати екрани zLink</string>
     <string name="zlink_hide_ui_desc">Тримає zLink у фоновому режимі, щоб CarPlay відображався лише в Open Headunit</string>
     <string name="zlink_hide_ui_help">Якщо увімкнено, приховує лаунчер та екрани zLink через Package Manager, залишаючи активними його фонові служби. Вимкнення відновлює звичайну іконку та екрани zLink.</string>
