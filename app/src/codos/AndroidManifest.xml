@@ -5,6 +5,9 @@
       /system/priv-app/OpenHeadunit/OpenHeadunit.apk. It cannot be installed by `adb install`
       over a copy with another signer; the Magisk module in magisk/ puts it in place.
     - no ACCESS_SUPERUSER: there is no Superuser app and no uid 0 (see cod/ROOT_TO_SYSTEM.md).
+    - no HOME category: the launcher role lives only in the developer section (owner's rule), so the
+      CarLauncherAlias component stays (CarLauncherManager toggles it by name) but carries no
+      HOME intent filter and cannot be chosen as the home app.
     - the dummy VPN service of the github flavor, which this flavor shares (offline Self Mode).
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -14,6 +17,13 @@
     <uses-permission android:name="android.permission.ACCESS_SUPERUSER" tools:node="remove" />
 
     <application>
+        <activity-alias
+            android:name=".CarLauncherAlias"
+            android:targetActivity=".main.MainActivity"
+            android:enabled="false"
+            android:exported="false"
+            tools:node="replace" />
+
         <service
             android:name=".aap.DummyVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"

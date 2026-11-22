@@ -133,8 +133,19 @@ android {
             dimension = "distribution"
             minSdk = 21
             versionNameSuffix = "-codos"
+            // The unit is ARM: x86 / x86_64 would be dead weight in a system partition image.
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             buildConfigField("boolean", "CODOS", "true")
             signingConfig = signingConfigs.maybeCreate("codos")
+        }
+    }
+
+    // codos is a bundled /system/priv-app: the package manager does not extract native libraries for
+    // it, so System.loadLibrary only works when the .so files are stored uncompressed and page-aligned
+    // inside the APK (extractNativeLibs=false). The other flavors keep AGP's default.
+    androidComponents {
+        onVariants(selector().withFlavor("distribution" to "codos")) { variant ->
+            variant.packaging.jniLibs.useLegacyPackaging.set(false)
         }
     }
 
