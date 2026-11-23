@@ -55,6 +55,32 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
                 ?.let { settings.projectionMode = it }
         }
         com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(this)
+        // The rows that could change these are hidden on a zLink unit, so the values are pinned to the ones that work:
+        // Native Android Auto, over zLink's hotspot (WiFi Direct shares the radio with it and drops CarPlay).
+        run {
+            val settings = com.andrerinas.openheadunit.utils.Settings(this)
+            if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
+                if (settings.wifiConnectionMode != com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode.NATIVE) {
+                    settings.wifiConnectionMode = com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode.NATIVE
+                }
+                // 5 GHz only (setting value 1), the one band that carries Android Auto video well.
+                if (settings.hotspotBand != 1) settings.hotspotBand = 1
+                if (settings.connectionModes != setOf(com.andrerinas.openheadunit.utils.Settings.ConnectionMode.WIFI)) {
+                    settings.connectionModes = setOf(com.andrerinas.openheadunit.utils.Settings.ConnectionMode.WIFI)
+                }
+                if (settings.nativeApStrategy != com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.HOTSPOT) {
+                    settings.nativeApStrategy = com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.HOTSPOT
+                }
+            }
+        }
+        // zLink's hotspot is the network Android Auto and CarPlay run on, and it only carries them well on 5 GHz: make sure
+        // it is, a little after start so the adb bridge it goes through is up.
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                kotlinx.coroutines.delay(20_000L)
+                com.andrerinas.openheadunit.utils.HotspotConfigClient.ensure5Ghz(this@App)
+            }
+        }
         com.andrerinas.openheadunit.connection.modulephone.ModulePhoneWatcher.start(this)
         com.andrerinas.openheadunit.connection.modulephone.PhoneKindLearner.start(this)
 

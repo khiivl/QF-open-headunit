@@ -69,6 +69,7 @@ import com.andrerinas.openheadunit.main.settings.SettingItem
 import com.andrerinas.openheadunit.main.settings.SettingsAdapter
 import com.andrerinas.openheadunit.main.settings.SettingsCategory
 import com.andrerinas.openheadunit.main.settings.SettingsFilterPolicy
+import com.andrerinas.openheadunit.main.settings.SettingsProfilePolicy
 import com.andrerinas.openheadunit.main.settings.SettingsHeaderController
 import com.andrerinas.openheadunit.main.settings.SettingsLayoutPolicy
 import com.andrerinas.openheadunit.utils.AppLog
@@ -134,7 +135,6 @@ class SettingsFragment : Fragment() {
     // Wireless items here only appear in Basic when the user connects wirelessly (see filterSettings).
     private val basicSettingIds = setOf(
         // General
-        "essentialsProjectionMode", "essentialsConnectionMode", "essentialsAutoReconnectOnAccOn", "essentialsHideZlinkUi",
         "autoOptimize", "connectionMode", "projectionMode", "autoReconnectOnAccOn", "hideZlinkUi", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
         // Wireless (shown in Basic only when WiFi is among the selected connection modes).
         // The hotspot entries come along with the transport choice: they only render once Hotspot
@@ -893,8 +893,7 @@ class SettingsFragment : Fragment() {
     private fun describeFaultBudget(budget: Int): String =
         if (budget == VideoFaultInjector.UNLIMITED_BUDGET) "Whole session" else "$budget faults"
 
-    // The few settings everyone needs, built here so the Essentials group on top and the full list below show the
-    // same row (each with its own id, the list wants them unique).
+    // The projection, connection mode, reconnect and zLink-hide rows, built here so each is defined once.
     private fun connectionModeEntry(stableId: String) = SettingItem.SettingEntry(
         stableId = stableId,
         nameResId = R.string.connection_mode,
@@ -948,13 +947,6 @@ class SettingsFragment : Fragment() {
         val scrollState = settingsRecyclerView.layoutManager?.onSaveInstanceState()
         val items = mutableListOf<SettingItem>()
         scopeNotice()?.let { items.add(it) }
-
-        // --- Essentials: the settings most people reach for, repeated from below ---
-        items.add(SettingItem.CategoryHeader("essentials", R.string.category_essentials))
-        items.add(projectionModeEntry("essentialsProjectionMode"))
-        items.add(connectionModeEntry("essentialsConnectionMode"))
-        items.add(autoReconnectEntry("essentialsAutoReconnectOnAccOn"))
-        hideZlinkUiEntry("essentialsHideZlinkUi")?.let { items.add(it) }
 
         // --- General Settings ---
         items.add(SettingItem.CategoryHeader("general", R.string.category_general))
@@ -1235,6 +1227,12 @@ class SettingsFragment : Fragment() {
                     addFiveGhzChannelSetting(items)
                 }
 
+                // Where zLink runs the hotspot, OHU reads its real name, password and interface itself, so typing them
+                // in by hand can only go stale: the three override rows are not offered there. The band and channel
+                // above stay, as they may be needed later.
+                val hotspotRunByZlink =
+                    com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isNotEmpty()
+                if (!hotspotRunByZlink) {
                 // The automatic read goes through the same non-public API that a locked-down
                 // device refuses outright, so on those units this override is the only way the
                 // route can learn the network name at all.
@@ -1306,6 +1304,8 @@ class SettingsFragment : Fragment() {
                         )
                     }
                 ))
+
+                }
 
                 // The one route onto a unit whose Bluetooth cannot carry the handshake: the phone
                 // reads the network and our TCP endpoint straight off the screen. Only on this
@@ -3296,7 +3296,11 @@ class SettingsFragment : Fragment() {
             showsUsb = settings.showsUsb(),
             showsWifi = settings.showsWifi(),
             basicIds = basicSettingIds,
-            text = { getString(it) }
+            text = { getString(it) },
+            hiddenIds = SettingsProfilePolicy.hiddenIds(
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isNotEmpty(),
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(settings.projectionMode)
+            )
         )
 
     // Resolutions this wide or more (1440p, 4K) are flagged as high-bandwidth.

@@ -1939,7 +1939,6 @@
     <string name="projection_android_auto_only">Лише Android Auto</string>
     <string name="projection_carplay_only">Лише CarPlay</string>
     <string name="projection_availability_help">Обидва: плитка на головному екрані перемикає Android Auto і CarPlay. Лише Android Auto або лише CarPlay повністю вимикає інше.</string>
-    <string name="category_essentials">Основне</string>
     <string name="hotspot_config_title">Назва та пароль точки доступу</string>
     <string name="hotspot_config_desc">Власна точка доступу пристрою для CarPlay і Android Auto</string>
     <string name="hotspot_config_name">Назва</string>

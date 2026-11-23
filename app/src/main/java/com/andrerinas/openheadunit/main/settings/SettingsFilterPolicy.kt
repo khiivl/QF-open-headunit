@@ -36,7 +36,8 @@ object SettingsFilterPolicy {
         showsUsb: Boolean,
         showsWifi: Boolean,
         basicIds: Set<String>,
-        text: (Int) -> String
+        text: (Int) -> String,
+        hiddenIds: Set<String> = emptySet()
     ): List<SettingItem> {
         val search = normalizeSearchText(query).split(SEARCH_WHITESPACE).filter { it.isNotEmpty() }
         val result = mutableListOf<SettingItem>()
@@ -62,6 +63,7 @@ object SettingsFilterPolicy {
                     matchesSearch(text(item.titleResId), search)
                 continue
             }
+            if (item.stableId in hiddenIds) continue
             if (!shows(item, search, headerMatches || subHeaderMatches, advanced, showsUsb, showsWifi, basicIds, categoryId, text)) {
                 continue
             }
