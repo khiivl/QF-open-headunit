@@ -1,0 +1,8 @@
+# Magisk module (cod OS): scripts and metadata must stay LF, they run under Android's sh.
+magisk/**/*.sh text eol=lf
+magisk/**/*.prop text eol=lf
+magisk/META-INF/** text eol=lf
+magisk/**/*.xml text eol=lf
+tools/*.sh text eol=lf
+*.apk binary
+*.zip binary

@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import com.andrerinas.openheadunit.BuildConfig
 import com.andrerinas.openheadunit.utils.adb.AdbManager
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
@@ -15,12 +16,16 @@ import kotlinx.coroutines.withContext
  * USB and Bluetooth endpoints.
  *
  * Execution is performed either via root (libsu) if granted, or via Self-ADB (127.0.0.1:5555).
+ * In the CoD OS flavor ([BuildConfig.CODOS]) the app is the system uid and runs the command itself
+ * ([SystemUidShell]); neither root nor self-ADB is touched.
  */
 object OemAppManager {
 
     enum class ExecutionBackend {
         ROOT,
         ADB,
+        /** CoD OS: this app is `android.uid.system`. */
+        SYSTEM,
         NONE
     }
 
@@ -139,6 +144,9 @@ object OemAppManager {
     }
 
     suspend fun checkAvailableBackend(): ExecutionBackend = withContext(Dispatchers.IO) {
+        if (BuildConfig.CODOS) {
+            return@withContext if (SystemUidShell.isSystemUid()) ExecutionBackend.SYSTEM else ExecutionBackend.NONE
+        }
         if (LibsuAvailability.usable()) {
             if (Shell.isAppGrantedRoot() == null) {
                 try { Shell.getShell() } catch (_: Throwable) {}
@@ -154,6 +162,9 @@ object OemAppManager {
     }
 
     suspend fun executeCommand(context: Context, command: String): Pair<Int, String> = withContext(Dispatchers.IO) {
+        if (BuildConfig.CODOS) {
+            return@withContext SystemUidShell.exec(command)
+        }
         if (LibsuAvailability.usable()) {
             if (Shell.isAppGrantedRoot() == null) {
                 try { Shell.getShell() } catch (_: Throwable) {}
@@ -220,7 +231,7 @@ object OemAppManager {
         statuses
     }
 
-    fun getDisableCommands(context: Context? = null, status: OemAppStatus): List<String> {
+    fun getDisableCommands(context: Context? = null, status: OemAppStatus, codos: Boolean = BuildConfig.CODOS): List<String> {
         if (context != null && status.target.id == "zlink" && Settings(context).projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) {
             val pkg = status.installedPackage ?: status.target.packageCandidates.first()
             return com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.buildHideCommands(pkg)
@@ -229,13 +240,17 @@ object OemAppManager {
         val pkg = status.installedPackage ?: status.target.packageCandidates.first()
         cmds.add("pm disable-user --user 0 $pkg")
         cmds.add("am force-stop $pkg")
-        for (daemon in status.target.daemonNames) {
-            cmds.add("pkill -f $daemon")
+        // CoD OS: signalling another uid's process needs CAP_KILL, which a uid-1000 app does not
+        // keep. The package-level force-stop above is what the system uid can do.
+        if (!codos) {
+            for (daemon in status.target.daemonNames) {
+                cmds.add("pkill -f $daemon")
+            }
         }
         return cmds
     }
 
-    fun getRestoreCommands(context: Context? = null, status: OemAppStatus): List<String> {
+    fun getRestoreCommands(context: Context? = null, status: OemAppStatus, codos: Boolean = BuildConfig.CODOS): List<String> {
         if (context != null && status.target.id == "zlink" && Settings(context).projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) {
             val pkg = status.installedPackage ?: status.target.packageCandidates.first()
             return com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.buildRestoreCommands(pkg)
@@ -243,8 +258,11 @@ object OemAppManager {
         val cmds = mutableListOf<String>()
         val pkg = status.installedPackage ?: status.target.packageCandidates.first()
         cmds.add("pm enable --user 0 $pkg")
-        for (script in status.target.daemonScripts) {
-            cmds.add("[ -f $script ] && setsid $script >/dev/null 2>&1 </dev/null &")
+        // CoD OS: starting a root-owned vendor daemon needs uid 0.
+        if (!codos) {
+            for (script in status.target.daemonScripts) {
+                cmds.add("[ -f $script ] && setsid $script >/dev/null 2>&1 </dev/null &")
+            }
         }
         return cmds
     }

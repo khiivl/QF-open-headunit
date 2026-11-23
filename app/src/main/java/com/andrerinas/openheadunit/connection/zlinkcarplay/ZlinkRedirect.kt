@@ -1,6 +1,7 @@
 package com.andrerinas.openheadunit.connection.zlinkcarplay
 
 import android.content.Context
+import com.andrerinas.openheadunit.BuildConfig
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.OemAppManager
 import kotlinx.coroutines.Dispatchers
@@ -52,10 +53,20 @@ object ZlinkRedirect {
     }
 
     /**
+     * CoD OS: netfilter needs CAP_NET_ADMIN, which a uid-1000 app does not have, and the rules only
+     * match traffic of a root Z-Link daemon. Nothing to redirect, nothing to run.
+     */
+    private fun codosDisabled(what: String): Pair<Boolean, String> {
+        AppLog.w("zlink redirect: $what skipped; iptables needs uid 0 and is disabled in CoD OS")
+        return false to "disabled in CoD OS"
+    }
+
+    /**
      * Idempotently installs the redirect rules using available root or self-ADB backend.
      * Safe to call from any thread; dispatches to [Dispatchers.IO].
      */
     suspend fun ensureRedirectRules(context: Context): Pair<Boolean, String> = ensureMutex.withLock {
+        if (BuildConfig.CODOS) return@withLock codosDisabled("ensure")
         val now = android.os.SystemClock.elapsedRealtime()
         if (!shouldEnsure(now, lastEnsureOkMs)) return@withLock Pair(true, "recently ensured")
         withContext(Dispatchers.IO) {
@@ -84,6 +95,7 @@ object ZlinkRedirect {
      * Safe to call from any thread; dispatches to [Dispatchers.IO].
      */
     suspend fun removeRedirectRules(context: Context): Pair<Boolean, String> = ensureMutex.withLock {
+        if (BuildConfig.CODOS) return@withLock codosDisabled("remove")
         val now = android.os.SystemClock.elapsedRealtime()
         if (!shouldEnsure(now, lastRemoveOkMs)) return@withLock Pair(true, "recently removed")
         lastEnsureOkMs = 0L

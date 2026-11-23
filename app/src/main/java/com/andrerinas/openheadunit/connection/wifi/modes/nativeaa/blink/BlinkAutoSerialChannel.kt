@@ -1,5 +1,6 @@
 package com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.blink
 
+import com.andrerinas.openheadunit.BuildConfig
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.WppFraming
 import com.andrerinas.openheadunit.utils.AppLog
 import java.io.BufferedReader
@@ -112,6 +113,11 @@ class BlinkAutoSerialChannel internal constructor(
 
         /** Starts the root bridge. Throws if `su` cannot be run at all. */
         fun open(onLine: (String) -> Unit, onEnded: (String) -> Unit): BlinkAutoSerialChannel {
+            if (BuildConfig.CODOS) {
+                // CoD OS has no `su`; the carrier reads this exception as "root denied" and refuses.
+                AppLog.w("NativeAA: [BLINK] the su bridge is disabled in CoD OS (no root); only the direct open is used.")
+                throw IOException("su bridge disabled in CoD OS")
+            }
             val process = Runtime.getRuntime().exec(arrayOf("su", "-c", BRIDGE_SCRIPT))
             return BlinkAutoSerialChannel(process, onLine, onEnded).also { it.start() }
         }

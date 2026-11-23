@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Open Headunit on CoD OS: privileged-permission allow-list for /system/priv-app/OpenHeadunit.
+    Stand 198 runs ro.control_privapp_permissions=enforce: a privileged permission that the APK
+    requests and this file does not list stops the boot, so this list errs on the long side.
+
+    Source: the merged manifest of the codos flavor (app/build/intermediates/merged_manifests).
+    Of its uses-permission entries two are privileged on this A14 (head lead, dumpsys package
+    permission on stand 198): android.permission.TURN_SCREEN_ON (signature|privileged|appop) and
+    android.permission.READ_LOGS (signature|privileged|development; requested with maxSdkVersion 32,
+    so Android 14 skips it, listed so a lower-SDK build cannot break the boot). Under enforce the
+    check runs for every privileged package except "android", platform signature or not.
+    SYSTEM_ALERT_WINDOW and WRITE_SETTINGS are signature/appop permissions, not privileged ones;
+    they are listed as well because listing a permission the app may hold anyway costs nothing,
+    and a missing line costs a boot. Everything else requested is normal or dangerous.
+    Re-check this list whenever app/src/main/AndroidManifest.xml or a library adds a permission.
+-->
+<permissions>
+    <privapp-permissions package="com.andrerinas.headunitrevived">
+        <permission name="android.permission.READ_LOGS" />
+        <permission name="android.permission.TURN_SCREEN_ON" />
+        <permission name="android.permission.SYSTEM_ALERT_WINDOW" />
+        <permission name="android.permission.WRITE_SETTINGS" />
+    </privapp-permissions>
+</permissions>

@@ -15,6 +15,12 @@ import rikka.shizuku.Shizuku
 class SUExecutor {
 
     private val all: Collection<SUImplementation> = buildList {
+        // CoD OS has no root and no Shizuku: this app is the system uid itself.
+        if (BuildConfig.CODOS) {
+            add(SystemUidImpl())
+            return@buildList
+        }
+
         // libsu requires Lollipop (API 21+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             add(RootImpl())
@@ -121,6 +127,29 @@ class SUExecutor {
         fun checkPermission(): Boolean
 
         fun runShell(cmd: String, asRootUser: Boolean): Int
+    }
+
+    /**
+     * CoD OS: the app runs as `android.uid.system`, so "su" is the app's own shell. Commands run
+     * through `sh -c` as uid 1000; there is no uid 0 to ask for.
+     */
+    private class SystemUidImpl : SUImplementation {
+        override val name = "System UID"
+
+        private var rootRequestLogged = false
+
+        override fun register() {}
+        override fun unregister() {}
+
+        override fun checkPermission(): Boolean = SystemUidShell.isSystemUid()
+
+        override fun runShell(cmd: String, asRootUser: Boolean): Int {
+            if (asRootUser && !rootRequestLogged) {
+                rootRequestLogged = true
+                Log.w("SUExecutor", "CoD OS has no uid 0: running as the system uid instead")
+            }
+            return SystemUidShell.exec(cmd).first
+        }
     }
 
     private class LegacySuImpl : SUImplementation {

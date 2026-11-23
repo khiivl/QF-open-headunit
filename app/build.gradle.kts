@@ -107,6 +107,8 @@ android {
         // This is scanned at build time from values-XX directories
         buildConfigField("String", "AVAILABLE_LOCALES", "\"${availableLocales.joinToString(",")}\"")
         buildConfigField("String", "GIT_SHA", "\"$gitDescription\"")
+        // CoD OS is our "if defined": true only in the codos flavor (system uid, no root, no su).
+        buildConfigField("boolean", "CODOS", "false")
 
         externalNativeBuild {
             cmake {
@@ -125,6 +127,32 @@ android {
             dimension = "distribution"
             // Default minSdk 16 from defaultConfig is used
         }
+        // CoD OS (QF/K706 Android 14): a system app under android.uid.system, signed with the CoD
+        // platform key. No root, no su, no self-ADB: see cod/ROOT_TO_SYSTEM.md.
+        create("codos") {
+            dimension = "distribution"
+            minSdk = 21
+            versionNameSuffix = "-codos"
+            // The unit is ARM: x86 / x86_64 would be dead weight in a system partition image.
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+            buildConfigField("boolean", "CODOS", "true")
+            signingConfig = signingConfigs.maybeCreate("codos")
+        }
+    }
+
+    // codos is a bundled /system/priv-app: the package manager does not extract native libraries for
+    // it, so System.loadLibrary only works when the .so files are stored uncompressed and page-aligned
+    // inside the APK (extractNativeLibs=false). The other flavors keep AGP's default.
+    androidComponents {
+        onVariants(selector().withFlavor("distribution" to "codos")) { variant ->
+            variant.packaging.jniLibs.useLegacyPackaging.set(false)
+        }
+    }
+
+    // codos shares the github flavor's dummy-VPN seam (offline Self Mode) instead of copying it.
+    sourceSets.getByName("codos") {
+        java.srcDir("src/github/java")
+        res.srcDir("src/github/res")
     }
 
     testOptions {
@@ -135,6 +163,17 @@ android {
     }
 
     signingConfigs {
+        // The CoD platform key. Nothing secret lives in this file: the keystore path, alias and both
+        // passwords come from the environment of the build (tools/build_codos.ps1 sets them).
+        maybeCreate("codos").apply {
+            System.getenv("CODOS_KEYSTORE_FILE")?.let { storeFile = file(it) }
+            keyAlias = System.getenv("CODOS_KEY_ALIAS") ?: "key0"
+            val storePass = System.getenv("CODOS_KEYSTORE_PASSWORD")
+            if (storePass != null) {
+                storePassword = storePass
+                keyPassword = System.getenv("CODOS_KEY_PASSWORD") ?: storePass
+            }
+        }
         getByName("debug") {
             // storeFile = file("../keystore.jkc")
             // storePassword = property("HEADUNIT_KEYSTORE_PASSWORD") as String
@@ -252,6 +291,7 @@ dependencies {
     // Conscrypt (Flavor specific: 2.6.1 for Playstore 16KB alignment; 2.5.3 for Github minSdk 16)
     "playstoreImplementation"("org.conscrypt:conscrypt-android:2.6.1")
     "githubImplementation"("org.conscrypt:conscrypt-android:2.5.3")
+    "codosImplementation"("org.conscrypt:conscrypt-android:2.6.1")
 
     implementation("com.google.protobuf:protobuf-java:3.25.5")
     implementation("androidx.activity:activity-ktx:1.8.2")
