@@ -155,6 +155,9 @@ class MainActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         requestedOrientation = Settings(this).screenOrientation.androidOrientation
+        // The home screen always wears the dark look: the light variant is not kept up with it. Set before
+        // super.onCreate, so the window is built dark and nothing has to be recreated.
+        delegate.localNightMode = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
         super.onCreate(savedInstanceState)
 
         applyTurnScreenOn(intent)
