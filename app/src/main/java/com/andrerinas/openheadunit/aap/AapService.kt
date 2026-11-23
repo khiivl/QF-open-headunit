@@ -1217,6 +1217,7 @@ class AapService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        com.andrerinas.openheadunit.input.BridgeVoiceKeyWatcher.sync(this)
         AppLog.i("AapService creating...")
         instance = this
         // A dark screen is not evidence that the car is on.
@@ -3477,6 +3478,7 @@ class AapService : Service() {
 
     @SuppressLint("WrongConstant")
     override fun onDestroy() {
+        com.andrerinas.openheadunit.input.BridgeVoiceKeyWatcher.stop()
         closeRetainedHct()
         AppLog.i("AapService destroying... (wakeLock held=${bootWakeLock?.isHeld == true})")
         FloatingButtonManager.removeOverlay(this)

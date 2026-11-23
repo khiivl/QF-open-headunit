@@ -54,7 +54,7 @@ object SettingsProfilePolicy {
         "audioLatencyMultiplier", "audioQueueCapacity",
         "autoStartSettings", "autoConnectSettings", "killOnDisconnect", "raiseProjectionDuringCall", "showOverLockScreen",
         "aaExitAction", "allowExternalConfiguration",
-        "keymap", "gestures", "enableRotary", "mediaKeyRouting", "mediaKeyRoutingScopeHint", "volumeKeysToPhone",
+        "keymap", "gestures", "enableRotary", "mediaKeyRouting", "mediaKeyRoutingScopeHint", "volumeKeysToPhone", "voiceKeyFromBridge",
         "gpsNavigation", "showNavigationNotifications", "fullNavigationData", "thirdPartyAccess",
         "loadingScreen", "hideClock", "hidePhoneSignal", "hideBatteryLevel",
         "autoEnableHotspot", "externalBtModuleControlsHint", "externalBtModuleLastPhone",

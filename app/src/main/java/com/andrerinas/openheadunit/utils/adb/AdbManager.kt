@@ -121,4 +121,48 @@ object AdbManager {
             try { socket?.close() } catch (_: Exception) {}
         }
     }
+
+    /**
+     * Runs [command] over the local adb connection and hands every line of its output to [onLine] as it arrives, until
+     * the stream ends, an error occurs or the calling coroutine is cancelled (which closes the socket and so ends the
+     * blocking read). Unlike [exec] it has no read limit: it is for commands that are meant to keep running, such as a
+     * filtered logcat. Returns why it ended.
+     */
+    suspend fun streamLines(context: Context, command: String, port: Int, onLine: (String) -> Unit): String = withContext(Dispatchers.IO) {
+        var socket: Socket? = null
+        var adbConnection: AdbConnection? = null
+        var stream: AdbStream? = null
+        val job = kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
+        val closer = job?.invokeOnCompletion { try { socket?.close() } catch (_: Exception) {} }
+        try {
+            TrafficStats.setThreadStatsTag(ADB_TRAFFIC_STATS_TAG)
+            val crypto = setupCrypto(context.filesDir)
+            socket = Socket()
+            socket.connect(InetSocketAddress("127.0.0.1", port), 4000)
+            adbConnection = AdbConnection.create(socket, crypto)
+            adbConnection.connect()
+            stream = adbConnection.open("exec:$command") ?: throw IOException("Failed to open ADB stream")
+            val pending = StringBuilder()
+            while (!stream.isClosed) {
+                val data = stream.read()
+                if (data.isEmpty()) continue
+                pending.append(String(data, AdbProtocol.UTF_8))
+                while (true) {
+                    val nl = pending.indexOf("\n")
+                    if (nl < 0) break
+                    val line = pending.substring(0, nl).trimEnd('\r')
+                    pending.delete(0, nl + 1)
+                    try { onLine(line) } catch (e: Exception) { AppLog.w("AdbManager: line handler failed: ${e.message}") }
+                }
+            }
+            "stream closed"
+        } catch (e: Exception) {
+            "ended: ${e.javaClass.simpleName}: ${e.message}"
+        } finally {
+            closer?.dispose()
+            try { stream?.close() } catch (_: Exception) {}
+            try { adbConnection?.close() } catch (_: Exception) {}
+            try { socket?.close() } catch (_: Exception) {}
+        }
+    }
 }

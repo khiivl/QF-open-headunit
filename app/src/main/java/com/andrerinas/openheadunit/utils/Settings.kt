@@ -1462,6 +1462,12 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("volume-keys-to-phone", false)
         set(value) { prefs.edit().putBoolean("volume-keys-to-phone", value).apply() }
 
+    // The unit's steering-wheel voice button, forwarded to Android Auto as its voice assistant key by following the unit's
+    // own voice service (see BridgeVoiceKeyWatcher). On by default: on a unit without that service it does nothing.
+    var voiceKeyFromBridge: Boolean
+        get() = prefs.getBoolean("voice-key-from-bridge", true)
+        set(value) { prefs.edit().putBoolean("voice-key-from-bridge", value).apply() }
+
     // Speed-dependent volume from this head unit's GPS; see SpeedVolumePolicy. OFF is the stored
     // zero value, so an unset preference leaves the volume alone.
     var speedVolumeMode: SpeedVolumePolicy.Mode

@@ -351,6 +351,23 @@ object ZlinkHub {
     /**
      * Publishes a raw frame received by the proxy pumps to all subscribers.
      */
+    // What the zLink app sends the daemon on the control channel, for working out which message a hardware button
+    // becomes (the voice button opens Siri in zLink's own screen). Every key message (0x113) is logged; any other type
+    // the first time it is seen, with the start of its payload. Touch (0x111) and the heartbeat (0x118) are skipped.
+    private val seenAppControlTypes = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
+
+    private fun noteAppControl(type: Int, payload: ByteArray) {
+        if (type == 0x111 || type == 0x118) return
+        if (type == ZlinkWire.TYPE_KEY) {
+            AppLog.i("zlink app->daemon key message: ${payload.take(16).joinToString(" ") { "%02x".format(it) }}")
+            return
+        }
+        if (seenAppControlTypes.add(type)) {
+            AppLog.i("zlink app->daemon first control type 0x${Integer.toHexString(type)} len=${payload.size} start=" +
+                payload.take(24).joinToString(" ") { "%02x".format(it) })
+        }
+    }
+
     fun publish(port: Int, d2a: Boolean, type: Int, payload: ByteArray) {
         val ch = when {
             port == 1888 && d2a -> ZlinkWire.CH_VIDEO
@@ -360,6 +377,8 @@ object ZlinkHub {
             else -> 0
         }
         if (ch == 0) return
+
+        if (port == 1777 && !d2a) noteAppControl(type, payload)
 
         if (holdPolicy.offerSuspended) {
             // Drop trailing media frames while offer is suspended so session monitor/state is not revived
