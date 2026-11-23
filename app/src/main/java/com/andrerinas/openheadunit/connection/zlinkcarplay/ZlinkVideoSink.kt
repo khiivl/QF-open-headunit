@@ -133,6 +133,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         }
 
         feedCount++
+        bytesCount += unit.nal.size
         if (firstFeedMs == 0L) firstFeedMs = System.currentTimeMillis()
 
         // Hardware decoder stall watchdog: if hardware decoder receives frames for > 5s but produces 0 output frames, fall back to software
@@ -228,8 +229,9 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
                         decodedCount++
                         val surf = currentSurface
                         if (isAttached && surf != null && surf.isValid && shouldRender()) {
-                            if (pending >= 0) { c.releaseOutputBuffer(pending, true); pending = -1 }
+                            if (pending >= 0) { c.releaseOutputBuffer(pending, true); pending = -1; renderedCount++ }
                             c.releaseOutputBuffer(i, true)
+                            renderedCount++
                         } else {
                             if (pending >= 0) c.releaseOutputBuffer(pending, false)
                             pending = i
@@ -237,7 +239,9 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
                     } else if (pending >= 0 && isAttached && shouldRender() && currentSurface?.isValid == true) {
                         c.releaseOutputBuffer(pending, true)
                         pending = -1
+                        renderedCount++
                     }
+                    logStats()
                 } catch (e: IllegalStateException) {
                     // A flush invalidates the buffer we were holding; carry on with the next frame.
                     pending = -1
@@ -248,6 +252,31 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
                 }
             }
         }, "zlink-video-out").also { it.isDaemon = true; it.start() }
+    }
+
+    // Once per STATS_INTERVAL_MS: how many frames came in, were decoded and were shown, per second.
+    @Volatile private var renderedCount = 0L
+    @Volatile private var bytesCount = 0L
+    private var statsAtMs = 0L
+    private var statsFed = 0L
+    private var statsDecoded = 0L
+    private var statsRendered = 0L
+    private var statsBytes = 0L
+
+    private fun logStats() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (statsAtMs == 0L) { statsAtMs = now; statsFed = feedCount; statsDecoded = decodedCount; statsRendered = renderedCount; statsBytes = bytesCount; return }
+        val elapsed = now - statsAtMs
+        if (elapsed < STATS_INTERVAL_MS) return
+        val fed = feedCount - statsFed
+        val dec = decodedCount - statsDecoded
+        val rend = renderedCount - statsRendered
+        val bytes = bytesCount - statsBytes
+        fun fps(n: Long) = n * 1000f / elapsed
+        AppLog.i(String.format(java.util.Locale.US,
+            "zlink video: %dx%d over %dms: in=%.1f fps, decoded=%.1f fps, shown=%.1f fps, %.0f kbit/s",
+            width, height, elapsed, fps(fed), fps(dec), fps(rend), bytes * 8f / elapsed))
+        statsAtMs = now; statsFed = feedCount; statsDecoded = decodedCount; statsRendered = renderedCount; statsBytes = bytesCount
     }
 
     private fun restartCodec(surface: Surface) {
@@ -285,6 +314,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         private const val INPUT_WAIT_MS = 1000L
         private const val REPLAY_MUTE_FALLBACK_MS = 3000L   // an older proxy sends no replay-end marker
         private const val STALL_TIMEOUT_MS = 5000L
+        private const val STATS_INTERVAL_MS = 5000L
 
         @Volatile var cachedSps: ByteArray? = null
         @Volatile var cachedPps: ByteArray? = null

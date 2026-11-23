@@ -8,6 +8,11 @@ package com.andrerinas.openheadunit.connection.zlinkcarplay
  * because OHU plays the audio itself.
  */
 class ZlinkHoldPolicy {
+    companion object {
+        /** The frame rate OHU asks the daemon for in the init message. */
+        const val TARGET_FPS = 60
+    }
+
     @Volatile
     var lastInitFrame: ByteArray? = null
         private set
@@ -37,7 +42,9 @@ class ZlinkHoldPolicy {
      * Inspects and potentially rewrites a 0x102 message from the app to the daemon.
      * Returns the frame to forward to the daemon.
      */
-    fun onAppInitFrame(frame: ByteArray, subscriberCount: Int): ByteArray {
+    fun onAppInitFrame(appFrame: ByteArray, subscriberCount: Int): ByteArray {
+        // The app asks for the frame rate of its own screen; OHU's CarPlay screen can show more, so ask for that.
+        val frame = ZlinkMessage.withVarint(appFrame, ZlinkMessage.FIELD_FPS, TARGET_FPS)
         lastInitFrame = frame
         return if (subscriberCount > 0 && !offerSuspended) {
             if (ZlinkMessage.fieldValue(frame, 7) != 2L) {

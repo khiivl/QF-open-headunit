@@ -341,6 +341,7 @@ object ZlinkHub {
      * Inspects 0x102 messages from the app to the daemon, applying hold mode rewriting if needed.
      */
     fun onAppInit(frame: ByteArray): ByteArray {
+        AppLog.i("zlink hub: init from the app: ${ZlinkMessage.describeInit(frame)}")
         return holdPolicy.onAppInitFrame(frame, subscribers.size)
     }
 

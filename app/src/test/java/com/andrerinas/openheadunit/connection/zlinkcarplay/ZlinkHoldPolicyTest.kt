@@ -24,6 +24,7 @@ class ZlinkHoldPolicyTest {
     private fun build0x102(mode: Int): ByteArray {
         val baos = ByteArrayOutputStream()
         baos.write(0x08); baos.write(1)
+        baos.write(0x20); baos.write(30)   // field 4, the frame rate the app asks for
         baos.write(0x38); baos.write(mode) // field 7
         return buildFrame(0x102, baos.toByteArray())
     }
@@ -112,5 +113,14 @@ class ZlinkHoldPolicyTest {
         // The daemon restarts after a Disconnect and the app offers wireless CarPlay itself
         val forwarded = policy.onAppInitFrame(build0x102(2), subscriberCount = 0)
         assertEquals(0L, ZlinkMessage.fieldValue(forwarded, 7))
+    }
+
+    @Test fun initAsksTheDaemonForTheTargetFrameRate() {
+        val policy = ZlinkHoldPolicy()
+        val forwarded = policy.onAppInitFrame(build0x102(0), subscriberCount = 0)
+        assertEquals(ZlinkHoldPolicy.TARGET_FPS.toLong(), ZlinkMessage.fieldValue(forwarded, ZlinkMessage.FIELD_FPS))
+        // and the frames made later from it carry the same rate
+        val suspended = policy.suspendOffer()
+        assertEquals(ZlinkHoldPolicy.TARGET_FPS.toLong(), ZlinkMessage.fieldValue(suspended, ZlinkMessage.FIELD_FPS))
     }
 }
