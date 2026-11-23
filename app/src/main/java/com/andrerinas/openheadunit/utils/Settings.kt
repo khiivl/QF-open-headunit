@@ -2926,6 +2926,17 @@ class Settings(private val context: Context) {
         get() = prefs.getString("hotspot-password", "")!!
         set(value) = prefs.edit().putString("hotspot-password", value).apply()
 
+    // The hotspot's name and password as the unit itself last reported them (read from its own configuration). Used
+    // only when that configuration cannot be read at the moment, for instance while the unit's adb bridge is down,
+    // so a connection does not stall on a pair that was known a minute ago.
+    var lastSeenHotspotSsid: String
+        get() = prefs.getString("hotspot-last-seen-ssid", "")!!
+        set(value) = prefs.edit().putString("hotspot-last-seen-ssid", value).apply()
+
+    var lastSeenHotspotPassword: String
+        get() = prefs.getString("hotspot-last-seen-password", "")!!
+        set(value) = prefs.edit().putString("hotspot-last-seen-password", value).apply()
+
     // Which band to ask for when this app brings the head unit's access point up.
     // 0 = automatic (5 GHz, falling back to 2.4 GHz), 1 = 5 GHz only, 2 = 2.4 GHz only.
     //

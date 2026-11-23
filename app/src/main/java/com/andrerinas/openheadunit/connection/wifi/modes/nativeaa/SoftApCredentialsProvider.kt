@@ -281,6 +281,7 @@ class SoftApCredentialsProvider(
                     }
 
                     SoftApCredentialsAttempt.NO_AP_YET -> {
+                        HandshakeDiagnostics.noteApGone()
                         // Nothing on air yet, which is exactly what auto-enable is for. Reached only
                         // here, so an access point that is up but unreadable never triggers it.
                         val waited = System.currentTimeMillis() - runStartedAt
@@ -365,12 +366,24 @@ class SoftApCredentialsProvider(
      * and the heuristic is the fallback.
      */
     private fun pickApInterface(): ChosenInterface? {
+        // An access point's radio has no carrier until the first device associates: it is configured and beaconing, but
+        // the kernel reports NO-CARRIER and Java's isUp() says false. Measured on a zLink unit: wlan0 held
+        // 192.168.43.1 and hostapd ran for minutes, with the phone not yet told to join (it is only told once
+        // credentials exist, and they waited for this interface), until something else joined. When the framework says
+        // the hotspot is enabled, an interface that carries a private address is the access point whether or not
+        // anything is on it yet.
+        val hotspotRunning = SoftApStateReader.read(context) == com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.SoftApState.ENABLED
         val candidates = try {
             NetworkInterface.getNetworkInterfaces().toList().map { nif ->
+                val upByCarrier = try { nif.isUp } catch (e: Exception) { false }
+                val privateIpv4 = nif.inetAddresses.toList()
+                    .filterIsInstance<Inet4Address>()
+                    .firstOrNull { it.isSiteLocalAddress }
+                    ?.hostAddress
                 ApInterfaceCandidate(
                     name = nif.name,
                     isLoopback = try { nif.isLoopback } catch (e: Exception) { false },
-                    isUp = try { nif.isUp } catch (e: Exception) { false },
+                    isUp = upByCarrier || (hotspotRunning && privateIpv4 != null),
                     siteLocalIpv4 = nif.inetAddresses.toList()
                         .filterIsInstance<Inet4Address>()
                         .firstOrNull { it.isSiteLocalAddress }
@@ -439,6 +452,12 @@ class SoftApCredentialsProvider(
         // join, so it outranks a manual name or password: those can only have gone stale (the hotspot was renamed or
         // given a new password since they were typed in).
         val actual = HotspotConfigReader.readFromHostapd(context)
+        if (actual != null && actual.first.isNotEmpty() && actual.second.isNotEmpty() &&
+            (actual.first != settings.lastSeenHotspotSsid || actual.second != settings.lastSeenHotspotPassword)) {
+            settings.lastSeenHotspotSsid = actual.first
+            settings.lastSeenHotspotPassword = actual.second
+        }
+        var usedRemembered = false
         val manualSsid = if (actual != null) "" else settings.hotspotSsid
         // Read once. decide(), resolve() and the record rule below have to judge the same pair, and
         // every one of these properties is a fresh SharedPreferences read that the settings screen
@@ -448,6 +467,11 @@ class SoftApCredentialsProvider(
             SoftApCredentials(actual.first, actual.second)
         } else if (manualSsid.isEmpty()) {
             HotspotConfigReader.getSystemHotspotConfig(context)?.let { SoftApCredentials(it.first, it.second) }
+                ?: if (settings.lastSeenHotspotSsid.isNotEmpty() && settings.lastSeenHotspotPassword.isNotEmpty()) {
+                    usedRemembered = true
+                    AppLog.w("SoftApCredentials: the hotspot's configuration cannot be read right now; using the name and password it had when it was last read.")
+                    SoftApCredentials(settings.lastSeenHotspotSsid, settings.lastSeenHotspotPassword)
+                } else null
         } else null
 
         val attempt = SoftApCredentialsPolicy.decide(manualSsid, manualPassphrase, systemConfig, ip)
@@ -499,6 +523,7 @@ class SoftApCredentialsProvider(
             AppLog.w("SoftApCredentials: no source named an address for ${iface.name} - not sysfs, not the interface itself, and not its IPv6 link-local; the credentials will go out without one.")
         }
 
+        HandshakeDiagnostics.noteApSeen()
         AppLog.i("SoftApCredentials: SUCCESS - Providing credentials from ${iface.name}: SSID=$ssid, IP=$ip, BSSID=${bssid.ifEmpty { "<none>" }}")
         // Our own listener, not the phone — same reasoning as WifiDirectManager's delivery.
         ConnectionStageTracker.report(ConnectionStage.CREATING_NETWORK)
@@ -507,7 +532,10 @@ class SoftApCredentialsProvider(
         // the user who had typed the name and not the password - and decide() can never raise it
         // again once a name is set, so it was gone for good. Measured with 'hotspot-ssid' set and
         // 'hotspot-password' blank: the run that showed the banner also deleted it.
-        if (SoftApCredentialsPolicy.disprovesConfigUnreadable(manualSsid, manualPassphrase, systemConfig)) {
+        if (usedRemembered) {
+            // Not proof that the device can name its own access point: the record, if there is one, stays as it is.
+            AppLog.i("SoftApCredentials: the credentials are the remembered ones, so the hotspot-configuration record stays as it is.")
+        } else if (SoftApCredentialsPolicy.disprovesConfigUnreadable(manualSsid, manualPassphrase, systemConfig)) {
             AppLog.i(
                 "SoftApCredentials: the access point was named by this device rather than by the " +
                     "manual override, so the hotspot-configuration record is retired."

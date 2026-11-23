@@ -3646,6 +3646,11 @@ class NativeAaHandshakeManager(
                     WppAction.SendInfoResponse -> {
                         AppLog.i("NativeAA: Phone ready for WiFi association. Delivering credentials...")
                         AppLog.i("NativeAA: [TX] Sending WifiInfoResponse (Type 3) with full credentials...")
+                        HandshakeDiagnostics.snapshot(
+                            context, "sending credentials",
+                            "phone=$peerName/$peerAddress joinRefusals=$consecutiveJoinRefusals handshakeFailures=$consecutiveHandshakeFailures " +
+                                "sentBssid=$credBssid ssid=$credSsid ip=$credIp"
+                        )
                         // The one site that really is sending credentials to the phone.
                         ConnectionStageTracker.report(ConnectionStage.SENDING_CREDENTIALS)
                         // The one blind spot the tick loop's own check cannot cover. A phone that
@@ -3780,6 +3785,11 @@ class NativeAaHandshakeManager(
                     is WppAction.Fail -> {
                         AppLog.w("NativeAA: Handshake failed — ${action.reason}.")
                         if (action.joinRefused) ifOwner(link) { countJoinRefusal() }
+                        HandshakeDiagnostics.snapshot(
+                            context, "handshake failed",
+                            "reason=${action.reason} phone=$peerName/$peerAddress joinRefusals=$consecutiveJoinRefusals " +
+                                "handshakeFailures=$consecutiveHandshakeFailures sentBssid=$credBssid"
+                        )
                         // Measured against a current Gearhead: it joins with a WifiNetworkSpecifier,
                         // which matches SSID *and* BSSID under a full ff:ff:ff:ff:ff:ff mask, and
                         // refuses credentials carrying no BSSID outright. So on this route a join
@@ -3963,6 +3973,7 @@ class NativeAaHandshakeManager(
                 if (now - lastRefreshAt >= 10_000) {
                     lastRefreshAt = now
                     AppLog.w("NativeAA: Still waiting for credentials after ${waitedS}s. Requesting WiFi refresh...")
+                    HandshakeDiagnostics.snapshot(context, "waiting for credentials", "waited=${waitedS}s phone=$peerName/$peerAddress")
                     launcher.triggerWifiDirectRefresh()
                 } else if (now - lastProgressLogAt >= 5_000) {
                     lastProgressLogAt = now
