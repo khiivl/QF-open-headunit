@@ -44,7 +44,7 @@ object ZlinkScreenPolicy {
         activities.map { "pm disable $pkg/$it" }
 
     fun buildRestoreCommands(pkg: String, activities: List<String> = UI_ACTIVITIES): List<String> =
-        activities.map { "pm enable $pkg/$it" }
+        activities.map { "pm default-state $pkg/$it" }
 
     fun buildHideCommand(pkg: String, activities: List<String> = UI_ACTIVITIES): String =
         buildHideCommands(pkg, activities).joinToString(" ; ")

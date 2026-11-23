@@ -59,6 +59,13 @@ class SettingsProfilePolicyTest {
         }
     }
 
+    @Test fun bothModeUnhidesBothAndroidAutoAndCarPlaySettings() {
+        val both = SettingsProfilePolicy.hiddenIds(zlinkUnit = true, both = true)
+        for (id in listOf("resolution", "fpsLimit", "videoCodec", "enableAudioSink", "hideZlinkUi")) {
+            assertFalse("$id must be shown in both mode", id in both)
+        }
+    }
+
     @Test fun sharedSettingsAreHiddenInNeitherMode() {
         for (mode in listOf(true, false)) {
             val hidden = SettingsProfilePolicy.hiddenIds(zlinkUnit = true, carPlayMode = mode)

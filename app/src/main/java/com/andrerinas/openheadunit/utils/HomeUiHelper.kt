@@ -1132,8 +1132,8 @@ object HomeUiHelper {
             ?: context.getString(R.string.home_title_phone_detected_generic)
         Status.WAITING, Status.READY -> if (isCarPlay) context.getString(R.string.home_title_carplay_ready) else context.getString(
             when (decision.primary) {
-                Connection.USB -> if (usbAsWireless) R.string.home_title_wifi_ready else R.string.home_title_usb_ready
-                Connection.WIFI -> R.string.home_title_wifi_ready
+                Connection.USB -> if (usbAsWireless) R.string.home_title_android_auto_ready else R.string.home_title_usb_ready
+                Connection.WIFI -> R.string.home_title_android_auto_ready
                 Connection.SELF -> R.string.home_title_self_ready
             }
         )

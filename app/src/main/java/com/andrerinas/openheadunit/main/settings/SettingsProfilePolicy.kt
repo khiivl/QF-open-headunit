@@ -68,10 +68,15 @@ object SettingsProfilePolicy {
 
     /**
      * What is not offered: on a zLink unit the always-hidden rows, and whichever of the two projections is not the
-     * running one has its own settings hidden. Shared settings (language, hotspot name and password, theming of the home,
+     * running one has its own settings hidden. When [both] is true (projection availability is BOTH), both Android Auto
+     * and CarPlay settings are offered. Shared settings (language, hotspot name and password, theming of the home,
      * launcher and floating button, backup, logs) are never in either set.
      */
-    fun hiddenIds(zlinkUnit: Boolean, carPlayMode: Boolean = false): Set<String> =
+    fun hiddenIds(zlinkUnit: Boolean, carPlayMode: Boolean = false, both: Boolean = false): Set<String> =
         if (!zlinkUnit) emptySet()
-        else HIDDEN_ON_ZLINK_UNIT + if (carPlayMode) ANDROID_AUTO_ONLY else CARPLAY_ONLY
+        else HIDDEN_ON_ZLINK_UNIT + when {
+            both -> emptySet()
+            carPlayMode -> ANDROID_AUTO_ONLY
+            else -> CARPLAY_ONLY
+        }
 }

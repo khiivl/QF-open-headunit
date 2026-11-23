@@ -169,6 +169,11 @@ class ZlinkProxy(private val onNothingToDrop: () -> Unit = {}) {
                     frame = ZlinkHub.onAppInit(frame)
                 }
 
+                // Publish to internal consumers (video decoder, audio player, session monitor) FIRST
+                // so processing begins immediately without waiting for loopback writes to the OEM app.
+                val payload = frame.copyOfRange(ZlinkWire.FRAME_HEADER, frame.size)
+                ZlinkHub.publish(port, d2a, ty, payload)
+
                 val forwardToApp = !(port == PORT_AUDIO && d2a && ZlinkHub.hasSubscribers())
                 if (forwardToApp) {
                     synchronized(outLock) {
@@ -176,9 +181,6 @@ class ZlinkProxy(private val onNothingToDrop: () -> Unit = {}) {
                         out.flush()
                     }
                 }
-
-                val payload = frame.copyOfRange(ZlinkWire.FRAME_HEADER, frame.size)
-                ZlinkHub.publish(port, d2a, ty, payload)
             }
         } catch (e: Exception) {
             if (running) {

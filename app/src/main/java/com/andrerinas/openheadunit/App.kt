@@ -60,6 +60,8 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         run {
             val settings = com.andrerinas.openheadunit.utils.Settings(this)
             if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
+                // A standing 'Bluetooth could not send anything' banner from earlier goes too.
+                com.andrerinas.openheadunit.utils.ConnectionIssues.clear(this, com.andrerinas.openheadunit.utils.ConnectionIssue.BLUETOOTH_SENT_NO_DATA)
                 if (settings.wifiConnectionMode != com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode.NATIVE) {
                     settings.wifiConnectionMode = com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode.NATIVE
                 }

@@ -2021,14 +2021,22 @@ class HomeFragment : Fragment() {
         if (!com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
                 App.provide(requireContext()).settings.projectionMode)) return false
         val ctx = requireContext().applicationContext
+        val hub = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub
+        if (hub.hasActiveSession) {
+            // CarPlay session is already active and warm in the service.
+            // Return to it immediately without querying the Bluetooth module or delaying the launch.
+            startActivity(Intent(ctx,
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkCarPlayActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return true
+        }
         viewLifecycleOwner.lifecycleScope.launch {
             // Before anything is restarted: is the phone on the unit's Bluetooth module one CarPlay can use?
             val blocked = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.checkBeforeCarPlayConnect()
             }
             if (blocked) return@launch
-            val hub = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub
-            hub.resumeOffer(force = !hub.hasActiveSession)
+            hub.resumeOffer(force = true)
             startActivity(Intent(ctx,
                 com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkCarPlayActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

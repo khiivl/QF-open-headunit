@@ -1679,6 +1679,7 @@
     <string name="home_title_phone_detected_generic">Телефон знайдено</string>
     <string name="home_title_usb_ready">Підключіть телефон</string>
     <string name="home_title_wifi_ready">Підключитися бездротово</string>
+    <string name="home_title_android_auto_ready">Під\'єднати Android Auto</string>
     <string name="home_title_self_ready">Android Auto на цій магнітолі</string>
     <string name="home_subtitle_searching">Відкрийте Android Auto на телефоні, якщо його не видно</string>
     <string name="home_subtitle_usb">Через USB-кабель</string>

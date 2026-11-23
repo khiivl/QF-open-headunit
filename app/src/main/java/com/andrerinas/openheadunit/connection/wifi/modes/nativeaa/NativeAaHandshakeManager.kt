@@ -4170,7 +4170,12 @@ class NativeAaHandshakeManager(
                     // The backoff still counts it, because that is what bounds those attempts.
                     if (link.peerReportedPresent) {
                         AppLog.w("NativeAA: the phone connected over Bluetooth and answered nothing we sent. If this repeats, this unit's Bluetooth cannot carry Android Auto and USB or the Wireless Helper mode are the way round it.")
-                        ConnectionIssues.raise(context, ConnectionIssue.BLUETOOTH_SENT_NO_DATA)
+                        // Not raised on a zLink unit: its Bluetooth is the module, the banner's advice (another mode, USB, the
+                        // Wireless Helper) does not exist there, and a silent attempt there is a phone that is not an Android
+                        // Auto phone or still joining, not a radio that cannot carry the handshake.
+                        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isEmpty()) {
+                            ConnectionIssues.raise(context, ConnectionIssue.BLUETOOTH_SENT_NO_DATA)
+                        }
                     }
                 }
             }

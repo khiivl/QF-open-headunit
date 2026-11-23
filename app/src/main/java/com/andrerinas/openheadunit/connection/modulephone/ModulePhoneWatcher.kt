@@ -57,6 +57,16 @@ object ModulePhoneWatcher {
         known?.remember(mac, kind)
     }
 
+    /** Forgets a remembered phone. */
+    fun forgetMac(mac: String?) {
+        known?.forget(mac)
+    }
+
+    /** Clears all remembered phones. */
+    fun clearKnown() {
+        known?.clear()
+    }
+
     /**
      * One short read of the module's link report, for a moment when nothing is being set up over it (a CarPlay
      * session that is already running): which phone is on the module right now. Null when it says none or nothing.
@@ -103,6 +113,10 @@ object PhoneKindGate {
      * phone on the module is known to be an Android phone.
      */
     fun checkBeforeCarPlayConnect(): Boolean {
+        if (_carPlayNeedsIphone.value) {
+            _carPlayNeedsIphone.value = false
+            return false
+        }
         val phone = ModulePhoneWatcher.snapshotOnce()
         val blocked = PhoneKindPolicy.blocks(carPlayMode = true, kind = ModulePhoneWatcher.kindOfMac(phone?.mac))
         _carPlayNeedsIphone.value = blocked

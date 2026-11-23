@@ -216,7 +216,7 @@ class ZlinkCarPlayActivity : BaseActivity() {
                     }
                 }
             }
-        })
+        }, replay = false)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

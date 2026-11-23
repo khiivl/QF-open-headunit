@@ -77,18 +77,11 @@ object ZlinkHub {
         return sink
     }
 
-    /** True when the picture is being redrawn from the cache, so the screen should cover the wait. */
+    /** The screen's surface; the sink draws its newest picture onto it at once, so nothing is replayed. */
     fun attachSurface(surface: android.view.Surface): Boolean {
         val existing = videoSink
-        if (existing == null) {
-            getOrCreateVideoSink(surface)
-            return false
-        } else {
-            val same = existing.isCurrentSurface(surface)
-            AppLog.i("zlink hub: attach on return: same surface=$same, cached picture group valid=${replayCache.isValid}, frames=${replayCache.frameCount}, bytes=${replayCache.currentGopBytes}")
-            existing.attachSurface(surface)
-            return !same && existing.redrawFrom(replayCache.getReplayFrames())
-        }
+        if (existing == null) getOrCreateVideoSink(surface) else existing.attachSurface(surface)
+        return false
     }
 
     fun detachSurface() {
@@ -99,8 +92,14 @@ object ZlinkHub {
     @Volatile private var daemonCtrlLock = Any()
 
     // Writes to the daemon control socket run off-thread so touches from the UI thread never block.
+    // Elevated to URGENT_DISPLAY priority so touch events are dispatched without scheduler latency.
     private val txExecutor = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "zlink-ctrl-tx").also { it.isDaemon = true }
+        Thread({
+            try {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY)
+            } catch (_: Exception) {}
+            r.run()
+        }, "zlink-ctrl-tx").also { it.isDaemon = true }
     }
     private var scheduler: ScheduledExecutorService? = null
 
@@ -191,7 +190,7 @@ object ZlinkHub {
      * Subscribes a listener to the CarPlay feed. Replays the cached GOP to the subscriber
      * before delivering live frames.
      */
-    fun subscribe(listener: Listener, userIntent: Boolean = true): Closeable {
+    fun subscribe(listener: Listener, userIntent: Boolean = true, replay: Boolean = true): Closeable {
         // Opening the CarPlay screen indicates explicit intent to view CarPlay; cancel any suspension and resume.
         // The always-on service subscription is not an intent: it must not undo a Disconnect or a mode switch.
         if (userIntent) resumeOffer()
@@ -206,8 +205,9 @@ object ZlinkHub {
         (cachedSps ?: replayCache.lastSps)?.let { sub.offer(it) }
         (cachedPps ?: replayCache.lastPps)?.let { sub.offer(it) }
 
-        // Replay cached GOP
-        val replayFrames = replayCache.getReplayFrames()
+        // Replay cached GOP. A listener that only watches the feed (the CarPlay screen: the picture is decoded by the
+        // sink, not by it) skips this; thousands of frames would overflow its queue and get it dropped.
+        val replayFrames = if (replay) replayCache.getReplayFrames() else emptyList()
         if (replayFrames.isNotEmpty()) {
             for (f in replayFrames) {
                 sub.offer(f)

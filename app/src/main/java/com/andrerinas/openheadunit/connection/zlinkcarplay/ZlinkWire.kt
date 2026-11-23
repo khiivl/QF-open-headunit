@@ -99,20 +99,33 @@ object ZlinkWire {
      * pixels. Returns the complete zLink frame.
      */
     fun encodeTouch(x: Int, y: Int, down: Boolean): ByteArray {
-        val inner = java.io.ByteArrayOutputStream()
-        inner.write(0x08); inner.write(0)
-        inner.write(0x10); writeVarint(inner, x)
-        inner.write(0x18); writeVarint(inner, y)
-        inner.write(0x20); inner.write(if (down) 1 else 0)
-        val body = inner.toByteArray()
-        val msg = java.io.ByteArrayOutputStream()
-        msg.write(0x0A); writeVarint(msg, body.size); msg.write(body)
-        val payload = msg.toByteArray()
-        val frame = ByteArray(FRAME_HEADER + payload.size)
-        frame[0] = 0xFF.toByte(); frame[1] = 0xFF.toByte(); frame[2] = 0xFF.toByte(); frame[3] = 0x10
-        putBe32(frame, 4, payload.size)
-        putBe32(frame, 8, TYPE_TOUCH)
-        System.arraycopy(payload, 0, frame, FRAME_HEADER, payload.size)
+        // Fast direct byte encoding to eliminate stream allocations on high-rate touch streams
+        val buf = ByteArray(32)
+        buf[0] = 0xFF.toByte(); buf[1] = 0xFF.toByte(); buf[2] = 0xFF.toByte(); buf[3] = 0x10
+        putBe32(buf, 8, TYPE_TOUCH)
+
+        var p = 14
+        val bodyStart = p
+        buf[p++] = 0x08; buf[p++] = 0
+        buf[p++] = 0x10
+        var vx = x
+        while (vx >= 0x80) { buf[p++] = ((vx and 0x7F) or 0x80).toByte(); vx = vx ushr 7 }
+        buf[p++] = vx.toByte()
+        buf[p++] = 0x18
+        var vy = y
+        while (vy >= 0x80) { buf[p++] = ((vy and 0x7F) or 0x80).toByte(); vy = vy ushr 7 }
+        buf[p++] = vy.toByte()
+        buf[p++] = 0x20
+        buf[p++] = if (down) 1 else 0
+
+        val bodyLen = p - bodyStart
+        buf[12] = 0x0A
+        buf[13] = bodyLen.toByte()
+        val payloadLen = bodyLen + 2
+        putBe32(buf, 4, payloadLen)
+
+        val frame = ByteArray(FRAME_HEADER + payloadLen)
+        System.arraycopy(buf, 0, frame, 0, frame.size)
         return frame
     }
 

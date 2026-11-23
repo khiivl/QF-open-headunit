@@ -3298,8 +3298,9 @@ class SettingsFragment : Fragment() {
             basicIds = basicSettingIds,
             text = { getString(it) },
             hiddenIds = SettingsProfilePolicy.hiddenIds(
-                com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isNotEmpty(),
-                com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(settings.projectionMode)
+                zlinkUnit = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isNotEmpty(),
+                carPlayMode = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(settings.projectionMode),
+                both = settings.projectionAvailability == com.andrerinas.openheadunit.utils.Settings.ProjectionAvailability.BOTH
             )
         )
 

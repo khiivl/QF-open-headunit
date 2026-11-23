@@ -29,7 +29,7 @@ class ZlinkScreenPolicyTest {
         assertEquals(ZlinkScreenPolicy.UI_ACTIVITIES.size, cmds.size)
 
         for (cmd in cmds) {
-            assertTrue(cmd.startsWith("pm enable com.zjinnova.zlink5/"))
+            assertTrue(cmd.startsWith("pm default-state com.zjinnova.zlink5/"))
             assertFalse(cmd.contains("ActivationActivity"))
         }
 
@@ -43,6 +43,6 @@ class ZlinkScreenPolicyTest {
         assertTrue(hide.contains(" ; pm disable com.zjinnova.zlink/"))
 
         val restore = ZlinkScreenPolicy.buildRestoreCommand("com.zjinnova.zlink")
-        assertTrue(restore.contains(" ; pm enable com.zjinnova.zlink/"))
+        assertTrue(restore.contains(" ; pm default-state com.zjinnova.zlink/"))
     }
 }

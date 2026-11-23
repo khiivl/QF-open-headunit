@@ -1842,6 +1842,7 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="home_title_phone_detected_generic">Phone detected</string>
     <string name="home_title_usb_ready">Plug in your phone</string>
     <string name="home_title_wifi_ready">Connect wirelessly</string>
+    <string name="home_title_android_auto_ready">Connect to Android Auto</string>
     <string name="home_title_self_ready">Android Auto on this unit</string>
     <string name="home_subtitle_searching">Open Android Auto on the phone if it does not show up</string>
     <string name="home_subtitle_usb">Over USB cable</string>

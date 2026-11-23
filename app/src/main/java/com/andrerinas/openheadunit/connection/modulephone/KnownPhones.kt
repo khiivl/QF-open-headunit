@@ -18,4 +18,15 @@ class KnownPhones(context: Context) {
         prefs.edit().putString(key, kind.name).apply()
         AppLog.i("known phones: a phone is now remembered as ${kind.name}")
     }
+
+    fun forget(mac: String?) {
+        val key = PhoneKindPolicy.canonicalMac(mac) ?: return
+        prefs.edit().remove(key).apply()
+        AppLog.i("known phones: forgot phone $key")
+    }
+
+    fun clear() {
+        prefs.edit().clear().apply()
+        AppLog.i("known phones: cleared all remembered phones")
+    }
 }

@@ -9,13 +9,15 @@ import com.andrerinas.openheadunit.utils.AppLog
  * Minimal H.264 decoder for the zLink video feed. The stream carries bare NAL units; this adds start
  * codes, configures the codec from the first SPS/PPS pair, and starts feeding at the first keyframe.
  *
- * Owned in the service/hub and kept warm across activity lifecycle changes. Output surface is dynamically
- * switched via [attachSurface] and [detachSurface] using [MediaCodec.setOutputSurface].
+ * Owned in the service/hub and kept warm across activity lifecycle changes. The decoder draws into a
+ * [ZlinkSurfaceBridge] that outlives the screen; [attachSurface] and [detachSurface] only move the bridge's output.
  *
  * Preferred decoder is the hardware decoder (e.g. OMX.sprd.h264.decoder), falling back to Google's
  * software decoder (c2.android.avc.decoder) only if the hardware decoder stalls without producing output.
  */
 class ZlinkVideoSink(initialSurface: Surface? = null) {
+    private var bridge: ZlinkSurfaceBridge? = null
+    @Volatile private var pendingSurface: Surface? = initialSurface
     private var codec: MediaCodec? = null
     private var sps: ByteArray? = cachedSps
     private var pps: ByteArray? = cachedPps
@@ -25,14 +27,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
     // Frames sent while the proxy replays the session so far only rebuild the decoder; they are not drawn.
     @Volatile private var live = false
     @Volatile private var mutedUntilMs = System.currentTimeMillis() + REPLAY_MUTE_FALLBACK_MS
-    // While a redraw replays the cached picture group: the decoded-frame count at which it is done (0 = none).
-    @Volatile private var replayTarget = 0L
-    @Volatile private var replayStart = 0L
-    @Volatile private var replayFeeding = false   // the redraw is still feeding frames in
     private var outputThread: Thread? = null
-
-    @Volatile private var currentSurface: Surface? = initialSurface
-    @Volatile private var isAttached: Boolean = initialSurface != null
 
     @Volatile var decodedCount = 0L
         private set
@@ -44,94 +39,25 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         private set
 
     /** The proxy has finished replaying; draw everything from here on. */
-    /**
-     * The subscriber replay has finished. It must not cut a redraw short: that one is hiding the stored frames, and
-     * releases itself once the last of them is decoded.
-     */
-    fun markLive() { if (replayTarget == 0L) live = true }
+    fun markLive() { live = true; bridge?.poke() }
 
     private fun shouldRender() = live || System.currentTimeMillis() > mutedUntilMs
 
+    /** The screen's surface. The decoder never sees it: the bridge copies the newest picture onto it. */
     fun attachSurface(surface: Surface) {
-        if (currentSurface === surface && isAttached) {
-            return
-        }
-        currentSurface = surface
-        isAttached = true
-        val c = codec
-        if (c != null) {
-            try {
-                c.setOutputSurface(surface)
-                AppLog.i("zlink video: setOutputSurface succeeded on ${c.name}")
-            } catch (e: Exception) {
-                AppLog.w("zlink video: setOutputSurface failed on ${c.name}: ${e.message}, restarting decoder for new surface")
-                restartCodec(surface)
-            }
-        } else {
-            val s = sps
-            val p = pps
-            if (s != null && p != null && surface.isValid) {
-                try {
-                    startCodec(s, p, surface)
-                } catch (e: Exception) {
-                    lastStartFailureMs = System.currentTimeMillis()
-                    AppLog.e("zlink video: startCodec failed on attach: ${e.message}")
-                }
-            }
-        }
+        pendingSurface = surface
+        bridge?.setOutput(surface)
     }
 
     fun detachSurface() {
-        isAttached = false
-        currentSurface = null
-        AppLog.i("zlink video: detached surface, decoder continues running warm in background")
+        pendingSurface = null
+        bridge?.setOutput(null)
+        AppLog.i("zlink video: detached surface, the picture stays in the bridge")
     }
 
     private val feedLock = Any()
-    @Volatile private var generation = 0
 
     fun feed(unit: ZlinkWire.VideoUnit) = synchronized(feedLock) { feedLocked(unit) }
-
-    fun isCurrentSurface(surface: Surface): Boolean = currentSurface === surface && isAttached
-
-    /**
-     * A still CarPlay screen sends no frames, so after the output surface changes the new surface would stay
-     * black until something moves. This decodes the cached picture group again from its keyframe; the
-     * held-last-frame logic then draws the final picture.
-     */
-    fun redrawFrom(frames: List<ZlinkWire.Frame>): Boolean {
-        if (frames.isEmpty()) return false
-        Thread({
-            synchronized(feedLock) {
-                val c = codec ?: return@synchronized
-                try {
-                    // Only the last frame of the group is the picture; the ones before it are the screen's recent
-                    // motion (a scroll, a tap) and are never shown. Stay muted until the decoder has produced the
-                    // last one; the screen covers the wait with a short fade (see ZlinkCarPlayActivity).
-                    val picture = frames.mapNotNull { ZlinkWire.parseVideo(it.payload) }.count { it.nalType != 7 && it.nalType != 8 }
-                    live = false
-                    generation++
-                    c.flush()
-                    replayStart = decodedCount
-                    replayTarget = decodedCount + picture
-                    mutedUntilMs = System.currentTimeMillis() + REDRAW_MUTE_MS
-                    replayFeeding = true
-                    try {
-                        for (f in frames) ZlinkWire.parseVideo(f.payload)?.let { feedLocked(it) }
-                    } finally {
-                        replayFeeding = false
-                    }
-                    if (picture == 0) { live = true; replayTarget = 0 }
-                    AppLog.i("zlink video: redrew ${frames.size} cached frames on the new surface, showing only the last of $picture pictures")
-                } catch (e: Exception) {
-                    live = true
-                    replayTarget = 0
-                    AppLog.w("zlink video: redraw failed: ${e.message}")
-                }
-            }
-        }, "zlink-redraw").also { it.isDaemon = true }.start()
-        return true
-    }
 
     private fun feedLocked(unit: ZlinkWire.VideoUnit) {
         when (unit.nalType) {
@@ -165,7 +91,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         if (!forceSoftware && feedCount > 90 && decodedCount == 0L && (System.currentTimeMillis() - firstFeedMs) > STALL_TIMEOUT_MS) {
             AppLog.w("zlink video: hardware decoder stalled with 0 output after ${feedCount} frames (${STALL_TIMEOUT_MS}ms), falling back to software decoder")
             forceSoftware = true
-            currentSurface?.let { restartCodec(it) }
+            restartCodec()
             return
         }
 
@@ -173,10 +99,8 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
             if (System.currentTimeMillis() - lastStartFailureMs < 1000L) return
             val s = sps ?: return
             val p = pps ?: return
-            val surf = currentSurface ?: return
-            if (!surf.isValid) return
             try {
-                startCodec(s, p, surf)
+                startCodec(s, p)
             } catch (e: Exception) {
                 lastStartFailureMs = System.currentTimeMillis()
                 AppLog.e("zlink video: decoder start failed: ${e.javaClass.simpleName}: ${e.message}")
@@ -230,53 +154,39 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         return MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
     }
 
-    private fun startCodec(s: ByteArray, p: ByteArray, surface: Surface) {
+    private fun startCodec(s: ByteArray, p: ByteArray) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
         format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 1 shl 20)
         format.setByteBuffer("csd-0", java.nio.ByteBuffer.wrap(START_CODE + s))
         format.setByteBuffer("csd-1", java.nio.ByteBuffer.wrap(START_CODE + p))
+        // Realtime interactive decoding flags
+        try { format.setInteger(MediaFormat.KEY_PRIORITY, 0) } catch (_: Exception) {}
+        try { format.setInteger("low-latency", 1) } catch (_: Exception) {}
+        try { format.setInteger(MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE.toInt()) } catch (_: Exception) {}
         val c = createDecoder()
-        c.configure(format, surface, null, 0)
+        val b = bridge ?: ZlinkSurfaceBridge(width, height, { shouldRender() }, { renderedCount++ }).also {
+            bridge = it
+            it.setOutput(pendingSurface)
+        }
+        c.configure(format, b.inputSurface, null, 0)
         c.start()
         codec = c
-        AppLog.i("zlink video: decoder ${c.name} started ${width}x$height (isHardware=${!forceSoftware})")
+        AppLog.i("zlink video: decoder ${c.name} started ${width}x$height (isHardware=${!forceSoftware}) with low-latency flags")
         outputThread = Thread({
+            try {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY)
+            } catch (_: Exception) {}
             val info = MediaCodec.BufferInfo()
-            // While the replay is muted the newest decoded frame is held back, not dropped. CarPlay sends
-            // nothing for a still screen, so without it the picture would stay black until something moved.
-            var pending = -1
-            var gen = generation
             while (running) {
                 try {
-                    if (gen != generation) { pending = -1; gen = generation }
-                    val i = c.dequeueOutputBuffer(info, 50_000)
-                    // A decoder often keeps its last frames back until more input comes, so the target may never be
-                    // reached: once it has produced something and then gone quiet, the picture is what it has.
-                    if (i < 0 && !live && replayTarget > 0 && !replayFeeding && decodedCount > replayStart) {
-                        live = true
-                        replayTarget = 0
-                    }
+                    val i = c.dequeueOutputBuffer(info, 10_000L)
                     if (i >= 0) {
                         decodedCount++
-                        if (!live && replayTarget > 0 && decodedCount >= replayTarget) { live = true; replayTarget = 0 }
-                        val surf = currentSurface
-                        if (isAttached && surf != null && surf.isValid && shouldRender()) {
-                            if (pending >= 0) { c.releaseOutputBuffer(pending, true); pending = -1; renderedCount++ }
-                            c.releaseOutputBuffer(i, true)
-                            renderedCount++
-                        } else {
-                            if (pending >= 0) c.releaseOutputBuffer(pending, false)
-                            pending = i
-                        }
-                    } else if (pending >= 0 && isAttached && shouldRender() && currentSurface?.isValid == true) {
-                        c.releaseOutputBuffer(pending, true)
-                        pending = -1
-                        renderedCount++
+                        // Every picture goes to the bridge, which keeps the newest and draws it when allowed.
+                        c.releaseOutputBuffer(i, true)
                     }
                     logStats()
                 } catch (e: IllegalStateException) {
-                    // A flush invalidates the buffer we were holding; carry on with the next frame.
-                    pending = -1
                     if (!running) break
                 } catch (e: Exception) {
                     if (running) AppLog.w("zlink video: output ended: ${e.message}")
@@ -317,7 +227,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         statsAtMs = now; statsFed = feedCount; statsDecoded = decodedCount; statsRendered = renderedCount; statsBytes = bytesCount
     }
 
-    private fun restartCodec(surface: Surface) {
+    private fun restartCodec() {
         running = false
         outputThread?.join(300)
         try { codec?.stop() } catch (_: Exception) {}
@@ -328,7 +238,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         val p = pps
         if (s != null && p != null) {
             try {
-                startCodec(s, p, surface)
+                startCodec(s, p)
             } catch (e: Exception) {
                 AppLog.e("zlink video: restartCodec failed: ${e.message}")
             }
@@ -341,6 +251,8 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         try { codec?.stop() } catch (_: Exception) {}
         try { codec?.release() } catch (_: Exception) {}
         codec = null
+        bridge?.release()
+        bridge = null
         decodedCount = 0L
         renderedCount = 0L
         contentFrameIndex = 0L
