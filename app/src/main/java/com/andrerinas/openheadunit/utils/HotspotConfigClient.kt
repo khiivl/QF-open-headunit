@@ -1,6 +1,7 @@
 package com.andrerinas.openheadunit.utils
 
 import android.content.Context
+import com.andrerinas.openheadunit.BuildConfig
 
 /**
  * Sets the unit's hotspot name and password through the local adb bridge: OHU's own adb backend runs
@@ -22,17 +23,23 @@ object HotspotConfigClient {
         else -> null
     }
 
+    /**
+     * Runs [tool] arguments through app_process from the installed APK as the system user. Upstream gets there with
+     * `su 1000`; CoD OS has no su, and the app already runs as uid 1000 there, so the `su` hop is left out.
+     */
+    private fun asSystemUser(packageName: String, toolArgs: String, codos: Boolean): String {
+        val run = "CLASSPATH=\$APK app_process /system/bin com.andrerinas.openheadunit.tools.HotspotConfigTool $toolArgs"
+        return "APK=\$(pm path $packageName | head -1 | cut -d: -f2); " +
+            if (codos) run else "su 1000 sh -c \"$run\""
+    }
+
     /** The command for the adb shell; the caller has checked [problem]. */
-    fun buildSetCommand(packageName: String, name: String, password: String): String =
-        "APK=\$(pm path $packageName | head -1 | cut -d: -f2); " +
-            "su 1000 sh -c \"CLASSPATH=\$APK app_process /system/bin " +
-            "com.andrerinas.openheadunit.tools.HotspotConfigTool set '$name' '$password'\""
+    fun buildSetCommand(packageName: String, name: String, password: String, codos: Boolean = BuildConfig.CODOS): String =
+        asSystemUser(packageName, "set '$name' '$password'", codos)
 
     /** The command that puts the hotspot back on 5 GHz if it is on anything else. */
-    fun buildEnsure5GhzCommand(packageName: String): String =
-        "APK=\$(pm path $packageName | head -1 | cut -d: -f2); " +
-            "su 1000 sh -c \"CLASSPATH=\$APK app_process /system/bin " +
-            "com.andrerinas.openheadunit.tools.HotspotConfigTool ensure-5ghz\""
+    fun buildEnsure5GhzCommand(packageName: String, codos: Boolean = BuildConfig.CODOS): String =
+        asSystemUser(packageName, "ensure-5ghz", codos)
 
     /**
      * Makes sure the unit's hotspot is on 5 GHz. Cheap when it already is: the hostapd configuration, where there is
