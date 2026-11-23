@@ -1557,7 +1557,7 @@
     <string name="stage_creating_network">Створення мережі WiFi</string>
     <string name="stage_waiting_for_phone">Очікування підключення телефона</string>
     <string name="stage_waking_phone">Пробудження телефона</string>
-    <string name="stage_phone_answered">Телефон відповів. Якщо довго так, розблокуйте його</string>
+    <string name="stage_phone_answered">Телефон відповів. Якщо довго так, з’єднайте його з магнітолою заново</string>
     <string name="stage_sending_credentials">Надсилання даних мережі на телефон</string>
     <string name="stage_phone_joining">Телефон приєднується до мережі</string>
     <string name="stage_connecting">Підключення</string>

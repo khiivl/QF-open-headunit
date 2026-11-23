@@ -309,10 +309,12 @@ class SoftApCredentialsProvider(
                                 lastAttemptSucceeded = autoEnabled,
                                 nowMs = now,
                                 accOff = accOff != null,
-                                attemptInFlight = autoEnableInFlight,
+                                attemptInFlight = autoEnableInFlight || EarlyHotspot.comingUp(now),
                                 sinceWakeMs = if (wokeAt > runStartedAt) now - wokeAt else null,
                                 sinceApDownMs = apDownAtMs.takeIf { it > 0L }?.let { now - it },
-                                screenOff = screenIsOff())) {
+                                screenOff = screenIsOff(),
+                                firstAttemptAfterMs = if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty())
+                                    SoftApAutoEnablePolicy.FIRST_ATTEMPT_AFTER_MS_ZLINK_UNIT else SoftApAutoEnablePolicy.FIRST_ATTEMPT_AFTER_MS)) {
                             val attempt = ++autoEnableAttempts
                             autoEnableInFlight = true
                             AppLog.i("SoftApCredentials: No access point after ${waited / 1000}s — trying to switch this device's hotspot on (attempt $attempt of ${SoftApAutoEnablePolicy.MAX_ATTEMPTS}).")

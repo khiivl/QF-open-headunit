@@ -3438,6 +3438,22 @@ class NativeAaHandshakeManager(
     private fun countJoinRefusal() {
         consecutiveJoinRefusals++
         lastJoinRefusalAtMs = SystemClock.elapsedRealtime()
+        if (JoinRefusalRestartPolicy.shouldRestart(
+                consecutiveJoinRefusals,
+                JoinRefusalRestartPolicy.restartsSinceLanding,
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty()
+            )
+        ) {
+            JoinRefusalRestartPolicy.noteRestart()
+            AppLog.w(
+                "NativeAA: the phone refused this network $consecutiveJoinRefusals times in a row; starting the bring-up " +
+                    "over, as a cancel and reconnect would (restart ${JoinRefusalRestartPolicy.restartsSinceLanding} of " +
+                    "${JoinRefusalRestartPolicy.MAX_RESTARTS})."
+            )
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                launcher.manager.setActiveFromSettings(force = true, userRequested = false)
+            }
+        }
         if (JoinRefusalPolicy.isFirstWidening(consecutiveJoinRefusals)) {
             AppLog.w(
                 "NativeAA: the phone has refused this network $consecutiveJoinRefusals times in a row, so " +
@@ -3748,6 +3764,7 @@ class NativeAaHandshakeManager(
                     }
                     WppAction.CompleteSuccess -> {
                         AppLog.i("NativeAA: WiFi session landed. Holding the Bluetooth channel for the session and answering the phone's pings, as a head unit does.")
+                        JoinRefusalRestartPolicy.noteLanded()
                         holdingSince = SystemClock.elapsedRealtime()
                         lastHoldSummaryAt = holdingSince
                         // apply_hfp: tell the ESP32 relay projection is up so it releases HFP and stops

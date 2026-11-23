@@ -1136,7 +1136,7 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="stage_creating_network">Creating the WiFi network</string>
     <string name="stage_waiting_for_phone">Waiting for your phone to connect</string>
     <string name="stage_waking_phone">Waking your phone</string>
-    <string name="stage_phone_answered">Your phone answered. If this stays, unlock it</string>
+    <string name="stage_phone_answered">Your phone answered. If this stays, pair it with the unit again</string>
     <string name="stage_sending_credentials">Sending network details to your phone</string>
     <string name="stage_phone_joining">Your phone is joining the network</string>
     <string name="stage_connecting">Connecting</string>

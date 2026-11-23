@@ -55,6 +55,7 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
                 ?.let { settings.projectionMode = it }
         }
         com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(this)
+        com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.EarlyHotspot.start(this)
         // The rows that could change these are hidden on a zLink unit, so the values are pinned to the ones that work:
         // Native Android Auto, over zLink's hotspot (WiFi Direct shares the radio with it and drops CarPlay).
         run {

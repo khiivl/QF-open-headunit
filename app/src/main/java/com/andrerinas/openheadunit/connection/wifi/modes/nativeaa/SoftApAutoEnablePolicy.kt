@@ -10,6 +10,12 @@ package com.andrerinas.openheadunit.connection.wifi.modes.nativeaa
 object SoftApAutoEnablePolicy {
 
     const val FIRST_ATTEMPT_AFTER_MS = 5_000L
+
+    /**
+     * On a zLink unit nothing else switches the hotspot on at boot (the unit comes up as a Wi-Fi client), so the five
+     * seconds spent waiting for it are only lost time: the hotspot takes about nine more before it can carry a phone.
+     */
+    const val FIRST_ATTEMPT_AFTER_MS_ZLINK_UNIT = 1_000L
     const val RETRY_AFTER_MS = 10_000L
     const val MAX_ATTEMPTS = 2
     // An XYAuto unit was measured restoring its own AP about 4 s after ACC-on.
@@ -28,11 +34,12 @@ object SoftApAutoEnablePolicy {
         sinceWakeMs: Long? = null,
         sinceApDownMs: Long? = null,
         screenOff: Boolean = false,
+        firstAttemptAfterMs: Long = FIRST_ATTEMPT_AFTER_MS,
     ): Boolean {
         if (!enabledInSettings || accOff || screenOff || attemptInFlight || attempts >= MAX_ATTEMPTS) return false
         if (sinceWakeMs != null && sinceWakeMs < FIRST_ATTEMPT_AFTER_WAKE_MS) return false
         if (sinceApDownMs != null && sinceApDownMs < RETRY_AFTER_MS) return false
-        if (attempts == 0) return waitedMs >= FIRST_ATTEMPT_AFTER_MS
+        if (attempts == 0) return waitedMs >= firstAttemptAfterMs
         return !lastAttemptSucceeded && nowMs - lastAttemptEndedAtMs >= RETRY_AFTER_MS
     }
 

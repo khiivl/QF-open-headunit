@@ -18,6 +18,13 @@ class SoftApAutoEnablePolicyTest {
     }
 
     @Test
+    fun `a zLink unit does not wait the grace for a hotspot nothing else will start`() {
+        val grace = SoftApAutoEnablePolicy.FIRST_ATTEMPT_AFTER_MS_ZLINK_UNIT
+        assertFalse(SoftApAutoEnablePolicy.shouldAttempt(true, 0, grace - 1, 0, false, grace - 1, firstAttemptAfterMs = grace))
+        assertTrue(SoftApAutoEnablePolicy.shouldAttempt(true, 0, grace, 0, false, grace, firstAttemptAfterMs = grace))
+    }
+
+    @Test
     fun `a failed attempt is retried once, spaced out`() {
         assertFalse(SoftApAutoEnablePolicy.shouldAttempt(true, 1, 14_000, 5_000, false, 14_999))
         assertTrue(SoftApAutoEnablePolicy.shouldAttempt(true, 1, 15_000, 5_000, false, 15_000))
