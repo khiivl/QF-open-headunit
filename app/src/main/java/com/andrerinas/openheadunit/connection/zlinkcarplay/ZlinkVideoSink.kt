@@ -255,7 +255,9 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
     }
 
     // Once per STATS_INTERVAL_MS: how many frames came in, were decoded and were shown, per second.
-    @Volatile private var renderedCount = 0L
+    /** Frames shown on the surface so far; the CarPlay screen keeps its connecting screen up until this is above 0. */
+    @Volatile var renderedCount = 0L
+        private set
     @Volatile private var bytesCount = 0L
     private var statsAtMs = 0L
     private var statsFed = 0L
@@ -304,6 +306,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         try { codec?.release() } catch (_: Exception) {}
         codec = null
         decodedCount = 0L
+        renderedCount = 0L
         feedCount = 0L
         firstFeedMs = 0L
         forceSoftware = false

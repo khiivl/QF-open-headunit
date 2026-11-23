@@ -13,6 +13,8 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ProgressBar
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.andrerinas.openheadunit.R
@@ -31,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference
 class ZlinkCarPlayActivity : BaseActivity() {
     private lateinit var surfaceView: SurfaceView
     private lateinit var overlayView: TextView
-    private lateinit var connectingView: TextView
+    private lateinit var connectingView: View
     private lateinit var container: FrameLayout
     private var subscription: Closeable? = null
     private var backDialog: AlertDialog? = null
@@ -84,22 +86,25 @@ class ZlinkCarPlayActivity : BaseActivity() {
         }
         container.addView(overlayView, overlayParams)
 
-        connectingView = TextView(this).apply {
-            text = getString(R.string.zlink_connecting)
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        // Full screen, so the picture surface (black until the first frame) is never what the user sees while waiting.
+        connectingView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#B0000000"))
-            setPadding(48, 24, 48, 24)
+            setBackgroundColor(Color.parseColor("#12161C"))
+            addView(ProgressBar(this@ZlinkCarPlayActivity).apply { isIndeterminate = true })
+            addView(TextView(this@ZlinkCarPlayActivity).apply {
+                text = getString(R.string.zlink_connecting)
+                setTextColor(Color.WHITE)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                gravity = Gravity.CENTER
+                setPadding(0, 32, 0, 0)
+            })
             visibility = View.VISIBLE
         }
-        val connectingParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.CENTER
-        }
-        container.addView(connectingView, connectingParams)
+        container.addView(
+            connectingView,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        )
         setContentView(container)
         container.requestFocus()
 
@@ -113,13 +118,35 @@ class ZlinkCarPlayActivity : BaseActivity() {
         surfaceView.setOnTouchListener { v, e -> forwardTouch(v.width, v.height, e); true }
     }
 
+    /**
+     * The first video frame arriving is not the picture being on screen: the decoder still has to produce it.
+     * Keep the connecting screen until a frame has actually been shown (or a few seconds, whichever is first).
+     */
+    private fun hideConnectingWhenShown() {
+        val started = android.os.SystemClock.elapsedRealtime()
+        val check = object : Runnable {
+            override fun run() {
+                val shown = (ZlinkHub.videoSink?.renderedCount ?: 0L) > 0L
+                if (shown || android.os.SystemClock.elapsedRealtime() - started > 3_000L) {
+                    connectingView.animate().alpha(0f).setDuration(150).withEndAction {
+                        connectingView.visibility = View.GONE
+                        connectingView.alpha = 1f
+                    }.start()
+                } else {
+                    connectingView.postDelayed(this, 30)
+                }
+            }
+        }
+        connectingView.post(check)
+    }
+
     // A fresh feed subscription replays the current picture group, so each surface starts cleanly.
     private fun attach(holder: SurfaceHolder) {
         ZlinkHub.attachSurface(holder.surface)
 
         if ((ZlinkHub.videoSink?.decodedCount ?: 0L) > 0L) {
             videoActive = true
-            connectingView.visibility = View.GONE
+            hideConnectingWhenShown()
         }
 
         subscription = ZlinkHub.subscribe(object : ZlinkHub.Listener {
@@ -128,7 +155,7 @@ class ZlinkCarPlayActivity : BaseActivity() {
                     ZlinkWire.CH_VIDEO -> if (frame.type == ZlinkWire.TYPE_VIDEO) {
                         if (!videoActive) {
                             videoActive = true
-                            runOnUiThread { connectingView.visibility = View.GONE }
+                            runOnUiThread { hideConnectingWhenShown() }
                         }
                     }
                     ZlinkWire.CH_REPLAY_END -> {
