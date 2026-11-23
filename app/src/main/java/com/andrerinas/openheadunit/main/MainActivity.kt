@@ -1580,6 +1580,13 @@ class MainActivity : BaseActivity() {
 
     fun checkSetupFlow() {
         val appSettings = Settings(this)
+        // On a zLink unit the setup is fixed and proven, so there is no welcome wizard: it counts as done, and the
+        // runtime permissions are asked for directly below, as they are for anyone who finished it.
+        if (appSettings.onboardingVersion < OnboardingActivity.CURRENT_ONBOARDING_VERSION &&
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()
+        ) {
+            appSettings.onboardingVersion = OnboardingActivity.CURRENT_ONBOARDING_VERSION
+        }
         // Show the intelligent onboarding wizard once whenever the stored version is
         // older than the current one (covers fresh installs and upgraders alike).
         val wizardPending = appSettings.onboardingVersion < OnboardingActivity.CURRENT_ONBOARDING_VERSION
