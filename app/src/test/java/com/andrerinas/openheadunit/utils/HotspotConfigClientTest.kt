@@ -26,9 +26,17 @@ class HotspotConfigClientTest {
     }
 
     @Test fun theCommandQuotesTheValues() {
-        val cmd = HotspotConfigClient.buildSetCommand("pkg.name", "My Name", "pass1234")
+        val cmd = HotspotConfigClient.buildSetCommand("pkg.name", "My Name", "pass1234", codos = false)
         assertTrue(cmd.contains("set 'My Name' 'pass1234'"))
         assertTrue(cmd.contains("su 1000"))
         assertEquals(1, Regex("su 1000").findAll(cmd).count())
+    }
+
+    @Test fun onCodosTheCommandRunsDirectlyWithoutSu() {
+        val set = HotspotConfigClient.buildSetCommand("pkg.name", "My Name", "pass1234", codos = true)
+        val ensure = HotspotConfigClient.buildEnsure5GhzCommand("pkg.name", codos = true)
+        assertTrue(set.contains("set 'My Name' 'pass1234'"))
+        assertTrue(ensure.contains("HotspotConfigTool ensure-5ghz"))
+        assertTrue(!set.contains("su ") && !ensure.contains("su "))
     }
 }
