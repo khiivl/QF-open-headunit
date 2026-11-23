@@ -426,12 +426,18 @@ class SoftApCredentialsProvider(
         // two of them add up to is SoftApCredentialsPolicy's question, not this method's — the
         // device it matters on is not one we can test against, so the rule lives where a test can
         // reach it.
-        val manualSsid = settings.hotspotSsid
+        // Where hostapd runs the hotspot and its configuration can be read, that is the access point the phone has to
+        // join, so it outranks a manual name or password: those can only have gone stale (the hotspot was renamed or
+        // given a new password since they were typed in).
+        val actual = HotspotConfigReader.readFromHostapd(context)
+        val manualSsid = if (actual != null) "" else settings.hotspotSsid
         // Read once. decide(), resolve() and the record rule below have to judge the same pair, and
         // every one of these properties is a fresh SharedPreferences read that the settings screen
         // can change underneath us between calls.
-        val manualPassphrase = settings.hotspotPassword
-        val systemConfig = if (manualSsid.isEmpty()) {
+        val manualPassphrase = if (actual != null) "" else settings.hotspotPassword
+        val systemConfig = if (actual != null) {
+            SoftApCredentials(actual.first, actual.second)
+        } else if (manualSsid.isEmpty()) {
             HotspotConfigReader.getSystemHotspotConfig(context)?.let { SoftApCredentials(it.first, it.second) }
         } else null
 

@@ -68,7 +68,8 @@ object HotspotConfigReader {
      * Last resort: a unit whose hotspot is run by hostapd itself has nothing in the Android settings, but its
      * configuration file can be read with the app's own shell. Never on the main thread.
      */
-    private fun readFromHostapd(context: Context): Pair<String, String>? {
+    /** The hotspot a hostapd on this unit really runs, as (ssid, passphrase), or null where there is none to read. */
+    fun readFromHostapd(context: Context): Pair<String, String>? {
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return null
         return try {
             val (code, out) = kotlinx.coroutines.runBlocking {
