@@ -26,7 +26,7 @@
 
     <!-- Connection mode selector -->
     <string name="auto_reconnect_acc_on">Reconnect when the car starts</string>
-    <string name="auto_reconnect_acc_on_desc">When the ignition comes on (ACC on), reconnect to the last phone automatically, for Android Auto and CarPlay.</string>
+    <string name="auto_reconnect_acc_on_desc">Reconnect to the last phone when the ignition comes on (ACC).</string>
     <string name="projection_short_android_auto">Android Auto</string>
     <string name="projection_short_carplay">CarPlay</string>
     <string name="projection_mode">Phone projection</string>
