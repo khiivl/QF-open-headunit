@@ -24,7 +24,11 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
     @Volatile private var running = true
     // Frames sent while the proxy replays the session so far only rebuild the decoder; they are not drawn.
     @Volatile private var live = false
-    private val mutedUntilMs = System.currentTimeMillis() + REPLAY_MUTE_FALLBACK_MS
+    @Volatile private var mutedUntilMs = System.currentTimeMillis() + REPLAY_MUTE_FALLBACK_MS
+    // While a redraw replays the cached picture group: the decoded-frame count at which it is done (0 = none).
+    @Volatile private var replayTarget = 0L
+    @Volatile private var replayStart = 0L
+    @Volatile private var replayFeeding = false   // the redraw is still feeding frames in
     private var outputThread: Thread? = null
 
     @Volatile private var currentSurface: Surface? = initialSurface
@@ -40,7 +44,11 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         private set
 
     /** The proxy has finished replaying; draw everything from here on. */
-    fun markLive() { live = true }
+    /**
+     * The subscriber replay has finished. It must not cut a redraw short: that one is hiding the stored frames, and
+     * releases itself once the last of them is decoded.
+     */
+    fun markLive() { if (replayTarget == 0L) live = true }
 
     private fun shouldRender() = live || System.currentTimeMillis() > mutedUntilMs
 
@@ -91,24 +99,38 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
      * black until something moves. This decodes the cached picture group again from its keyframe; the
      * held-last-frame logic then draws the final picture.
      */
-    fun redrawFrom(frames: List<ZlinkWire.Frame>) {
-        if (frames.isEmpty()) return
+    fun redrawFrom(frames: List<ZlinkWire.Frame>): Boolean {
+        if (frames.isEmpty()) return false
         Thread({
             synchronized(feedLock) {
                 val c = codec ?: return@synchronized
                 try {
+                    // Only the last frame of the group is the picture; the ones before it are the screen's recent
+                    // motion (a scroll, a tap) and are never shown. Stay muted until the decoder has produced the
+                    // last one; the screen covers the wait with a short fade (see ZlinkCarPlayActivity).
+                    val picture = frames.mapNotNull { ZlinkWire.parseVideo(it.payload) }.count { it.nalType != 7 && it.nalType != 8 }
                     live = false
                     generation++
                     c.flush()
-                    for (f in frames) ZlinkWire.parseVideo(f.payload)?.let { feedLocked(it) }
-                    AppLog.i("zlink video: redrew ${frames.size} cached frames on the new surface")
+                    replayStart = decodedCount
+                    replayTarget = decodedCount + picture
+                    mutedUntilMs = System.currentTimeMillis() + REDRAW_MUTE_MS
+                    replayFeeding = true
+                    try {
+                        for (f in frames) ZlinkWire.parseVideo(f.payload)?.let { feedLocked(it) }
+                    } finally {
+                        replayFeeding = false
+                    }
+                    if (picture == 0) { live = true; replayTarget = 0 }
+                    AppLog.i("zlink video: redrew ${frames.size} cached frames on the new surface, showing only the last of $picture pictures")
                 } catch (e: Exception) {
-                    AppLog.w("zlink video: redraw failed: ${e.message}")
-                } finally {
                     live = true
+                    replayTarget = 0
+                    AppLog.w("zlink video: redraw failed: ${e.message}")
                 }
             }
         }, "zlink-redraw").also { it.isDaemon = true }.start()
+        return true
     }
 
     private fun feedLocked(unit: ZlinkWire.VideoUnit) {
@@ -134,6 +156,9 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
 
         feedCount++
         bytesCount += unit.nal.size
+        // A session starts with a few blank keyframes (about 150 bytes) and tiny frames; the first one big enough to
+        // be the interface is the picture, and the connecting screen must stay until that one has been shown.
+        if (contentFrameIndex == 0L && unit.nal.size >= CONTENT_FRAME_BYTES) contentFrameIndex = feedCount
         if (firstFeedMs == 0L) firstFeedMs = System.currentTimeMillis()
 
         // Hardware decoder stall watchdog: if hardware decoder receives frames for > 5s but produces 0 output frames, fall back to software
@@ -225,8 +250,15 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
                 try {
                     if (gen != generation) { pending = -1; gen = generation }
                     val i = c.dequeueOutputBuffer(info, 50_000)
+                    // A decoder often keeps its last frames back until more input comes, so the target may never be
+                    // reached: once it has produced something and then gone quiet, the picture is what it has.
+                    if (i < 0 && !live && replayTarget > 0 && !replayFeeding && decodedCount > replayStart) {
+                        live = true
+                        replayTarget = 0
+                    }
                     if (i >= 0) {
                         decodedCount++
+                        if (!live && replayTarget > 0 && decodedCount >= replayTarget) { live = true; replayTarget = 0 }
                         val surf = currentSurface
                         if (isAttached && surf != null && surf.isValid && shouldRender()) {
                             if (pending >= 0) { c.releaseOutputBuffer(pending, true); pending = -1; renderedCount++ }
@@ -257,6 +289,10 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
     // Once per STATS_INTERVAL_MS: how many frames came in, were decoded and were shown, per second.
     /** Frames shown on the surface so far; the CarPlay screen keeps its connecting screen up until this is above 0. */
     @Volatile var renderedCount = 0L
+        private set
+
+    /** Which frame of the session (1-based) was the first with real content in it, or 0 before that one arrived. */
+    @Volatile var contentFrameIndex = 0L
         private set
     @Volatile private var bytesCount = 0L
     private var statsAtMs = 0L
@@ -307,6 +343,7 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         codec = null
         decodedCount = 0L
         renderedCount = 0L
+        contentFrameIndex = 0L
         feedCount = 0L
         firstFeedMs = 0L
         forceSoftware = false
@@ -317,7 +354,9 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         private const val INPUT_WAIT_MS = 1000L
         private const val REPLAY_MUTE_FALLBACK_MS = 3000L   // an older proxy sends no replay-end marker
         private const val STALL_TIMEOUT_MS = 5000L
+        private const val REDRAW_MUTE_MS = 8000L   // longest a redraw keeps the picture muted
         private const val STATS_INTERVAL_MS = 5000L
+        private const val CONTENT_FRAME_BYTES = 3000   // smaller than this is a blank or near-static frame
 
         @Volatile var cachedSps: ByteArray? = null
         @Volatile var cachedPps: ByteArray? = null

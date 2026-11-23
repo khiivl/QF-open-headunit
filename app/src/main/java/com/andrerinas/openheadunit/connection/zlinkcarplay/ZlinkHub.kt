@@ -77,15 +77,17 @@ object ZlinkHub {
         return sink
     }
 
-    fun attachSurface(surface: android.view.Surface) {
+    /** True when the picture is being redrawn from the cache, so the screen should cover the wait. */
+    fun attachSurface(surface: android.view.Surface): Boolean {
         val existing = videoSink
         if (existing == null) {
             getOrCreateVideoSink(surface)
+            return false
         } else {
             val same = existing.isCurrentSurface(surface)
             AppLog.i("zlink hub: attach on return: same surface=$same, cached picture group valid=${replayCache.isValid}, frames=${replayCache.frameCount}, bytes=${replayCache.currentGopBytes}")
             existing.attachSurface(surface)
-            if (!same) existing.redrawFrom(replayCache.getReplayFrames())
+            return !same && existing.redrawFrom(replayCache.getReplayFrames())
         }
     }
 

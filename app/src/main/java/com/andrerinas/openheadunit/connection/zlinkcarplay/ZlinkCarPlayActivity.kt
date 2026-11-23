@@ -34,6 +34,7 @@ class ZlinkCarPlayActivity : BaseActivity() {
     private lateinit var surfaceView: SurfaceView
     private lateinit var overlayView: TextView
     private lateinit var connectingView: View
+    private lateinit var returnCover: View
     private lateinit var container: FrameLayout
     private var subscription: Closeable? = null
     private var backDialog: AlertDialog? = null
@@ -60,6 +61,7 @@ class ZlinkCarPlayActivity : BaseActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         container = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#12161C"))
             isFocusable = true
             isFocusableInTouchMode = true
         }
@@ -105,6 +107,19 @@ class ZlinkCarPlayActivity : BaseActivity() {
             connectingView,
             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         )
+        // Covers the picture while it is rebuilt after coming back from another screen, then fades away.
+        returnCover = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#12161C"))
+            addView(
+                ProgressBar(this@ZlinkCarPlayActivity).apply { isIndeterminate = true },
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+            )
+            visibility = View.GONE
+        }
+        container.addView(
+            returnCover,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        )
         setContentView(container)
         container.requestFocus()
 
@@ -124,11 +139,19 @@ class ZlinkCarPlayActivity : BaseActivity() {
      */
     private fun hideConnectingWhenShown() {
         val started = android.os.SystemClock.elapsedRealtime()
+        var firstShownAt = 0L
         val check = object : Runnable {
             override fun run() {
-                val shown = (ZlinkHub.videoSink?.renderedCount ?: 0L) > 0L
-                if (shown || android.os.SystemClock.elapsedRealtime() - started > 3_000L) {
-                    connectingView.animate().alpha(0f).setDuration(150).withEndAction {
+                val now = android.os.SystemClock.elapsedRealtime()
+                val shown = ZlinkHub.videoSink?.renderedCount ?: 0L
+                if (shown > 0L && firstShownAt == 0L) firstShownAt = now
+                // The first frames of a new session are blank: stay until the first one with real content has been
+                // shown. A screen that never produces one (or a slow start) is let through after a moment.
+                val contentAt = ZlinkHub.videoSink?.contentFrameIndex ?: 0L
+                val settled = (contentAt != 0L && shown >= contentAt) ||
+                    (firstShownAt != 0L && now - firstShownAt >= SETTLED_MS)
+                if (settled || now - started > 4_000L) {
+                    connectingView.animate().alpha(0f).setDuration(300).withEndAction {
                         connectingView.visibility = View.GONE
                         connectingView.alpha = 1f
                     }.start()
@@ -142,18 +165,23 @@ class ZlinkCarPlayActivity : BaseActivity() {
 
     // A fresh feed subscription replays the current picture group, so each surface starts cleanly.
     private fun attach(holder: SurfaceHolder) {
-        ZlinkHub.attachSurface(holder.surface)
+        val shownBefore = ZlinkHub.videoSink?.renderedCount ?: 0L
+        if (ZlinkHub.attachSurface(holder.surface)) showReturnCover(shownBefore)
 
+        // Coming back to a picture that is already running: no connecting screen, the return cover handles it.
         if ((ZlinkHub.videoSink?.decodedCount ?: 0L) > 0L) {
             videoActive = true
-            hideConnectingWhenShown()
+            connectingView.visibility = View.GONE
         }
 
         subscription = ZlinkHub.subscribe(object : ZlinkHub.Listener {
             override fun onFrame(frame: ZlinkWire.Frame) {
                 when (frame.channel) {
                     ZlinkWire.CH_VIDEO -> if (frame.type == ZlinkWire.TYPE_VIDEO) {
-                        if (!videoActive) {
+                        // Only a picture frame counts. The settings packets (SPS and PPS) of an earlier session are
+                        // replayed to every new screen at once, long before the phone has sent anything to show.
+                        val nal = ZlinkWire.parseVideo(frame.payload)?.nalType ?: -1
+                        if (!videoActive && nal != 7 && nal != 8) {
                             videoActive = true
                             runOnUiThread { hideConnectingWhenShown() }
                         }
@@ -174,7 +202,7 @@ class ZlinkCarPlayActivity : BaseActivity() {
                     when (state) {
                         ZlinkSessionState.CONNECTED -> {
                             overlayView.visibility = View.GONE
-                            if (!videoActive) connectingView.visibility = View.VISIBLE
+                            if (!videoActive && (ZlinkHub.videoSink?.decodedCount ?: 0L) == 0L) connectingView.visibility = View.VISIBLE
                         }
                         ZlinkSessionState.LOST -> {
                             connectingView.visibility = View.GONE
@@ -316,6 +344,28 @@ class ZlinkCarPlayActivity : BaseActivity() {
         startActivity(startMain)
     }
 
+    /** Dark until the rebuilt picture's first frame is on screen (or 1.5 s), then a short fade into it. */
+    private fun showReturnCover(shownBefore: Long) {
+        returnCover.animate().cancel()
+        returnCover.alpha = 1f
+        returnCover.visibility = View.VISIBLE
+        val started = android.os.SystemClock.elapsedRealtime()
+        val check = object : Runnable {
+            override fun run() {
+                val shown = (ZlinkHub.videoSink?.renderedCount ?: 0L) > shownBefore
+                if (shown || android.os.SystemClock.elapsedRealtime() - started > 8_000L) {
+                    returnCover.animate().alpha(0f).setDuration(220).withEndAction {
+                        returnCover.visibility = View.GONE
+                        returnCover.alpha = 1f
+                    }.start()
+                } else {
+                    returnCover.postDelayed(this, 30)
+                }
+            }
+        }
+        returnCover.post(check)
+    }
+
     private fun detach() {
         backDialog?.dismiss()
         backDialog = null
@@ -344,6 +394,7 @@ class ZlinkCarPlayActivity : BaseActivity() {
 
     companion object {
         const val BACK_KEY_PULSE_MS = 60L
+        private const val SETTLED_MS = 1500L   // the longest to wait after the first frame for one with real content
 
         /** True while the CarPlay screen is in front; read by [ZlinkService] before it raises the screen. */
         @Volatile var isResumed = false

@@ -1,5 +1,10 @@
 <resources>
 
+    <!-- The CarPlay screen: its window is the same dark colour as the connecting view, so opening it never flashes black. -->
+    <style name="AppTheme.CarPlay" parent="AppTheme">
+        <item name="android:windowBackground">@color/carplay_window_background</item>
+    </style>
+
     <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">false</item>
