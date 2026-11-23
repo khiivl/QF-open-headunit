@@ -32,6 +32,23 @@ object HostapdConfig {
         return Pair(name, pass)
     }
 
+    /**
+     * Whether the access point runs on 5 GHz: `hw_mode=a` is 5 GHz, `g` and `b` are 2.4 GHz. Null when the file says
+     * neither (the channel alone cannot tell here: 0 means "pick one").
+     */
+    fun runs5Ghz(text: String): Boolean? {
+        for (raw in text.lineSequence()) {
+            val line = raw.trim()
+            if (!line.startsWith("hw_mode=")) continue
+            return when (line.substringAfter('=').trim()) {
+                "a" -> true
+                "g", "b" -> false
+                else -> null
+            }
+        }
+        return null
+    }
+
     private fun decodeHex(hex: String): String? {
         if (hex.isEmpty() || hex.length % 2 != 0) return null
         val bytes = ByteArray(hex.length / 2)

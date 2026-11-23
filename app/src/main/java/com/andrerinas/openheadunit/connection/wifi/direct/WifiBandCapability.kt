@@ -32,12 +32,44 @@ object WifiBandCapability {
         return try {
             val wifiManager = context.applicationContext
                 .getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return null
-            wifiManager.is5GHzBandSupported
+            val platform = wifiManager.is5GHzBandSupported
+            // A unit can answer no here and still host a 5 GHz hotspot (the call describes the station side), and
+            // where the hotspot is run by hostapd its configuration says which band it really is on.
+            if (platform == false && hostapdRuns5Ghz(context) == true) {
+                AppLog.i("WifiBandCapability: the platform says no 5 GHz band, but the hotspot runs on 5 GHz; trusting the hotspot")
+                true
+            } else platform
         } catch (e: Exception) {
             AppLog.d("WifiBandCapability: could not read the 5 GHz band capability: ${e.message}")
             null
         }
     }
+
+    @Volatile private var hostapdBand: Boolean? = null
+    @Volatile private var hostapdReadAtMs = 0L
+
+    /** The hotspot's band from the hostapd configuration, read with the app's shell and kept for a few minutes. */
+    private fun hostapdRuns5Ghz(context: Context): Boolean? {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (hostapdReadAtMs != 0L && now - hostapdReadAtMs < HOSTAPD_CACHE_MS) return hostapdBand
+        // Never block the main thread on a shell command.
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return hostapdBand
+        val band = try {
+            val (code, out) = kotlinx.coroutines.runBlocking {
+                com.andrerinas.openheadunit.utils.OemAppManager.executeCommand(
+                    context.applicationContext, com.andrerinas.openheadunit.utils.HostapdConfig.READ_COMMAND
+                )
+            }
+            if (code == 0) com.andrerinas.openheadunit.utils.HostapdConfig.runs5Ghz(out) else null
+        } catch (e: Exception) {
+            null
+        }
+        hostapdBand = band
+        hostapdReadAtMs = now
+        return band
+    }
+
+    private const val HOSTAPD_CACHE_MS = 5 * 60 * 1000L
 
     /**
      * Whether this platform can be asked about the band at all.

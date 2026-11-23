@@ -28,4 +28,12 @@ class HostapdConfigTest {
             HostapdConfig.parse(listOf("#ssid=Old", "ssid=A", "wpa_passphrase=b1234567").joinToString("\n"))
         )
     }
+
+    @Test fun readsTheBandFromHwMode() {
+        assertEquals(true, HostapdConfig.runs5Ghz(listOf("interface=wlan0", "hw_mode=a", "channel=0").joinToString(System.lineSeparator())))
+        assertEquals(false, HostapdConfig.runs5Ghz("hw_mode=g"))
+        assertEquals(false, HostapdConfig.runs5Ghz("hw_mode=b"))
+        assertNull(HostapdConfig.runs5Ghz("channel=36"))
+        assertNull(HostapdConfig.runs5Ghz(""))
+    }
 }
