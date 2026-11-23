@@ -561,7 +561,9 @@ object HomeUiHelper {
         secondsLeft: Int,
         palette: Palette,
         /** The WiFi Direct group, shown under the step while a connection comes up. */
-        networkLine: String? = null
+        networkLine: String? = null,
+        /** The phone on the module is the wrong kind for this mode: said instead of offering a connection. */
+        wrongPhoneHint: String? = null
     ) {
         val card = rootView.findViewById<View>(R.id.home_primary_card) ?: return
         (card as? FrameLayout)?.let {
@@ -591,21 +593,29 @@ object HomeUiHelper {
             else withLeadingIcon(context, actionIconRes(decision, usbAsWireless, isCarPlay), actionLabel, color)
         // Nothing to start while a connection is on its way; Cancel is the one thing left to do.
         action?.visibility = if (connecting) View.GONE else View.VISIBLE
+        if (wrongPhoneHint != null) {
+            title?.text = wrongPhoneHint
+            subtitle?.text = ""
+            // Android Auto has nothing to press; in CarPlay mode the button stays, to try again after a swap.
+            if (!isCarPlay) action?.visibility = View.GONE
+        }
         icon?.setImageResource(iconRes(decision.primary, isCarPlay))
         val cancel = rootView.findViewById<TextView>(R.id.home_primary_cancel)
         // The status pill's X lived here before: it stops the bring-up, listening included.
-        cancel?.visibility = if (reconnecting || stage != null) View.VISIBLE else View.GONE
+        cancel?.visibility = if ((reconnecting || stage != null) && wrongPhoneHint == null) View.VISIBLE else View.GONE
         rootView.findViewById<TextView>(R.id.home_countdown)?.apply {
             visibility = if (reconnecting) View.VISIBLE else View.GONE
             text = secondsLeft.toString()
         }
         val detail = rootView.findViewById<TextView>(R.id.home_primary_detail)
         detail?.text = networkLine
-        detail?.visibility = if (stage != null && !networkLine.isNullOrEmpty()) View.VISIBLE else View.GONE
+        detail?.visibility = if (stage != null && !networkLine.isNullOrEmpty() && wrongPhoneHint == null) View.VISIBLE else View.GONE
         val progress = rootView.findViewById<View>(R.id.home_primary_progress)
-        progress?.visibility = if (connecting && stage != null) View.VISIBLE else View.GONE
-        if (connecting && stage != null) {
-            setProgress(rootView, stage.rank, ConnectionStage.STARTING_PROJECTION.rank)
+        // A connection that is not going to be attempted shows no progress.
+        val showProgress = connecting && stage != null && wrongPhoneHint == null
+        progress?.visibility = if (showProgress) View.VISIBLE else View.GONE
+        if (showProgress) {
+            setProgress(rootView, stage!!.rank, ConnectionStage.STARTING_PROJECTION.rank)
             startProgressShine(rootView)
         } else {
             stopProgressShine(rootView)
@@ -898,7 +908,8 @@ object HomeUiHelper {
 
     /** What the main button leads with: the link for a connect, the arrow back to a session. */
     internal fun actionIconRes(decision: Decision, usbAsWireless: Boolean = false, isCarPlay: Boolean = false): Int = when {
-        isCarPlay -> R.drawable.ic_carplay
+        // Back to a running CarPlay keeps its own icon; connecting is the same link icon as over WiFi.
+        isCarPlay -> if (decision.status == Status.ACTIVE_SESSION) R.drawable.ic_carplay else R.drawable.ic_link_white
         decision.status == Status.ACTIVE_SESSION -> R.drawable.ic_launch_white
         decision.status == Status.SEARCHING -> R.drawable.ic_refresh_white
         decision.status == Status.RECONNECTING -> R.drawable.ic_link_white
@@ -1107,7 +1118,7 @@ object HomeUiHelper {
         decision.status == Status.RECONNECTING -> R.string.home_kicker_last_connection
         else -> when (decision.primary) {
             Connection.USB -> if (usbAsWireless) R.string.home_kicker_wireless else R.string.home_kicker_cable
-            Connection.WIFI -> R.string.home_kicker_wireless
+            Connection.WIFI -> R.string.projection_short_android_auto
             Connection.SELF -> R.string.self_mode
         }
     }
@@ -1326,9 +1337,9 @@ object HomeUiHelper {
 
     internal fun actionRes(decision: Decision, usbAsWireless: Boolean = false, isCarPlay: Boolean = false): Int = when (decision.status) {
         Status.ACTIVE_SESSION -> if (isCarPlay) R.string.home_action_return_to_carplay else R.string.home_action_back_to_android_auto
-        Status.RECONNECTING -> if (isCarPlay) R.string.home_action_connect_carplay else R.string.home_action_connect_now
+        Status.RECONNECTING -> if (isCarPlay) R.string.home_action_connect_wifi else R.string.home_action_connect_now
         Status.SEARCHING -> R.string.home_action_search_again
-        else -> if (isCarPlay) R.string.home_action_connect_carplay else when (decision.primary) {
+        else -> if (isCarPlay) R.string.home_action_connect_wifi else when (decision.primary) {
             Connection.USB -> if (usbAsWireless) R.string.home_action_connect_wireless_dongle else R.string.home_action_connect_usb
             Connection.WIFI -> R.string.home_action_connect_wifi
             Connection.SELF -> R.string.home_action_start_self_mode

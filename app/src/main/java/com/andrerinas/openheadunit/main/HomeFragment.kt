@@ -301,10 +301,8 @@ class HomeFragment : Fragment() {
             }
         }
 
-        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
-                App.provide(requireContext()).settings.projectionMode
-            )
-        ) {
+        // Always collected, not only when the unit starts in CarPlay mode: the mode can change while this is on screen.
+        run {
             viewLifecycleOwner.lifecycleScope.launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
                     launch {
@@ -326,6 +324,18 @@ class HomeFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 AapService.scanningState.collect { renderHome() }
+            }
+        }
+
+        // Which phone is on the unit's Bluetooth module decides whether the card offers a connection.
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                com.andrerinas.openheadunit.connection.modulephone.ModulePhoneWatcher.phone.collect { renderHome() }
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.carPlayNeedsIphone.collect { renderHome() }
             }
         }
 
@@ -550,6 +560,27 @@ class HomeFragment : Fragment() {
         HomeUiHelper.applyWifiStatus(ctx, root, appSettings, decision, homePalette(ctx), line, status.isScanning)
     }
 
+    /**
+     * Said in place of a connection offer when the phone on the unit's Bluetooth module is known to be the wrong kind
+     * for Android Auto mode (an iPhone on the module).
+     */
+    private fun wrongPhoneHint(): String? {
+        val ctx = context ?: return null
+        if (sessionLive()) return null
+        val carPlay = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+            App.provide(ctx).settings.projectionMode
+        )
+        return when {
+            !carPlay && com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.blocksAndroidAuto() ->
+                getString(R.string.phone_kind_needs_android)
+            // CarPlay mode is not read continuously (the iPhone's handshake runs over the module); the Connect
+            // button checks, and the hint stays for a short while.
+            carPlay && com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.carPlayNeedsIphone.value ->
+                getString(R.string.phone_kind_needs_iphone)
+            else -> null
+        }
+    }
+
     private fun renderHome() {
         val ctx = context ?: return
         val root = view ?: return
@@ -584,7 +615,8 @@ class HomeFragment : Fragment() {
         HomeUiHelper.applyBar(ctx, root, appSettings, barConnections, palette, decision.tiles)
         HomeUiHelper.applyPrimaryCard(
             ctx, root, appSettings, decision, usbPhone?.let { phoneName(it) }, reconnectSecondsLeft, palette,
-            networkLine = ConnectionStageTracker.network.value?.let { networkText(it) }
+            networkLine = ConnectionStageTracker.network.value?.let { networkText(it) },
+            wrongPhoneHint = wrongPhoneHint()
         )
         HomeUiHelper.fitDriverBar(root, appSettings.homeButtonScalePercent)
         val waiting = homeWifiStatus?.isWaitingForHotspot == true
@@ -1944,6 +1976,8 @@ class HomeFragment : Fragment() {
             val next = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.other(App.provide(ctx).settings.projectionMode)
             com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.set(ctx, next)
             renderProjectionTile()
+            // The card and the bar follow the mode too, not only the tile.
+            renderHome()
         }
         renderProjectionTile()
         wifiTile.setOnClickListener { onWifiClicked() }
@@ -1986,10 +2020,19 @@ class HomeFragment : Fragment() {
     private fun openCarPlayIfSelected(): Boolean {
         if (!com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
                 App.provide(requireContext()).settings.projectionMode)) return false
-        val hub = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub
-        hub.resumeOffer(force = !hub.hasActiveSession)
-        startActivity(Intent(requireContext(),
-            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkCarPlayActivity::class.java))
+        val ctx = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Before anything is restarted: is the phone on the unit's Bluetooth module one CarPlay can use?
+            val blocked = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.checkBeforeCarPlayConnect()
+            }
+            if (blocked) return@launch
+            val hub = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub
+            hub.resumeOffer(force = !hub.hasActiveSession)
+            startActivity(Intent(ctx,
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkCarPlayActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
         return true
     }
 

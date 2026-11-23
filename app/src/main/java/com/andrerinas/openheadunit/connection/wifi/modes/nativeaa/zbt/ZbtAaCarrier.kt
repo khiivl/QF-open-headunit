@@ -402,6 +402,15 @@ class ZbtAaCarrier(
         val send = synchronized(observationLock) {
             if (stopped || observation !== observed || open.isFinished) return@synchronized false
             val requestedAt = pendingWakeAt ?: return@synchronized false
+            val present = observed.presence
+            if (present?.connected == true &&
+                com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.blocksAndroidAuto(present.phoneMac)
+            ) {
+                // Asking the module to connect Android Auto would pull it off the iPhone it is serving.
+                pendingWakeAt = null
+                AppLog.i("NativeAA: [ZBT] queued reconnect dropped: the phone on the module is an iPhone.")
+                return@synchronized false
+            }
             val current = elapsedNow()
             val verdict = ZbtWakePolicy.pending(
                 requestedAtMs = requestedAt,
@@ -443,6 +452,7 @@ class ZbtAaCarrier(
             Triple(openingChannel, channel, carrierClaim).also { carrierClaim = null }
         }
         onNoPhone(false)
+        com.andrerinas.openheadunit.connection.modulephone.ModulePhoneWatcher.clear()
         closing.first?.close()
         runCatching { closing.second?.close() }
         closing.third?.close()
@@ -473,18 +483,27 @@ class ZbtAaCarrier(
             "NativeAA: [ZBT] [RX] id=0x${Integer.toHexString(msgId)} ${ZbtMessages.describe(msgId, body)}"
         )
         val fields = ZbtMessages.parse(body)
-        val read = ZbtAttemptPolicy.readPresence(msgId, fields) ?: run {
+        val reported = ZbtAttemptPolicy.readPresence(msgId, fields) ?: run {
             if (msgId == ZbtMessages.LINK_INFO || msgId == ZbtMessages.LINK_INFO2) {
                 AppLog.d("NativeAA: [ZBT] incomplete link state ignored; preserving the current observation.")
             }
             return@synchronized
         }
+        com.andrerinas.openheadunit.connection.modulephone.ModulePhoneWatcher.reportFromCarrier(reported)
+        // The module calls any phone an Android Auto phone while it is set up for Android Auto, an iPhone too. A phone
+        // that has been seen working as an iPhone is not one: nothing is attempted against it.
+        val blockedPhone = reported.connected &&
+            com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.blocksAndroidAuto(
+                reported.phoneMac ?: reportedPresence?.phoneMac
+            )
+        val read = if (blockedPhone) reported.copy(androidAuto = false) else reported
         // Channel-local state starts unknown on every open; evidence compares with the carrier's
         // history so a reopen's repeat of the same connected report is not a fresh arrival.
         val previous = reportedPresence
         observed.presence = read
         reportedPresence = read
-        onNoPhone(!read.connected)
+        // A phone that cannot be used here is no phone to wake: the step reads "waiting", not "waking".
+        onNoPhone(!read.connected || blockedPhone)
         // is_connect is field 3 in both LinkInfo variants. A missing field or the
         // separate HFP scalar is not evidence that this RFCOMM link disconnected.
         // Permit a fresh wake only after the daemon explicitly reports is_connect=0.
@@ -513,6 +532,7 @@ class ZbtAaCarrier(
     private fun onRfcomm(observed: ChannelObservation, bytes: ByteArray) = synchronized(observationLock) {
         if (observation !== observed || stopped) return@synchronized
         if (bytes.isEmpty()) return@synchronized
+        if (com.andrerinas.openheadunit.connection.modulephone.PhoneKindGate.blocksAndroidAuto(reportedPresence?.phoneMac)) return@synchronized
         // Real phone bytes are progress even on modules without LinkInfo. Keep them
         // buffered for the handshake and consume any wake queued before that progress.
         cancelPendingWake("received phone data (${bytes.size} bytes)")

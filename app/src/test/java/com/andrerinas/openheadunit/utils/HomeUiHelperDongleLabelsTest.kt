@@ -42,7 +42,7 @@ class HomeUiHelperDongleLabelsTest {
     @Test
     fun `wifi labels are unaffected by dongle option`() {
         val d = decision(Connection.WIFI, Status.READY)
-        assertEquals(R.string.home_kicker_wireless, HomeUiHelper.kickerRes(d, usbAsWireless = true))
+        assertEquals(R.string.projection_short_android_auto, HomeUiHelper.kickerRes(d, usbAsWireless = true))
         assertEquals(R.string.home_subtitle_wifi, HomeUiHelper.subtitleRes(d, usbAsWireless = true))
         assertEquals(R.string.home_action_connect_wifi, HomeUiHelper.actionRes(d, usbAsWireless = true))
     }
@@ -56,10 +56,10 @@ class HomeUiHelperDongleLabelsTest {
     }
 
     @Test
-    fun `ready in carplay mode shows connect carplay action and carplay kicker and carplay icon`() {
+    fun `ready in carplay mode shows the same connect over wifi button as android auto, with the carplay kicker`() {
         val d = decision(Connection.WIFI, Status.READY)
         assertEquals(R.string.home_kicker_carplay, HomeUiHelper.kickerRes(d, isCarPlay = true))
-        assertEquals(R.string.home_action_connect_carplay, HomeUiHelper.actionRes(d, isCarPlay = true))
-        assertEquals(R.drawable.ic_carplay, HomeUiHelper.actionIconRes(d, isCarPlay = true))
+        assertEquals(R.string.home_action_connect_wifi, HomeUiHelper.actionRes(d, isCarPlay = true))
+        assertEquals(R.drawable.ic_link_white, HomeUiHelper.actionIconRes(d, isCarPlay = true))
     }
 }

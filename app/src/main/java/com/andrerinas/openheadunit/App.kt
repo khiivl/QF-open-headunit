@@ -48,6 +48,8 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         instance = this
         registerActivityLifecycleCallbacks(this)
         com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(this)
+        com.andrerinas.openheadunit.connection.modulephone.ModulePhoneWatcher.start(this)
+        com.andrerinas.openheadunit.connection.modulephone.PhoneKindLearner.start(this)
 
         try {
             val packageReceiver = object : BroadcastReceiver() {

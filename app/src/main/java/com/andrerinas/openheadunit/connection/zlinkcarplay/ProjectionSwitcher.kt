@@ -41,17 +41,8 @@ object ProjectionSwitcher {
                 if (settings.nativeApStrategy == com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.WIFI_DIRECT) {
                     bringStationWifiUp(app)
                 }
-                // CarPlay mode stops the Android Auto service. Starting it again arms its wireless transport
-                // (the same plain start the boot receiver makes), so a phone that is already connected over
-                // Bluetooth is picked up without going back to the Home screen first.
-                if (Settings(app).projectionMode == Settings.ProjectionMode.ANDROID_AUTO) {
-                    try {
-                        ContextCompat.startForegroundService(app, Intent(app, AapService::class.java))
-                        AppLog.i("projection switch: Android Auto service started")
-                    } catch (e: Exception) {
-                        AppLog.w("projection switch: could not start the Android Auto service: ${e.message}")
-                    }
-                }
+                // The Android Auto service is not started here: nothing connects on its own when the mode changes,
+                // the Connect button starts it (and arms the wireless transport) when the user asks.
             }
         }
         ZlinkService.sync(app)
