@@ -45,8 +45,13 @@ class ZlinkReplayCache(
         synchronized(lock) {
             when (nal) {
                 7 -> {
-                    sps = frame
-                    gopValid = false
+                    // The same settings sent again do not change what the cached keyframe and the frames after it
+                    // decode to; only different ones (a new size, say) make the cached picture group useless.
+                    val previous = sps
+                    if (previous == null || !previous.payload.contentEquals(payload)) {
+                        sps = frame
+                        gopValid = false
+                    }
                 }
                 8 -> {
                     pps = frame

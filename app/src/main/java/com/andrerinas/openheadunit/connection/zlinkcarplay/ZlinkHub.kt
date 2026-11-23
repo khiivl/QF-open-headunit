@@ -83,6 +83,7 @@ object ZlinkHub {
             getOrCreateVideoSink(surface)
         } else {
             val same = existing.isCurrentSurface(surface)
+            AppLog.i("zlink hub: attach on return: same surface=$same, cached picture group valid=${replayCache.isValid}, frames=${replayCache.frameCount}, bytes=${replayCache.currentGopBytes}")
             existing.attachSurface(surface)
             if (!same) existing.redrawFrom(replayCache.getReplayFrames())
         }

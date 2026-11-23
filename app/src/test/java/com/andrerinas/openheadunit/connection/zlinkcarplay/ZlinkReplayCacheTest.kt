@@ -98,4 +98,22 @@ class ZlinkReplayCacheTest {
         assertTrue(cache.isValid)
         assertEquals(2, cache.getReplayFrames().size) // SPS + IDR2
     }
+
+    @Test fun repeatedIdenticalSpsKeepsTheCachedGroup() {
+        val cache = ZlinkReplayCache()
+        val sps = makeVideoFrame(7, 50)
+        cache.onVideoFrame(sps)
+        cache.onVideoFrame(makeVideoFrame(8, 20))
+        cache.onVideoFrame(makeVideoFrame(5, 200))
+        cache.onVideoFrame(makeVideoFrame(1, 60))
+        assertTrue(cache.isValid)
+        val before = cache.frameCount
+
+        cache.onVideoFrame(makeVideoFrame(7, 50)) // the same settings again, in the middle of the group
+        assertTrue(cache.isValid)
+        assertEquals(before, cache.frameCount)
+
+        cache.onVideoFrame(makeVideoFrame(7, 70)) // different settings
+        assertFalse(cache.isValid)
+    }
 }
