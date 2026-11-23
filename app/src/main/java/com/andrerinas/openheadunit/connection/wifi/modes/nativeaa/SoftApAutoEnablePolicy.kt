@@ -36,6 +36,19 @@ object SoftApAutoEnablePolicy {
         return !lastAttemptSucceeded && nowMs - lastAttemptEndedAtMs >= RETRY_AFTER_MS
     }
 
+    /**
+     * How long after a start that went through the access point's network interface is still allowed to be on its way.
+     * Measured on a UNISOC unit at about 50 s from "hotspot is up" to the interface existing, so a minute and a half.
+     */
+    const val COMING_UP_GRACE_MS = 90_000L
+
+    /**
+     * Whether a hotspot this app just switched on may still be coming up, so that "no access point" is not yet a
+     * finding. False when nothing was started, or the start did not go through.
+     */
+    fun comingUp(attemptInFlight: Boolean, lastAttemptSucceeded: Boolean, lastAttemptEndedAtMs: Long, nowMs: Long): Boolean =
+        attemptInFlight || (lastAttemptSucceeded && lastAttemptEndedAtMs != 0L && nowMs - lastAttemptEndedAtMs < COMING_UP_GRACE_MS)
+
     /** Whether the resolve loop should keep polling past its budget, because an attempt is still owed. */
     fun attemptOwed(enabledInSettings: Boolean, attempts: Int, lastAttemptSucceeded: Boolean, attemptInFlight: Boolean): Boolean =
         enabledInSettings && (attemptInFlight || (attempts < MAX_ATTEMPTS && !lastAttemptSucceeded))

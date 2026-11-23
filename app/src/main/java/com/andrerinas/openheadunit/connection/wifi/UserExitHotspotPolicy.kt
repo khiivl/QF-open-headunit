@@ -40,6 +40,7 @@ object UserExitHotspotPolicy {
      * @param nativeStrategy applies to [WifiLauncherMode.NATIVE] only
      * @param autoEnableHotspot [com.andrerinas.openheadunit.utils.Settings.autoEnableHotspot] — the
      *   user's standing permission for the app to drive this device's hotspot
+     * @param zlinkOwnsHotspot zLink is installed on this unit and runs the hotspot, so leaving the app leaves it alone
      * @param teardownProvenUnsafe whether this device has already failed to bring its access point
      *   back after the app took it down. See the note on the [HotspotExitAction.WARN_LEFT_UP]
      *   branch below.
@@ -49,9 +50,12 @@ object UserExitHotspotPolicy {
         helperStrategy: HelperStrategy,
         nativeStrategy: NativeStrategy,
         autoEnableHotspot: Boolean,
-        teardownProvenUnsafe: Boolean = false
+        teardownProvenUnsafe: Boolean = false,
+        zlinkOwnsHotspot: Boolean = false
     ): HotspotExitAction = when {
         !usesHeadUnitHotspot(mode, helperStrategy, nativeStrategy) -> HotspotExitAction.NONE
+        // The hotspot is zLink's: CarPlay and the phones joined to it live on it, and it is not OHU's to take down.
+        zlinkOwnsHotspot -> HotspotExitAction.NONE
         // Permission is not the only question; capability is the other one, and unlike permission
         // it can only be learned by trying. Some radios will not host an access point again once it
         // has been taken down — measured on a UNISOC unit where hostapd's channel scan raced the

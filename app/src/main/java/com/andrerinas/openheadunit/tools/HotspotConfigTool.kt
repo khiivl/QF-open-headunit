@@ -30,7 +30,7 @@ object HotspotConfigTool {
 
     private fun run(args: Array<String>): Int {
         if (args.isEmpty()) {
-            println("usage: get | set <name> <password>")
+            println("usage: get | set <name> <password> | ensure-5ghz")
             return 2
         }
         val wm = wifiManager()
@@ -38,7 +38,7 @@ object HotspotConfigTool {
         when (args[0]) {
             "get" -> {
                 if (current == null) { println("no hotspot configuration"); return 1 }
-                println("ssid=${current.SSID} passwordLength=${current.preSharedKey?.length ?: 0}")
+                println("ssid=${current.SSID} passwordLength=${current.preSharedKey?.length ?: 0} band=${apBand(current)}")
                 return 0
             }
             "set" -> {
@@ -57,9 +57,24 @@ object HotspotConfigTool {
                 println(if (ok) "set" else "refused")
                 return if (ok) 0 else 1
             }
-            else -> { println("usage: get | set <name> <password>"); return 2 }
+            "ensure-5ghz" -> {
+                // The hotspot stays on 5 GHz: the only band measured to carry Android Auto video at full rate. Anything
+                // else is put back, the hotspot following the change by itself within seconds.
+                if (current == null) { println("no hotspot configuration"); return 1 }
+                if (apBand(current) == BAND_5GHZ) { println("already 5 GHz"); return 0 }
+                WifiConfiguration::class.java.getField("apBand").setInt(current, BAND_5GHZ)
+                val ok = wm.javaClass.getMethod("setWifiApConfiguration", WifiConfiguration::class.java).invoke(wm, current) as Boolean
+                println(if (ok) "set 5 GHz" else "refused")
+                return if (ok) 0 else 1
+            }
+            else -> { println("usage: get | set <name> <password> | ensure-5ghz"); return 2 }
         }
     }
+
+    /** WifiConfiguration.AP_BAND_5GHZ (a hidden constant). */
+    private const val BAND_5GHZ = 1
+
+    private fun apBand(config: WifiConfiguration): Int = WifiConfiguration::class.java.getField("apBand").getInt(config)
 
     private fun wifiManager(): WifiManager {
         if (Looper.myLooper() == null) Looper.prepareMainLooper()

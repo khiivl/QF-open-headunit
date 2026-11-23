@@ -2100,7 +2100,8 @@ class AapService : Service() {
                         settings.helperConnectionStrategy,
                         settings.nativeApStrategy,
                         settings.autoEnableHotspot,
-                        settings.hotspotTeardownProvenUnsafe
+                        settings.hotspotTeardownProvenUnsafe,
+                        com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this@AapService).isNotEmpty()
                     )
                     if (action != HotspotExitAction.NONE) {
                         // Stop watching an access point nobody is connecting over, either way: this

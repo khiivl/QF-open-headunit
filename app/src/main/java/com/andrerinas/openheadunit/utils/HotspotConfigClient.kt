@@ -28,6 +28,25 @@ object HotspotConfigClient {
             "su 1000 sh -c \"CLASSPATH=\$APK app_process /system/bin " +
             "com.andrerinas.openheadunit.tools.HotspotConfigTool set '$name' '$password'\""
 
+    /** The command that puts the hotspot back on 5 GHz if it is on anything else. */
+    fun buildEnsure5GhzCommand(packageName: String): String =
+        "APK=\$(pm path $packageName | head -1 | cut -d: -f2); " +
+            "su 1000 sh -c \"CLASSPATH=\$APK app_process /system/bin " +
+            "com.andrerinas.openheadunit.tools.HotspotConfigTool ensure-5ghz\""
+
+    /**
+     * Makes sure the unit's hotspot is on 5 GHz. Cheap when it already is: the hostapd configuration, where there is
+     * one, says so without starting anything.
+     */
+    suspend fun ensure5Ghz(context: Context): Pair<Boolean, String> {
+        val (readCode, text) = OemAppManager.executeCommand(context, HostapdConfig.READ_COMMAND)
+        if (readCode == 0 && HostapdConfig.runs5Ghz(text) == true) return Pair(true, "already 5 GHz")
+        val (code, out) = OemAppManager.executeCommand(context, buildEnsure5GhzCommand(context.packageName))
+        val ok = code == 0 && (out.contains("already 5 GHz") || out.contains("set 5 GHz"))
+        AppLog.i("hotspot: making sure it is on 5 GHz finished with code=$code ok=$ok: ${out.trim()}")
+        return Pair(ok, out.trim())
+    }
+
     suspend fun set(context: Context, name: String, password: String): Pair<Boolean, String> {
         problem(name, password)?.let { return Pair(false, it) }
         val (code, out) = OemAppManager.executeCommand(context, buildSetCommand(context.packageName, name, password))

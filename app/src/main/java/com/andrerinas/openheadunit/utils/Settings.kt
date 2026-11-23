@@ -2729,7 +2729,7 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("kill-on-disconnect", value).apply() }
 
     var autoEnableHotspot: Boolean
-        get() = prefs.getBoolean("auto-enable-hotspot", false)
+        get() = prefs.getBoolean("auto-enable-hotspot", true)
         set(value) { prefs.edit().putBoolean("auto-enable-hotspot", value).apply() }
 
     /** Headunit Server (Auto) only; see [HeadunitServerNetwork]. */

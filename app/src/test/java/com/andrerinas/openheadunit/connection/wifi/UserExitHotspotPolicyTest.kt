@@ -14,9 +14,10 @@ class UserExitHotspotPolicyTest {
         helperStrategy: HelperStrategy = HelperStrategy.NEARBY_DEVICES,
         nativeStrategy: NativeStrategy = NativeStrategy.WIFI_DIRECT,
         autoEnableHotspot: Boolean = true,
-        teardownProvenUnsafe: Boolean = false
+        teardownProvenUnsafe: Boolean = false,
+        zlinkOwnsHotspot: Boolean = false
     ) = UserExitHotspotPolicy.onUserExit(
-        mode, helperStrategy, nativeStrategy, autoEnableHotspot, teardownProvenUnsafe
+        mode, helperStrategy, nativeStrategy, autoEnableHotspot, teardownProvenUnsafe, zlinkOwnsHotspot
     )
 
     @Test
@@ -206,5 +207,16 @@ class UserExitHotspotPolicyTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `a hotspot that zLink runs is left alone on exit`() {
+        assertEquals(
+            HotspotExitAction.NONE,
+            exit(
+                mode = WifiLauncherMode.NATIVE, nativeStrategy = NativeStrategy.HOTSPOT,
+                autoEnableHotspot = true, zlinkOwnsHotspot = true
+            )
+        )
     }
 }

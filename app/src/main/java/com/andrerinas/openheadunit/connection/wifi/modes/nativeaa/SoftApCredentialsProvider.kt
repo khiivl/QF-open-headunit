@@ -226,6 +226,13 @@ class SoftApCredentialsProvider(
         autoEnableInFlight = false
     }
 
+    private fun hotspotComingUp(): Boolean = SoftApAutoEnablePolicy.comingUp(
+        attemptInFlight = autoEnableInFlight,
+        lastAttemptSucceeded = autoEnabled,
+        lastAttemptEndedAtMs = lastAutoEnableAtMs,
+        nowMs = System.currentTimeMillis()
+    )
+
     private fun beginResolve() {
         resolveJob?.cancel()
         reportedNoInterface = false
@@ -239,7 +246,9 @@ class SoftApCredentialsProvider(
                 if (System.currentTimeMillis() >= deadline) {
                     if (!budgetReported) {
                         budgetReported = true
-                        reportNoAccessPoint(System.currentTimeMillis() - runStartedAt, force = true)
+                        // Not yet a finding while a hotspot this app switched on is still coming up: the network
+                        // interface can take a minute to appear after it reports up.
+                        if (!hotspotComingUp()) reportNoAccessPoint(System.currentTimeMillis() - runStartedAt, force = true)
                         onInvalidated?.invoke()
                     }
                     if (!SoftApAutoEnablePolicy.attemptOwed(
@@ -283,7 +292,7 @@ class SoftApCredentialsProvider(
                             }
                         } else {
                             reportedAccOff = null
-                            reportNoAccessPoint(waited)
+                            if (!hotspotComingUp()) reportNoAccessPoint(waited)
                         }
                         val now = System.currentTimeMillis()
                         val wokeAt = AccPowerState.wokeAtMs

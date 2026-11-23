@@ -79,4 +79,18 @@ class SoftApAutoEnablePolicyTest {
         assertFalse(SoftApAutoEnablePolicy.attemptOwed(true, 1, true, false))
         assertFalse(SoftApAutoEnablePolicy.attemptOwed(false, 0, false, false))
     }
+
+    @Test
+    fun `a hotspot just switched on may still be coming up`() {
+        val grace = SoftApAutoEnablePolicy.COMING_UP_GRACE_MS
+        // a start in flight
+        assertTrue(SoftApAutoEnablePolicy.comingUp(true, false, 0, 100_000))
+        // a start that went through, inside the grace
+        assertTrue(SoftApAutoEnablePolicy.comingUp(false, true, 10_000, 10_000 + grace - 1))
+        // the same, once the grace is over
+        assertFalse(SoftApAutoEnablePolicy.comingUp(false, true, 10_000, 10_000 + grace))
+        // a start that did not go through, or none at all, is not on its way
+        assertFalse(SoftApAutoEnablePolicy.comingUp(false, false, 10_000, 20_000))
+        assertFalse(SoftApAutoEnablePolicy.comingUp(false, true, 0, 20_000))
+    }
 }
