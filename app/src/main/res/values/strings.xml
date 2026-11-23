@@ -2016,4 +2016,16 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="bluetooth_settings_short">Bluetooth</string>
     <string name="phone_kind_needs_android">Reconnect with an Android device to use Android Auto</string>
     <string name="phone_kind_needs_iphone">Connect an iPhone to use CarPlay</string>
+    <string name="projection_both">Both</string>
+    <string name="projection_android_auto_only">Android Auto only</string>
+    <string name="projection_carplay_only">CarPlay only</string>
+    <string name="projection_availability_help">Both: the home tile switches between Android Auto and CarPlay. Android Auto only or CarPlay only turns the other one off completely.</string>
+    <string name="category_essentials">Essentials</string>
+    <string name="hotspot_config_title">Hotspot name and password</string>
+    <string name="hotspot_config_desc">The unit\'s own hotspot, used by CarPlay and Android Auto</string>
+    <string name="hotspot_config_name">Name</string>
+    <string name="hotspot_config_password">Password</string>
+    <string name="hotspot_config_note">Phones joined to the hotspot disconnect and rejoin when it changes.</string>
+    <string name="hotspot_config_done">Hotspot updated</string>
+    <string name="hotspot_config_failed">Could not change the hotspot: %1$s</string>
 </resources>

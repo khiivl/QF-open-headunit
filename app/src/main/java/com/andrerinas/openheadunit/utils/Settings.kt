@@ -608,6 +608,11 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("auto-reconnect-acc-on", true)
         set(value) { prefs.edit().putBoolean("auto-reconnect-acc-on", value).apply() }
 
+    /** Which projections the user allows; the home tile switches between them only when both are. */
+    var projectionAvailability: ProjectionAvailability
+        get() = ProjectionAvailability.fromInt(prefs.getInt("projection-availability", ProjectionAvailability.BOTH.value))
+        set(value) { prefs.edit().putInt("projection-availability", value.value).apply() }
+
     var projectionMode: ProjectionMode
         get() = ProjectionMode.fromInt(prefs.getInt("projection-mode", ProjectionMode.ANDROID_AUTO.value))
         set(value) { prefs.edit().putInt("projection-mode", value.value).apply() }
@@ -2556,6 +2561,17 @@ class Settings(private val context: Context) {
     }
 
     /** Which phone projection this unit runs. The two are exclusive: they fight for the Bluetooth module and the phone. */
+    /** Which of the two projections may be used: both (the home tile switches), or only one of them. */
+    enum class ProjectionAvailability(val value: Int) {
+        BOTH(0),
+        ANDROID_AUTO_ONLY(1),
+        CARPLAY_ONLY(2);
+
+        companion object {
+            fun fromInt(value: Int): ProjectionAvailability = values().firstOrNull { it.value == value } ?: BOTH
+        }
+    }
+
     enum class ProjectionMode(val value: Int) {
         ANDROID_AUTO(0),
         /** CarPlay through the zLink daemon (see connection/zlinkcarplay); Android Auto stays off. */

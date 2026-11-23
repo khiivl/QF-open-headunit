@@ -2102,6 +2102,9 @@ class HomeFragment : Fragment() {
     /** The tile shows the active projection; tapping it switches to the other one. */
     private fun renderProjectionTile() {
         if (!::projectionTile.isInitialized) return
+        // The tile only switches between the two projections; with one of them turned off there is nothing to switch.
+        projectionTile.visibility =
+            if (App.provide(requireContext()).settings.projectionAvailability == Settings.ProjectionAvailability.BOTH) View.VISIBLE else View.GONE
         val carPlay = App.provide(requireContext()).settings.projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK
         projectionTile.findViewById<android.widget.ImageView>(R.id.projection_icon)
             .setImageResource(if (carPlay) R.drawable.ic_carplay else R.drawable.ic_stat_aa)

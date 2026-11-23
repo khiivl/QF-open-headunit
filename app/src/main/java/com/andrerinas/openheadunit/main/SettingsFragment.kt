@@ -134,7 +134,8 @@ class SettingsFragment : Fragment() {
     // Wireless items here only appear in Basic when the user connects wirelessly (see filterSettings).
     private val basicSettingIds = setOf(
         // General
-        "autoOptimize", "connectionMode", "projectionMode", "autoReconnectOnAccOn", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
+        "essentialsProjectionMode", "essentialsConnectionMode", "essentialsAutoReconnectOnAccOn", "essentialsHideZlinkUi",
+        "autoOptimize", "connectionMode", "projectionMode", "autoReconnectOnAccOn", "hideZlinkUi", "appLanguage", "listenForUsbDevices", "usbWirelessDongle",
         // Wireless (shown in Basic only when WiFi is among the selected connection modes).
         // The hotspot entries come along with the transport choice: they only render once Hotspot
         // is picked, and on a device that will not let an app read its hotspot configuration the
@@ -892,11 +893,68 @@ class SettingsFragment : Fragment() {
     private fun describeFaultBudget(budget: Int): String =
         if (budget == VideoFaultInjector.UNLIMITED_BUDGET) "Whole session" else "$budget faults"
 
+    // The few settings everyone needs, built here so the Essentials group on top and the full list below show the
+    // same row (each with its own id, the list wants them unique).
+    private fun connectionModeEntry(stableId: String) = SettingItem.SettingEntry(
+        stableId = stableId,
+        nameResId = R.string.connection_mode,
+        helpResId = R.string.connection_mode_help,
+        value = connectionModesLabel(),
+        onClick = { showConnectionModeDialog() }
+    )
+
+    private fun projectionModeEntry(stableId: String) = SettingItem.SettingEntry(
+        stableId = stableId,
+        nameResId = R.string.projection_mode,
+        value = getString(
+            when (settings.projectionAvailability) {
+                Settings.ProjectionAvailability.BOTH -> R.string.projection_both
+                Settings.ProjectionAvailability.ANDROID_AUTO_ONLY -> R.string.projection_android_auto_only
+                Settings.ProjectionAvailability.CARPLAY_ONLY -> R.string.projection_carplay_only
+            }
+        ),
+        onClick = { showProjectionModeDialog() }
+    )
+
+    private fun autoReconnectEntry(stableId: String) = SettingItem.ToggleSettingEntry(
+        stableId = stableId,
+        nameResId = R.string.auto_reconnect_acc_on,
+        descriptionResId = R.string.auto_reconnect_acc_on_desc,
+        isChecked = settings.autoReconnectOnAccOn,
+        onCheckedChanged = { isChecked ->
+            settings.autoReconnectOnAccOn = isChecked
+            updateSettingsList()
+        }
+    )
+
+    /** Hiding zLink's own screens belongs to CarPlay: shown whenever CarPlay is allowed, in either active mode. */
+    private fun hideZlinkUiEntry(stableId: String): SettingItem? {
+        if (settings.projectionAvailability == Settings.ProjectionAvailability.ANDROID_AUTO_ONLY) return null
+        return SettingItem.ToggleSettingEntry(
+            stableId = stableId,
+            nameResId = R.string.zlink_hide_ui,
+            descriptionResId = R.string.zlink_hide_ui_desc,
+            isChecked = pendingHideZlinkUi ?: (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.isUiHidden(requireContext()) ?: settings.hideZlinkUi),
+            onCheckedChanged = { isChecked ->
+                pendingHideZlinkUi = isChecked
+                checkChanges()
+                updateSettingsList()
+            }
+        )
+    }
+
     private fun updateSettingsList() {
         val app = App.provide(requireContext())
         val scrollState = settingsRecyclerView.layoutManager?.onSaveInstanceState()
         val items = mutableListOf<SettingItem>()
         scopeNotice()?.let { items.add(it) }
+
+        // --- Essentials: the settings most people reach for, repeated from below ---
+        items.add(SettingItem.CategoryHeader("essentials", R.string.category_essentials))
+        items.add(projectionModeEntry("essentialsProjectionMode"))
+        items.add(connectionModeEntry("essentialsConnectionMode"))
+        items.add(autoReconnectEntry("essentialsAutoReconnectOnAccOn"))
+        hideZlinkUiEntry("essentialsHideZlinkUi")?.let { items.add(it) }
 
         // --- General Settings ---
         items.add(SettingItem.CategoryHeader("general", R.string.category_general))
@@ -927,49 +985,25 @@ class SettingsFragment : Fragment() {
         ))
 
         // Connection mode (Feature B): drives which options appear in the Basic tab.
-        items.add(SettingItem.SettingEntry(
-            stableId = "connectionMode",
-            nameResId = R.string.connection_mode,
-            helpResId = R.string.connection_mode_help,
-            value = connectionModesLabel(),
-            onClick = { showConnectionModeDialog() }
-        ))
+        items.add(connectionModeEntry("connectionMode"))
 
-        // Phone projection: Android Auto or CarPlay (via the zLink daemon). Exclusive; see ProjectionModePolicy.
-        items.add(SettingItem.SettingEntry(
-            stableId = "projectionMode",
-            nameResId = R.string.projection_mode,
-            value = getString(
-                if (settings.projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) R.string.projection_mode_carplay
-                else R.string.projection_mode_android_auto
-            ),
-            onClick = { showProjectionModeDialog() }
-        ))
+        // Phone projection: Android Auto or CarPlay (via the zLink daemon); see ProjectionModePolicy.
+        items.add(projectionModeEntry("projectionMode"))
 
-        if (settings.projectionMode == Settings.ProjectionMode.CARPLAY_ZLINK) {
-            items.add(SettingItem.ToggleSettingEntry(
-                stableId = "hideZlinkUi",
-                nameResId = R.string.zlink_hide_ui,
-                descriptionResId = R.string.zlink_hide_ui_desc,
-                isChecked = pendingHideZlinkUi ?: (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.isUiHidden(requireContext()) ?: settings.hideZlinkUi),
-                onCheckedChanged = { isChecked ->
-                    pendingHideZlinkUi = isChecked
-                    checkChanges()
-                    updateSettingsList()
-                }
+        hideZlinkUiEntry("hideZlinkUi")?.let { items.add(it) }
+
+        // The unit's own hotspot (run for zLink): its name and password, set through the local adb bridge.
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isNotEmpty()) {
+            items.add(SettingItem.SettingEntry(
+                stableId = "hotspotNameAndPassword",
+                nameResId = R.string.hotspot_config_title,
+                value = getString(R.string.hotspot_config_desc),
+                searchKeywords = "hotspot wifi name ssid password passphrase access point",
+                onClick = { showHotspotConfigDialog() }
             ))
         }
 
-        items.add(SettingItem.ToggleSettingEntry(
-            stableId = "autoReconnectOnAccOn",
-            nameResId = R.string.auto_reconnect_acc_on,
-            descriptionResId = R.string.auto_reconnect_acc_on_desc,
-            isChecked = settings.autoReconnectOnAccOn,
-            onCheckedChanged = { isChecked ->
-                settings.autoReconnectOnAccOn = isChecked
-                updateSettingsList()
-            }
-        ))
+        items.add(autoReconnectEntry("autoReconnectOnAccOn"))
 
         // Language Selector
         val availableLocales = LocaleHelper.getAvailableLocales(requireContext())
@@ -2698,6 +2732,9 @@ class SettingsFragment : Fragment() {
             ))
         }
 
+        // Stopping or disabling OEM apps would stop zLink, which CarPlay and the hotspot Android Auto depend on: where zLink is
+        // installed this row is not offered at all.
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isEmpty())
         items.add(SettingItem.SettingEntry(
             stableId = "oemAppManagement",
             nameResId = R.string.oem_app_management,
@@ -3384,14 +3421,71 @@ class SettingsFragment : Fragment() {
         return m.widthPixels to m.heightPixels
     }
 
+    private fun showHotspotConfigDialog() {
+        val ctx = requireContext()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val current = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.andrerinas.openheadunit.utils.HotspotConfigReader.getSystemHotspotConfig(ctx)
+            }
+            if (!isAdded) return@launch
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            val nameField = android.widget.EditText(ctx).apply {
+                hint = getString(R.string.hotspot_config_name)
+                setText(current?.first ?: "")
+                setSingleLine()
+            }
+            val passwordField = android.widget.EditText(ctx).apply {
+                hint = getString(R.string.hotspot_config_password)
+                setText(current?.second ?: "")
+                setSingleLine()
+            }
+            val note = android.widget.TextView(ctx).apply {
+                text = getString(R.string.hotspot_config_note)
+                setPadding(0, pad / 2, 0, 0)
+            }
+            val content = android.widget.LinearLayout(ctx).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(pad, pad / 2, pad, 0)
+                addView(nameField)
+                addView(passwordField)
+                addView(note)
+            }
+            MaterialAlertDialogBuilder(ctx, R.style.DarkAlertDialog)
+                .setTitle(R.string.hotspot_config_title)
+                .setView(content)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    val name = nameField.text.toString()
+                    val password = passwordField.text.toString()
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val (ok, message) = com.andrerinas.openheadunit.utils.HotspotConfigClient.set(ctx, name, password)
+                        ToastUtils.showToast(
+                            ctx,
+                            if (ok) getString(R.string.hotspot_config_done) else getString(R.string.hotspot_config_failed, message),
+                            Toast.LENGTH_LONG
+                        )
+                    }
+                }
+                .show()
+        }
+    }
+
     private fun showProjectionModeDialog() {
-        val modes = Settings.ProjectionMode.values()
-        val labels = arrayOf(getString(R.string.projection_mode_android_auto), getString(R.string.projection_mode_carplay))
+        val options = Settings.ProjectionAvailability.values()
+        val labels = arrayOf(
+            getString(R.string.projection_both),
+            getString(R.string.projection_android_auto_only),
+            getString(R.string.projection_carplay_only)
+        )
         MaterialAlertDialogBuilder(requireContext(), R.style.DarkAlertDialog)
             .setTitle(R.string.projection_mode)
-            .setSingleChoiceItems(labels, modes.indexOf(settings.projectionMode)) { dialog, which ->
-                val chosen = modes[which]
-                com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.set(requireContext(), chosen)
+            .setSingleChoiceItems(labels, options.indexOf(settings.projectionAvailability)) { dialog, which ->
+                val chosen = options[which]
+                settings.projectionAvailability = chosen
+                // A single projection leaves the other one off: switch to the allowed one if it is not the running one.
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy
+                    .mustSwitchTo(chosen, settings.projectionMode)
+                    ?.let { com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.set(requireContext(), it) }
                 dialog.dismiss()
                 updateSettingsList()
             }

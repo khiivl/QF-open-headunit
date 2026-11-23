@@ -270,6 +270,12 @@ object OemAppManager {
     suspend fun runAutoKillIfEnabled(context: Context) = withContext(Dispatchers.IO) {
         val settings = Settings(context)
         if (!settings.autoKillOemApps) return@withContext
+        // Disabling zLink would stop CarPlay and the hotspot Android Auto; where it is installed nothing is auto-disabled,
+        // whatever an earlier setting or a restored backup says.
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty()) {
+            AppLog.i("OemAppManager: autoKillOemApps is on but zLink is installed; not disabling anything.")
+            return@withContext
+        }
 
         AppLog.i("OemAppManager: autoKillOemApps is active. Scanning for conflicting apps...")
         val statuses = detectApps(context, checkDaemons = false)

@@ -58,6 +58,7 @@ object SettingsBackupManager {
         "settings-rail-collapsed" to ValueType.BOOLEAN,
         "connection-modes" to ValueType.STRING_SET,
         "projection-mode" to ValueType.INT,
+        "projection-availability" to ValueType.INT,
         "auto-reconnect-acc-on" to ValueType.BOOLEAN,
         "hide-zlink-ui" to ValueType.BOOLEAN,
         "primary-connection" to ValueType.INT,

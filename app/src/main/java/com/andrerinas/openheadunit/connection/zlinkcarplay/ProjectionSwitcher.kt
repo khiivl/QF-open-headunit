@@ -22,6 +22,8 @@ object ProjectionSwitcher {
         val app = context.applicationContext
         val settings = Settings(app)
         if (settings.projectionMode == mode) return
+        // The other mode is disabled by the user's choice of one projection only.
+        if (!ProjectionModePolicy.allows(settings.projectionAvailability, mode)) return
         settings.projectionMode = mode
         if (mode == Settings.ProjectionMode.CARPLAY_ZLINK) {
             // The phone connects only once the user presses Connect, not the moment the mode changes.

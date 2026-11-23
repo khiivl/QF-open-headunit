@@ -47,6 +47,13 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         super.onCreate()
         instance = this
         registerActivityLifecycleCallbacks(this)
+        // A single projection chosen (or restored from a backup) while the other one was the running mode.
+        run {
+            val settings = com.andrerinas.openheadunit.utils.Settings(this)
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy
+                .mustSwitchTo(settings.projectionAvailability, settings.projectionMode)
+                ?.let { settings.projectionMode = it }
+        }
         com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(this)
         com.andrerinas.openheadunit.connection.modulephone.ModulePhoneWatcher.start(this)
         com.andrerinas.openheadunit.connection.modulephone.PhoneKindLearner.start(this)
