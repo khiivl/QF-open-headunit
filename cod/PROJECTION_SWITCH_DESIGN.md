@@ -1,6 +1,6 @@
 # Projection switch: Z-Link ⇄ Open Headunit — design draft 1
 
-> **Note (24.11, contract §10): OHU does NOT emit Z-Link's `com.zjinnova.zlink` broadcast (§6.3, §11.3 row 16 withdrawn): it triggers QF BT's stock A2DP disconnect and a toast. OHU publishes `sys.qf.ohu.connect` / `sys.qf.ohu.pid` instead.**
+> **Note (24.11, contract §10): OHU does NOT emit Z-Link's `com.zjinnova.zlink` broadcast (§6.3, §11.3 row 16 withdrawn): it triggers QF BT's stock A2DP disconnect and a toast. OHU writes the existing flag `sys.qf.bt.aa.connect` directly (one variable, owner's SSOT ruling; the `sys.qf.ohu.*` pair of the first draft is withdrawn).**
 >
 > **Note (24.11, §15): the earlier instruction «`getInstalledPackages()` empty in codos» (§6.2 revision 1, §13.2) is WITHDRAWN — it would switch off the QF-unit features of Volodymyr's code. See §15.1.**
 >
