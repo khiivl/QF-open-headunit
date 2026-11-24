@@ -1,5 +1,9 @@
 # Projection switch: Z-Link ⇄ Open Headunit — design draft 1
 
+> **Revision 3 (24.11.2026): D1 = Option A is the shipping model (owner: disable Z-Link entirely, enable it back; no root
+> anywhere). Section 13 is the current design; sections 11 and 12 (Z-Link «headless», Option B) are kept as the record
+> of a future option and are NOT part of the first image. Where section 13 and an earlier section differ, section 13 wins.**
+>
 > **Revision 2 (24.11.2026, owner: «Деякі потрібні хору.»):** some of Z-Link's services are needed BY Open Headunit, so
 > the whole-package disable of Z-Link is **dropped**. Section 11 supersedes section 1 items 3 and 6, section 3 L1/L2
 > for the OHU-selected state, section 5, section 6 item 2 and D1 wherever they conflict. Read section 11 first.
@@ -485,3 +489,99 @@ the first image may have to drop to A after the stand test.
 **What the owner is asked** (morning): D1 — A first with B behind a flag (recommended), or B first? D2 — migration of stock-`zj`
 units. D3 — if B: a lost Z-Link licence means no CarPlay in OHU mode, acceptable? D4 — the factory HiCar checkbox write moves
 to the reconciler.
+
+## 13. Revision 3 — decision: Option A is the shipping model; no root anywhere
+
+Owner (24.11), via the head lead: «Саму програму, якщо вона не потрібна, щоб підтримувати CarLink або Android Auto,
+вимикаєш. Можна просто disable. Enable. … Ми ж керуємо своєю прошивкою, правильно? … Просто одне з другим точно не
+уживається.» **D1 = A.** Selecting Open Headunit disables Z-Link **entirely** (its app and its init daemon); selecting Z-Link
+silences Open Headunit. Option B (§11, §12) stays a documented future option only; nothing in the first image depends on it.
+
+### 13.1 The model that ships
+
+| selection | OHU | Z-Link app `com.zjinnova.zlink` | Z-Link init daemon `z-link` |
+|---|---|---|---|
+| `openheadunit` (default) | enabled, active | **disabled** (`COMPONENT_ENABLED_STATE_DISABLED`) | **stopped** (`ctl.stop`) |
+| `zlink` | **disabled** | enabled | **started** (`ctl.start`) |
+
+Both are plain package states plus one init service; every mechanism is the firmware's own, run by uid system:
+`PackageManager.setApplicationEnabledSetting` (needs only `CHANGE_COMPONENT_ENABLED_STATE`, which the system uid holds) and the
+`ctl.start` / `ctl.stop` properties (QF Bluetooth already does `ctl.stop gocsdk_zj`, `BluetoothModeManager`). In the image the
+service stanza becomes `service z-link … disabled`, so it never starts by itself; the reconciler starts it only in the
+`zlink` state. Z-Link's data, libraries and **licence files are never touched**: disabling an app keeps its data, and
+enabling it returns exactly the previous state.
+
+Order (the invariant «never both»):
+- **to `openheadunit`:** QF BT `projection.reset` → `ctl.stop z-link` → disable Z-Link → soft-AP and P2P down → **enable OHU last** → verify → write the setting.
+- **to `zlink`:** `projection.reset` → **disable OHU first** → AP/P2P down → enable Z-Link → `ctl.start z-link` → start its
+  `DaemonService` the vendor way → verify → write the setting.
+- **boot:** the same sequence for whatever the setting says (absent = `openheadunit`), after `boot_completed`.
+- **OHU self-check (belt):** OHU starts its Android Auto entry points only if the setting is `openheadunit` **and** the Z-Link package
+  is observed disabled. Observed state, not a copy of the choice.
+- Failure: a crash between «stop old» and «start new» leaves neither up; the next apply fixes it; both is impossible by the order.
+
+What this deletes from the earlier design: the Z-Link «headless» state, the feature-flag single writer (D4), the media-button
+and BT-client silencing, the redirect init services, R6–R10 as blockers, D3 (no Z-Link licence is involved in OHU mode).
+The switch is now the §1–§8 design with D1 settled. §11/§12 are kept as the record of Option B.
+
+### 13.2 What OHU's code does under A (for Volodymyr, `codos` only)
+
+CarPlay-through-Z-Link does not exist in OHU mode, so its machinery must not run and must not be offered:
+- `ProjectionModePolicy`/`ProjectionSwitcher`: in `codos` the projection mode is fixed to Android Auto; the «CarPlay» tile and
+  settings row are not shown.
+- `ZlinkScreenPolicy.getInstalledPackages()` returns an empty list in `codos` (Z-Link is installed but disabled; OHU must not
+  believe it is on a Z-Link unit). This restores the §6.2 text that revision 2 had withdrawn.
+- `ZlinkService`, `ZlinkProxy`, `ZlinkRedirect`, `ZlinkHub` and the `hideZlinkUi` setting are never started in `codos` (they
+  already do nothing without the redirect; the guard makes it explicit and removes the log noise).
+- Everything else of §6 stays: self-check, the link-state broadcast `com.zjinnova.zlink` for OHU's own Android Auto sessions,
+  the voice and call entries, whitelists.
+
+### 13.3 Why OHU's CarPlay proxy wanted root, and how it goes without
+
+The owner asked: «чому саме потрібен root? Невже до тих самих … демонів і служб не можна достукатися без рута?»
+
+**Plain answer.** Almost everything of Z-Link *can* be reached without root, and OHU already does: it connects to the
+Z-Link app's local ports, starts its `DaemonService`, hides its screens, reads its properties — all with ordinary or system
+permissions. Root was needed for exactly **one** trick: the **redirect**.
+
+How the CarPlay feed is built: Z-Link's daemon is a *client* that connects to the Z-Link *app* on `127.0.0.1:1666/1777/1888/1999`
+(the app is the server, `ZlinkProxy.kt:72-100`). Volodymyr wanted OHU to sit **between** them and still let the real app answer.
+Because the daemon dials the original ports, the only way to put OHU in the middle is to **divert the daemon's connections**
+to OHU's own ports — a netfilter `iptables -t nat … REDIRECT` rule, which the kernel allows only to uid 0
+(`CAP_NET_ADMIN`; `ZlinkRedirect.kt:12-32`). Nothing else in OHU's Z-Link support needed root except the same kind of shell
+conveniences that now run as uid system.
+
+**Three ways to avoid root, and what is honest about each:**
+1. **An init oneshot in the image** that installs the same rule. It is part of the firmware (init runs it as root, with
+   fixed arguments, the way init runs every other service); OHU gets no root, it only asks init through `ctl.start`.
+   Works and keeps the rule's logic; but it only helps when Z-Link's app is **alive** (Option B), so under A it has no purpose.
+2. **OHU binds `127.0.0.1:1666…1999` itself** after Z-Link's app is disabled, so the daemon connects straight to OHU and no
+   redirect is needed. Technically possible (these are ordinary unprivileged loopback ports), **but it is not acceptable:**
+   the Z-Link *app* is the half that performs Z-Link's **activation and licence** and speaks to the daemon about it
+   (canon 52: the app deletes the licence file when its unit id is wrong; the daemon runs CarPlay only for an activated unit).
+   An OHU that stands in for that half would use Z-Link's CarPlay engine **without Z-Link's authorisation check** — that is
+   the «bypass of paid authorisation» the CoD rules forbid. We do not build it, even if the protocol were known (it is not:
+   the app's side is a packed dex, canon 52).
+3. **Say plainly that CarPlay in OHU mode is not possible under A.** This is the shipping answer: with Z-Link's app disabled
+   there is no licence-checking half and no feed; with it enabled there is no switch to speak of (Option B).
+
+**So the no-root verdict is:** under A there is no root anywhere in OHU and no CarPlay in OHU mode; an iPhone user selects
+Z-Link, which is what the switch is for. Option B would need only the firmware's init oneshot (way 1), still no root in OHU.
+
+### 13.4 Does Z-Link belong to the firmware? («Служби Zetlink в прошивці, чи це частина прошивки?»)
+
+Yes, both halves ship in the image (canon 52, `ZLINK_MAP.md`): the **daemon** is an init service (`service z-link
+/system/bin/zlink5.sh`, `/system/bin/z-link`, `/system/bin/z-mdnsd`, in `init.rc`), the **app** is `/system/app/zlink5/…apk`
+with its 56 native libraries. Because it is our firmware, we can change when init starts it (`disabled`) and switch both
+halves from the system — which is the whole of the shipping model. What we cannot change is the Z-Link code itself (a packed,
+licensed program), and we never touch its licence.
+
+### 13.5 Effect on the tasks and decisions
+
+- **Gate for repair/ROM builder:** the CarSettings row and reconciler (§5, now §13.1), `ctl.start/stop z-link` sepolicy for the
+  reconciler's domain, `service z-link … disabled` in the image, QF BT `projection.reset`, the resolver (§4 B-table) for
+  `com.zjinnova.zlink` call sites — the resolver now has only two answers (one app or the other), by the setting alone.
+- **Dropped:** D3, D4, the feature-flag writer, the redirect init services, R6–R10 as blockers. **Still open:** R2 (the exact
+  `z-link` stanza and whether `ctl.stop` takes every child), R3 (USB gadget teardown on a live switch), R4 (soft-AP stop), R5 (A14
+  image pass 2), D2 (migration of stock-`zj` units).
+- **Proofs P1–P14 stand;** P15–P21 apply only if Option B is ever built.
