@@ -1,20 +1,19 @@
 package com.andrerinas.openheadunit.connection
 
-import android.os.Process
 import com.andrerinas.openheadunit.BuildConfig
 import com.andrerinas.openheadunit.utils.AppLog
 
 /**
- * CoD OS: what «an Android Auto session is up» means for the rest of the system, and how it is published.
+ * CoD OS: tells the system whether an Android Auto session is up, in the one place the system already looks.
  *
- * Contract: `cod/OPEN_HEADUNIT_A14_CONTRACT.md` section 10. Two system properties in the QF pattern:
- * `sys.qf.ohu.connect` ("true" / "false") and `sys.qf.ohu.pid` (the pid of the process that set it up). A reader counts the
- * session as active only if the flag is true AND that pid is alive and is this app, so a killed process never leaves it «up».
- * Nothing is broadcast: Z-Link's own action must not be imitated (QF Bluetooth answers it with an A2DP disconnect and a toast).
+ * Contract: `cod/OPEN_HEADUNIT_A14_CONTRACT.md` section 10. One variable, `sys.qf.bt.aa.connect` ("true" / "false"): the
+ * existing «an Android Auto session is active» flag that QF Bluetooth and the AI bridge read. With Z-Link it is set by QF
+ * Bluetooth from Z-Link's own broadcast; with Open Headunit selected Z-Link is off, so OHU sets the same flag itself. It is
+ * never set in parallel with Z-Link (the projection switch keeps the two apart). OHU does not broadcast Z-Link's action:
+ * QF Bluetooth answers it with an A2DP disconnect and a toast.
  */
 object ProjectionSessionPolicy {
-    const val PROP_CONNECT = "sys.qf.ohu.connect"
-    const val PROP_PID = "sys.qf.ohu.pid"
+    const val PROP_AA_CONNECT = "sys.qf.bt.aa.connect"
 
     /**
      * Up from the end of the SSL handshake: the phone is a working Android Auto phone and a session exists.
@@ -24,20 +23,17 @@ object ProjectionSessionPolicy {
     fun isUp(state: CommManager.ConnectionState): Boolean =
         state is CommManager.ConnectionState.HandshakeComplete || state is CommManager.ConnectionState.TransportStarted
 
-    /** The pid goes first, so a reader never sees «true» with no pid; down writes only the flag. */
-    fun writes(up: Boolean, pid: Int): List<Pair<String, String>> =
-        if (up) listOf(PROP_PID to pid.toString(), PROP_CONNECT to "true") else listOf(PROP_CONNECT to "false")
+    fun writes(up: Boolean): List<Pair<String, String>> = listOf(PROP_AA_CONNECT to if (up) "true" else "false")
 
     /** A process that starts knows of no session: whatever an earlier process left is dropped. */
-    fun startWrites(): List<Pair<String, String>> = listOf(PROP_CONNECT to "false", PROP_PID to "")
+    fun startWrites(): List<Pair<String, String>> = writes(false)
 }
 
 /**
- * Writes the two properties through [setter], only when the published answer changes. If a write fails the answer is not
+ * Writes the flag through [setter], only when the published answer changes. If a write fails the answer is not
  * remembered, so the next state change tries again. Pure of Android and of the flavor, so it is unit tested.
  */
 class ProjectionSessionWriter(
-    private val pid: () -> Int,
     private val setter: (String, String) -> Unit,
     private val onFailure: (Throwable) -> Unit = {}
 ) {
@@ -47,7 +43,7 @@ class ProjectionSessionWriter(
     fun apply(up: Boolean) = synchronized(lock) {
         if (published == up) return@synchronized
         try {
-            ProjectionSessionPolicy.writes(up, pid()).forEach { (k, v) -> setter(k, v) }
+            ProjectionSessionPolicy.writes(up).forEach { (k, v) -> setter(k, v) }
             published = up
         } catch (t: Throwable) {
             onFailure(t)
@@ -64,17 +60,16 @@ class ProjectionSessionWriter(
     }
 }
 
-/** The CoD build's instance: system property writes through the hidden `android.os.SystemProperties.set`. */
+/** The CoD build's instance: the system property write through the hidden `android.os.SystemProperties.set`. */
 object ProjectionSessionPublisher {
     @Volatile private var warned = false
 
     private val writer = ProjectionSessionWriter(
-        pid = { Process.myPid() },
         setter = ::setProperty,
         onFailure = { t ->
             if (!warned) {
                 warned = true
-                AppLog.w("ProjectionSession: could not write the session properties: ${t.javaClass.simpleName}: ${t.message}")
+                AppLog.w("ProjectionSession: could not write the session flag: ${t.javaClass.simpleName}: ${t.message}")
             }
         }
     )

@@ -7,6 +7,7 @@ import org.junit.Test
 
 class ProjectionSessionTest {
 
+    private val flag = "sys.qf.bt.aa.connect"
 
     @Test fun upOnlyAfterTheHandshake() {
         assertTrue(ProjectionSessionPolicy.isUp(CommManager.ConnectionState.HandshakeComplete))
@@ -18,55 +19,46 @@ class ProjectionSessionTest {
         assertFalse(ProjectionSessionPolicy.isUp(CommManager.ConnectionState.Disconnected()))
     }
 
-    @Test fun pidIsWrittenBeforeTheFlag() {
-        val w = ProjectionSessionPolicy.writes(true, 4321)
-        assertEquals(listOf("sys.qf.ohu.pid" to "4321", "sys.qf.ohu.connect" to "true"), w)
-    }
-
-    @Test fun downWritesOnlyTheFlag() {
-        assertEquals(listOf("sys.qf.ohu.connect" to "false"), ProjectionSessionPolicy.writes(false, 4321))
+    @Test fun theOneVariableIsTheExistingAndroidAutoFlag() {
+        assertEquals("sys.qf.bt.aa.connect", ProjectionSessionPolicy.PROP_AA_CONNECT)
+        assertEquals(listOf(flag to "true"), ProjectionSessionPolicy.writes(true))
+        assertEquals(listOf(flag to "false"), ProjectionSessionPolicy.writes(false))
     }
 
     @Test fun startDropsWhateverAnEarlierProcessLeft() {
-        assertEquals(
-            listOf("sys.qf.ohu.connect" to "false", "sys.qf.ohu.pid" to ""),
-            ProjectionSessionPolicy.startWrites()
-        )
+        assertEquals(listOf(flag to "false"), ProjectionSessionPolicy.startWrites())
     }
 
     @Test fun writerWritesOnlyOnChange() {
         val log = mutableListOf<Pair<String, String>>()
-        val w = ProjectionSessionWriter({ 7 }, { k, v -> log += k to v })
+        val w = ProjectionSessionWriter({ k, v -> log += k to v })
         w.apply(true)
         w.apply(true)
         w.apply(false)
         w.apply(false)
-        assertEquals(
-            listOf("sys.qf.ohu.pid" to "7", "sys.qf.ohu.connect" to "true", "sys.qf.ohu.connect" to "false"),
-            log
-        )
+        assertEquals(listOf(flag to "true", flag to "false"), log)
     }
 
     @Test fun aFailedWriteIsRetriedOnTheNextChange() {
         var fail = true
         val log = mutableListOf<Pair<String, String>>()
         var failures = 0
-        val w = ProjectionSessionWriter({ 7 }, { k, v -> if (fail) throw IllegalStateException("denied") else log += k to v }, { failures++ })
+        val w = ProjectionSessionWriter({ k, v -> if (fail) throw IllegalStateException("denied") else log += k to v }, { failures++ })
         w.apply(true)
         assertEquals(1, failures)
         assertTrue(log.isEmpty())
         fail = false
         w.apply(true)
-        assertEquals(listOf("sys.qf.ohu.pid" to "7", "sys.qf.ohu.connect" to "true"), log)
+        assertEquals(listOf(flag to "true"), log)
     }
 
     @Test fun clearAtStartThenFirstUpWritesAgain() {
         val log = mutableListOf<Pair<String, String>>()
-        val w = ProjectionSessionWriter({ 9 }, { k, v -> log += k to v })
+        val w = ProjectionSessionWriter({ k, v -> log += k to v })
         w.clearAtStart()
         w.apply(false) // already published as down: nothing more
-        assertEquals(2, log.size)
+        assertEquals(1, log.size)
         w.apply(true)
-        assertEquals("sys.qf.ohu.connect" to "true", log.last())
+        assertEquals(flag to "true", log.last())
     }
 }
