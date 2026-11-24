@@ -95,6 +95,8 @@ No `Settings.System/Secure/Global.put`, no `setprop`, no property writes (the co
 | 6 | the **volume / audio mode** | `setMode 3/0` and `setCommunicationDevice` only (mic contract §5) | keep: part of a call, restored after |
 All the writes in rows 1, 3, 4 are removed or confined to the developer section by a `BuildConfig.CODOS` branch; row 2 stays. ❓ The owner's phrase «відучити лізти в наші системні настройки» is read as this list; if he meant something else (a CarSettings row), tell me which.
 
+> **Revision 24.11 (sound line, MIC_CALIBRATION_CONTRACT §5):** 48 kHz is NOT the default. Our 3:1 conversion is a 3-sample mean, not the required low-pass (stopband at least 60 dB from 8 kHz), so the CoD default stays 16 kHz; NS stays on by default; no own `ns` on VOICE_RECOGNITION; no second capture in a unit call (`sys.qf.call_state`); VOICE_COMMUNICATION calls are held until C15. Built in commit 650ea9dbd. The plan text below is the earlier one.
+
 ## 7. Noise suppression on CoD OS (the earlier owner requirement, `OWNER_REQUIREMENTS_OHU.md`)
 
 Facts (🔬 mic contract §5, helper 2, on 198): OHU announces a mono **16 kHz** capture (`MicCaptureFormat.SAMPLE_RATE_HZ`; Android Auto accepts 16 000 or 48 000, `ServiceDiscoveryResponse.kt:236`);
