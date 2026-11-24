@@ -1,5 +1,9 @@
 # Projection switch: Z-Link ⇄ Open Headunit — design draft 1
 
+> **Revision 2 (24.11.2026, owner: «Деякі потрібні хору.»):** some of Z-Link's services are needed BY Open Headunit, so
+> the whole-package disable of Z-Link is **dropped**. Section 11 supersedes section 1 items 3 and 6, section 3 L1/L2
+> for the OHU-selected state, section 5, section 6 item 2 and D1 wherever they conflict. Read section 11 first.
+
 Author: Open Headunit session (lead of this design), 24.11.2026. For the head lead's gate. **Design only: nothing is
 installed, enabled or changed on stand 198 or on any unit.** Brief: `D:\HeadUnitRomBuilder\.agents\briefs\PROJECTION_SWITCH_BRIEF.md`.
 Owner (24.11): «перемикач Z-Link, хур і обратно» — «Так, починати». Marks: 🔬 read in code or firmware, 📻 measured,
@@ -18,7 +22,7 @@ A10 class is named and the A14 one is "to confirm".
    It is the only input. The only writer is the person, through one CarSettings row. (The name was proposed in contract §3.)
 2. **One reconciler** (`ProjectionSwitch.apply()`, uid system) turns the setting into the whole system state. It is
    idempotent. It runs at every boot after `boot_completed` and after every change, so a half-switched state heals itself.
-3. **Disabling the app is not enough.** Z-Link has an init daemon (`z-link`, user shell) that lives in
+3. *(superseded by §11 for the OHU-selected state; still true for Z-Link selected → OHU silent)* **Disabling the app is not enough.** Z-Link has an init daemon (`z-link`, user shell) that lives in
    `/data/data/com.zjinnova.zlink/lib` and survives `pm disable`; it makes the USB gadget, raises the soft-AP, runs
    `zbt-main`. The reconciler therefore stops/starts the daemon too, and the image stops starting it by itself (R2).
 4. **One resolver** answers «which projection app is it?» for everyone who today hard-codes `com.zjinnova.zlink`
@@ -27,9 +31,9 @@ A10 class is named and the A14 one is "to confirm".
 5. **OHU emits Z-Link's state contract** (the `com.zjinnova.zlink` broadcast with `status` / `phoneMode`), so QF Bluetooth,
    Canbus and the voice router keep working unchanged. This is the cheapest correct way and needs no patch in four
    system apps. Details in section 6.
-6. **On CoD OS the OHU build is stand-alone** (Android Auto on its own radio, own hotspot). Volodymyr's «zLink unit»
-   branches (OHU riding on Z-Link's daemon for CarPlay) are switched off in `codos`. **This costs CarPlay in OHU mode —
-   owner decision D1.**
+6. *(superseded by §11)* Owner: OHU **keeps** Z-Link's daemon and the app's background services for CarPlay (OHU taps
+   their feed). So OHU-selected = OHU active + **Z-Link headless** (daemon and services alive, UI hidden, Android Auto
+   silenced inside Z-Link); Z-Link-selected = Z-Link full + OHU silent (disabled).
 7. **Closing the radios:** soft-AP and Wi-Fi Direct group are stopped by the reconciler in both directions (the
    process dying does not do it, 📻 Z-Link Exit leaves the AP up). Bluetooth: OHU's records die with its process 🧩;
    Z-Link's Android Auto record may live in the car BT **module** ❓ — R1 is the one unknown that can break the design.
@@ -213,10 +217,9 @@ sees that the switch did not happen.
 
 1. **Self-check:** read `cod_projection_app` at `AapService` start and in `UsbAttachedActivity`; if not `openheadunit`,
    register nothing (no RFCOMM, no HFP record, no AP) and stop. Belt for L1.
-2. **Z-Link-unit branches off.** `ZlinkScreenPolicy.getInstalledPackages()` is the single seam of 14 call sites
-   (`App`, `AapService`, `EarlyHotspot`, `NativeAaHandshakeManager`, `BridgeVoiceKeyWatcher`, `MainActivity`,
-   `SettingsFragment`…). In `codos` it returns an empty list: OHU behaves as on a plain unit. (A disabled package is still
-   «installed» for `getPackageInfo`, so without this OHU would believe it is on a Z-Link unit.)
+2. **Z-Link-unit branches stay ON** (revised, §11): `ZlinkScreenPolicy.getInstalledPackages()` keeps returning Z-Link;
+   in OHU mode Z-Link is present and headless, and OHU's CarPlay feed, hotspot policy and key forwarding depend on it.
+   The earlier idea of returning an empty list is withdrawn.
 3. **Emit the link-state contract:** broadcast action `com.zjinnova.zlink`, extras `status` (`CONNECTED` / `DISCONNECT`) and
    `phoneMode` (`auto_wireless` / `auto_wired`; `PHONE_CALL_ON/OFF` only after C4 is closed). Sent on connect, disconnect,
    and from `onDestroy`. Cheapest correct: QF BT (C1, C2), Canbus (B8) already listen. Open ❓: are those receivers
@@ -262,10 +265,9 @@ sees that the switch did not happen.
 ## 9. Open items
 
 **Owner decisions**
-- **D1 CarPlay.** OHU as built by Volodymyr does CarPlay only by riding on Z-Link's daemon (the MFi chip and iAP are
-  Z-Link's). Exclusive switch = no Z-Link daemon in OHU mode = **no CarPlay in OHU mode**. Recommended: OHU mode is
-  Android Auto only; an iPhone user selects Z-Link (the switch exists for exactly that). The alternative — OHU on Z-Link's
-  daemon — keeps both running and contradicts «не можуть працювати разом».
+- **D1 CarPlay — decided by the owner (24.11): «Деякі потрібні хору.»** CarPlay in OHU mode stays, carried by Z-Link's
+  daemon and services; see §11. Consequence to acknowledge (D3): CarPlay in OHU mode still needs a valid **Z-Link
+  licence**; a person who lost it gets Android Auto only.
 - **D2** migration of stock-`zj` units (section 7). Recommended: no migration.
 
 **Research for the helper (decompile / read; English both ways)** — R1 is the critical one.
@@ -297,3 +299,147 @@ is code, not data.
 2. `ctl.stop` cannot be allowed to CarSettings' domain: the reconciler moves into a system service that already holds the permission.
 3. A14 ports differ from the A10 decompiles: the register (section 4) is expected, not proven, until R5.
 4. The reconciler host: CarSettings can be killed; placing `apply()` in the framework (system_server) is stronger and more invasive. Repair decides.
+
+## 11. Revision 2 — Z-Link components needed by Open Headunit (owner: «Деякі потрібні хору.»)
+
+### 11.1 What OHU actually uses of Z-Link (🔬 both sides read)
+
+1. **The CarPlay feed.** OHU is a transparent TCP proxy between two Z-Link halves: the **daemon** is the client, the
+   **Z-Link app** is the server on `127.0.0.1:1666 / 1777 / 1888 / 1999`. OHU listens on `+10000` (11666…11999), accepts
+   the daemon's connection, dials the app's port, and copies both ways while decoding video, audio, control and injecting
+   touch/keys/keyframe requests (`ZlinkProxy.kt:72-100` listen/pair; `ZlinkWire.kt:12-30` frame format, channels
+   video/audio/control, `TYPE_TOUCH 0x111`, `TYPE_KEY 0x113`, `TYPE_FORCE_KEYFRAME 0xd0b`; `ZlinkHub.kt` distribution and
+   replay; `ZlinkVideoSink.kt`, `ZlinkSurfaceBridge.kt`, `ZlinkAudioSink.kt` render and play). Both halves must be alive:
+   no daemon → no phone; no app → the proxy's upstream dial fails (`ZlinkProxy.kt:94-100`) and the daemon retries.
+2. **The redirect.** The daemon connects to the original ports, so OHU needs a netfilter REDIRECT of the daemon's
+   loopback traffic to its own ports (`ZlinkRedirect.kt:12-32` rules, `:39-60` command builders). It needs uid 0 /
+   `CAP_NET_ADMIN`; the CoD build currently **disables** it (`ZlinkRedirect.kt:57-63`, my codos change), which means the
+   CarPlay feed gets no traffic on CoD OS today. Answer in §11.4.
+3. **The app's DaemonService.** OHU starts Z-Link's own background service after it changed the app's screens
+   (`ZlinkService.kt:51-56`, `:111`, command `am start-foreground-service -n com.zjinnova.zlink/
+   com.zjinnova.android.zlink.features.service.DaemonService` at `:169-170`). 📻 Changing the app's components stops its
+   process and the daemon restarts in a loop until the app is back (comment `ZlinkService.kt:52-55`).
+4. **Hiding Z-Link's UI.** OHU disables Z-Link's activities one by one (`ZlinkScreenPolicy.kt:24-25` target packages,
+   `:29-40` the 12 activities, `:64` `isUiHidden`, `:86-110` `pm disable-user` / `pm default-state`), driven by OHU's
+   `hideZlinkUi` setting (`ZlinkService.kt:51-56`). It does **not** touch the package, the services or the daemon.
+5. **The unit's access point.** OHU reuses the AP the unit already has: `EarlyHotspot.kt:33-50` (asks for the hotspot at
+   process start on a Z-Link unit), `HotspotConfigClient.kt` / `tools/HotspotConfigTool.kt` (name, password, 5 GHz),
+   `HostapdConfig.kt` + `HotspotConfigReader.kt` (read the hostapd file Z-Link's AP uses), `ProjectionSwitcher.kt:46-62`
+   («CarPlay leaves zLink's hotspot running… `svc wifi enable` makes the hotspot give way»).
+6. **Z-Link's properties, read only.** `persist.zj.BTmac`, `persist.zlink.carplay.mac` (`BluetoothHelper.kt:493-494`);
+   `rw.zlink.bt.type`, `rw.zj.bt.type`, `persist.zj.BTmac` (`ExternalBtPolicy.kt:29-32`).
+7. **A Bluetooth module carrier that is NOT Z-Link's:** OHU's wireless Android Auto on this unit goes to the external
+   Bluetooth module through the vendor daemon **`gocsdk_zj`, 127.0.0.1:3152** (`zbt/ZbtByteChannel.kt:92` `PORT = 3152`;
+   `ZbtAaCarrier.kt`, `ZbtProbe.kt`, `ZbtDaemonReachability.kt`; also `/dev/socket/zj_bt_socket`,
+   `zjsocket/ZjSocketConnector.kt:23`). 🔬 `ZbtByteChannel.kt` header: *the daemon owns the AA RFCOMM server on the
+   module itself* and `RequestInit enable_type = 2` is the whole setup; `ModulePhoneWatcher.kt:14-20`: *the module hands
+   the phone's data to the newest client*. So **`gocsdk_zj` is QF's shared Bluetooth infrastructure** (QF BT starts and
+   stops it, `BluetoothModeManager`), and the module's AA server exists once a client asks for it. **R1 is partly
+   answered:** the AA record on the module is not Z-Link's own; it is a service of `gocsdk_zj` that **any** client (Z-Link's
+   BT service via `libzbt_core`, or OHU) turns on. The conflict is two clients of one server, newest wins.
+8. **Keys to CarPlay:** `BridgeVoiceKeyWatcher.kt` forwards unit keys to CarPlay as key 1500 (`ZlinkHub.injectKey`).
+9. **OEM-app policy:** `OemAppManager.kt:54-55` lists Z-Link as a «conflicting OEM app»; `runAutoKillIfEnabled`
+   (`OemAppManager.kt` ~`:288-296`, Volodymyr) refuses to disable anything while Z-Link is installed.
+
+### 11.2 Z-Link has two states, OHU has two states
+
+| selection | OHU | Z-Link |
+|---|---|---|
+| `openheadunit` | **ACTIVE** (package enabled) | **HEADLESS**: package enabled, daemon `z-link` running, DaemonService and BT/phone-state services alive; UI components disabled; Android Auto switched off inside Z-Link; launcher entry hidden |
+| `zlink` | **SILENT** (package disabled — everything in OHU registers nothing) | **FULL**: all components enabled, all features on, UI visible |
+
+The asymmetry is the point: Z-Link is never «fully off» in OHU mode, OHU is fully off in Z-Link mode.
+
+### 11.3 Component map (a = needed by OHU and kept alive · b = conflicting, silenced · c = UI, hidden · d = shared, not ours)
+
+Where «OHU calls» is empty, OHU does not call it. Evidence marks follow the legend at the top.
+
+| # | Z-Link component | class | OHU calls (file:line) | who starts it | behaviour in HEADLESS, and how it is held there |
+|---|---|---|---|---|---|
+| 1 | init service `z-link` → `zlink5.sh` (watchdog, rmem, USB gadget `iap.gs0`+`ncm.gs1`) 🔬 | a | none (OHU depends on its effect) | init at boot today | runs. **Must start AFTER the feature flag is set** (§11.5) → image: `disabled`, reconciler `ctl.start` (kept from §3 L2, now for both states) |
+| 2 | engine `z-link -c qianfeng` (`libzjL10001.so`): CarPlay, USB iAP/usbmuxd, MFi chip, `hostapd_cli`, `iptables` self-rules 🔬 | a (CarPlay) / **b (Android Auto, CarLife, HiCar, Mirror, DLNA)** | feed: `ZlinkProxy.kt:72-100`; keys `ZlinkHub.kt` | `zlink5.sh` | runs for CarPlay. Everything else is silenced by Z-Link's own native knob, the property **`rw.zlink.disable.features`** (letters; CarSettings writes `hl` / `hil` for the HiCar checkbox, `Function.java:632`, `FactorySettingsActivity.java:762`). Which letter disables Android Auto, and whether it also stops its USB claim, BT service use and AP raising: **R6** ❓ |
+| 3 | `z-mdnsd` (CarPlay/AirPlay discovery) 🔬 | a | none | the engine | runs with the engine |
+| 4 | engine helpers `z-usbmuxd`, `z-dhcpc`, `libzbt-main` (`/data/local/tmp`), `z-netshare` 🔬 | a for wired/wireless CarPlay; role of `libzbt-main` ❓ | none | the engine | children of the engine; stopped with it |
+| 5 | **OHU's redirect rule** (not Z-Link's, but the glue) | a | `ZlinkRedirect.kt:12-60`, `ZlinkService.kt:46-47` | OHU on service start | needs root. Answer §11.4 |
+| 6 | app `StartupBroadcastReceiver` (`LOCKED_BOOT_COMPLETED`, `START_DAEMON_SERVICE`, `START_ZLINK_SERVICE`) 🔬 | a | none | system at boot | must stay enabled: it is what brings the app side up |
+| 7 | app `DaemonService` (exported; serves 1666/1777/1888/1999 upstream ❓ which half listens: R10) | a | `ZlinkService.kt:55,111,169-170`; upstream dial `ZlinkProxy.kt:94` | receiver, OHU `am start-foreground-service` | must be running before CarPlay offers |
+| 8 | app BT services `ZBTService`, `BluetoothService`, `BluetoothHCTService`, JNI `libzbt_core` (`com.zjinnova.jni.Zbt`) 🔬 | a for CarPlay wake / **b for Android Auto** (a second client of `gocsdk_zj`) | OHU's competing client: `zbt/ZbtByteChannel.kt:92`, `ModulePhoneWatcher.kt` | app process | **R8 ❓**: while OHU carries AA the Z-Link BT client must not `RequestInit` for AA (the AA letter in #2). In CarPlay mode OHU never holds the module (`ModulePhoneWatcher.kt:14-20`) |
+| 9 | app activities: `MainActivity`, `CarPlayActivity`, `CarPlayAutoActivity`, `AutoActivity`, `HiCarActivity`, `CarLifeActivity`, `MirrorActivity`, `DlnaActivity`, `*Unavailable*`; `SecondaryScreenService` 🔬 | **c** | `ZlinkScreenPolicy.kt:29-40,64,86-110` | the engine (`am start …ZLINK_MAIN`), launchers | component-disabled by the **reconciler** (it replaces `hideZlinkUi`). Disabling stops the app process → reconciler restarts `DaemonService` right after (📻 comment `ZlinkService.kt:52-55`) |
+| 10 | app `MediaButtonReceiver` (media keys) 🔬 | **b** (competes with OHU's `CarKeyBroadcastReceiver`, `RemoteControlReceiver`, `MediaButtonReceiver`) | none | system on media key | component-disabled in HEADLESS; whether CarPlay needs it: proof P21 |
+| 11 | app `PhoneStateReceiver` 🔬 | a ❓ | none | system | keep (CarPlay call state) |
+| 12 | app activation / licence (`ActivationActivity`, `CheckPermissionsAndActivationActivity`, `/great/protect_dir/.zjinnova`) 🔬 | a | none (the daemon will not run CarPlay unlicensed) | the app | **never touched**. D3: no licence ⇒ no CarPlay in OHU mode |
+| 13 | app audio engine / AEC (`libzlink` `AudioEngine`, `libzjaudio_jni` `Zaec`, `libwebrtc_apm_plus`) 🔬 | a ❓ | OHU plays and records itself: `ZlinkAudioSink.kt`; framework `AudioRecord` special-cases Z-Link (`:547`) | the app | **R9 ❓ who holds the microphone during a CarPlay session** (Siri/call): relevant to the owner's NS requirement |
+| 14 | the unit's soft-AP raised via the framework / `hostapd_cli` 🔬 📻 | d (shared) | `EarlyHotspot.kt:33-50`, `HotspotConfig*`, `ProjectionSwitcher.kt:46-62` | engine on a CarPlay/AA offer; OHU on its own start | one AP, two requesters. Rule: whoever's mode is active raises it; the reconciler stops it only on a switch (L3). OHU's mode switch (`ProjectionSwitcher`) already sequences CarPlay ⇄ AA inside OHU |
+| 15 | `gocsdk_zj` (module UART, `127.0.0.1:3152`, HFP/A2DP for QF BT) 🔬 | **d (not Z-Link's)** | `ZbtByteChannel.kt:92` and 4 more files | init at boot, QF BT | **never touched by the switch** (calls depend on it). Exclusivity of its AA client = #8 |
+| 16 | broadcast `com.zjinnova.zlink` (state) | a | none | Z-Link app on CONNECT/DISCONNECT | in HEADLESS Z-Link keeps sending it for **CarPlay** sessions, so QF BT/Canbus keep working for CarPlay with no change. **OHU emits it only for its own Android Auto sessions** (§6.3 stays) |
+| 17 | `com.qf.action.cp.call` / key 1500 target (`setPackage(zlink)`) | a (CarPlay) | none | QF BT, AiBridge | still correct for a CarPlay session; for an AA session it must reach OHU → **the resolver answers by who owns the live session**, not only by the setting: CarPlay → Z-Link package, Android Auto → OHU package, FULL → Z-Link. `sys.qf.carplay.connect` vs `sys.qf.bt.aa.connect` say which |
+
+### 11.4 The redirect without root
+
+`iptables` needs `CAP_NET_ADMIN`; an app under uid 1000 does not keep it. Proposal: **two root init oneshot services with
+fixed arguments**, `ohu-redir-on` and `ohu-redir-off` (same rules as `ZlinkRedirect.ruleAdd/ruleDelete`, four ports),
+started by the CoD build with `SystemProperties.set("ctl.start", …)` — the same mechanism QF BT already uses for
+`gocsdk_zj` — and sepolicy that lets the system app start exactly those two. The reconciler owns on/off (the rules exist
+only while OHU is selected and the daemon runs). OHU's `ZlinkRedirect.ensure/remove` in codos call the property instead of
+returning `false`. Two facts to check first: **R7** — the daemon's real uid on A14: canon 52 says user `shell`, OHU's rules
+match `--uid-owner 0`; if the daemon is `shell` (2000) the rule never matched there and must say 2000.
+Fallback if init services are refused: OHU binds 1666…1999 itself and stands in for the app (needs the app's side of the
+protocol: large, not recommended).
+
+### 11.5 Revised state model and flow
+
+- **Feature flag.** `rw.zlink.disable.features` gets **one writer**: the reconciler, computing it from two inputs —
+  CarSettings' HiCar checkbox (today it writes the property directly, `Function.java:632`: that write moves into the
+  reconciler's input) and the projection selection (`openheadunit` ⇒ add the Android Auto letter). It is an `rw.` property
+  (not persisted) and the engine reads it at start, so it must be set **before** `ctl.start z-link` on every boot and every
+  switch — which is exactly why the init service becomes `disabled` (#1).
+- **Boot (`apply(read setting)` after `boot_completed`):** set the flag → component-disable Z-Link UI (HEADLESS) or enable all
+  (FULL) → redirect on (HEADLESS) / off (FULL) → `ctl.start z-link` → `START_DAEMON_SERVICE` / start `DaemonService` → OHU
+  enabled (HEADLESS case) / disabled (FULL case) → verify. 🧩 Z-Link starts a few seconds later than today; its own gate
+  already delays it past `boot_completed` (`ActivityManagerShellCommand.java:1052`).
+- **To `openheadunit` (from Z-Link FULL):** (precheck: no live session or the person agreed) → QF BT `projection.reset` →
+  `ctl.stop z-link` → AP/P2P down → set flag with the AA letter → disable Z-Link UI components (process dies) → redirect on
+  → `ctl.start z-link` → start `DaemonService` → **enable OHU last** → verify → write the setting.
+- **To `zlink` (from HEADLESS):** reset → **disable OHU first** (it dies; its records go) → AP/P2P down → `ctl.stop z-link` →
+  redirect off → set flag without the AA letter → enable all Z-Link components → `ctl.start z-link` → start `DaemonService` →
+  verify → write the setting.
+- **Never both:** Android Auto can only exist in one place at any instant because OHU is enabled **after** Z-Link's AA is
+  off and disabled **before** Z-Link's AA is on. A crash leaves «neither AA» (safe), never «both».
+- **OHU self-check (belt):** OHU starts its AA entry points (`NativeAaHandshakeManager`, `ZbtAaCarrier`, `UsbAttachedActivity`
+  work) only if the setting is `openheadunit` **and** Z-Link's launcher component is observed disabled. Otherwise it logs
+  once and does nothing. Observed state, not a copy of the choice.
+- **Single owners (no island logic):** Z-Link UI hidden/visible — the reconciler (in `codos` OHU's `ZlinkScreenPolicy`
+  becomes read-only and `hideZlinkUi` stops writing); the redirect — the reconciler; the feature flag — the reconciler;
+  Z-Link package/components — the reconciler.
+
+### 11.6 What each class means in practice, in plain words
+
+- **Needed (a):** the daemon, its helpers, the app's `DaemonService`, the startup receiver, the BT/phone-state services for
+  CarPlay, the activation check, the AP. They keep running while OHU is selected.
+- **Silenced (b):** Z-Link's Android Auto (everywhere: BT, USB claim, AP raising), CarLife/HiCar/Mirror/DLNA, its media-button
+  receiver, and the competing second client of the Bluetooth module for Android Auto.
+- **Hidden (c):** every Z-Link screen and its launcher entry.
+- **Not Z-Link's (d):** `gocsdk_zj`, the access point, the phone's pairing.
+
+### 11.7 New research and proofs
+
+- **R6** decode `rw.zlink.disable.features` / `persist.sys.zlink.disable.features`: letters, who parses them (engine strings,
+  app), which letter is Android Auto, and whether it also stops the USB claim, the BT AA request and AP raising; is it read
+  only at start (assumed) or live.
+- **R7** the daemon's uid/capabilities on A14 (`ps -A -o USER,PID,NAME,LABEL`), and a working `iptables` rule from an init oneshot.
+- **R8** how Z-Link's BT services behave with AA off: do they still `RequestInit enable_type=2`? What does the module do with two clients.
+- **R9** mic and AEC ownership during a CarPlay session (Z-Link's `Zaec` vs OHU).
+- **R10** which half listens on 1666…1999 (daemon or `DaemonService`), and what `FoxClientConnect` / `LocalSocketClientConnect` carry.
+- **P15** wireless and wired CarPlay through OHU with Z-Link HEADLESS: video, touch, keys, audio, Siri.
+- **P16** Android Auto in OHU mode: `logcat` tags `btopt`, `sd`, `zbt_main` show **no** Z-Link Android Auto activity; the phone sees one AA service.
+- **P17** `getprop rw.zlink.disable.features` read at daemon start has the AA letter in OHU mode and not in Z-Link mode.
+- **P18** redirect rules appear and disappear with the selection; none left after a switch.
+- **P19** HEADLESS leaves no Z-Link window: no activity of `com.zjinnova.zlink` resumed at any point (dumpsys activity).
+- **P20** Z-Link licence file untouched across switches (hash before/after).
+- **P21** media keys with Z-Link's receiver disabled: CarPlay media control still works through OHU's path.
+
+### 11.8 Owner decisions added
+
+- **D3** CarPlay in OHU mode needs a valid Z-Link licence (we never touch it). A person who lost it gets Android Auto only —
+  acceptable? (Recommended: yes; OHU's point is Android Auto without a licence.)
+- **D4** the HiCar checkbox in the factory menu stays but its write moves into the reconciler (single writer of the flag).
