@@ -134,6 +134,10 @@ class HomeFragment : Fragment() {
     private var reconnectCountdown: Job? = null
     private var stageQuietJob: Job? = null
     private var reconnectTarget: HomePrimaryPolicy.Connection? = null
+
+    /** The connection the user switched the card to with the other connection tile; cleared when a cable phone appears. */
+    private var switchedTo: HomePrimaryPolicy.Connection? = null
+    private var lastUsbPhoneSeen = false
     private var reconnectSecondsLeft = 0
     private var autoConnectCancelled = false
     /** The WiFi line beside the main card's icon and the wait for the phone's hotspot; live while started. */
@@ -367,6 +371,10 @@ class HomeFragment : Fragment() {
                 appSettings.autoConnectSingleUsbDevice
 
             val delaySec = appSettings.autoConnectDelaySeconds
+            if (com.andrerinas.openheadunit.app.AccPowerState.isOff) {
+                AppLog.i("HomeFragment: the car is off, no auto-connect")
+                return@launch
+            }
             if (isAutoConnectEnabled && delaySec > 0 && !forceSelfModeLaunch && !commManager.isConnected) {
                 AppLog.i("HomeFragment: Waiting ${delaySec}s before attempting auto-connect...")
                 countDownToAutoConnect(delaySec, autoConnectTarget(appSettings))
@@ -586,7 +594,15 @@ class HomeFragment : Fragment() {
         val root = view ?: return
         val appSettings = App.provide(ctx).settings
         val usbPhone = detectedUsbPhone(ctx)
-        val chosen = HomeUiHelper.chosenConnections(appSettings)
+        // A phone that has just been plugged in is the newer wish: the card follows it again.
+        if ((usbPhone != null) != lastUsbPhoneSeen) {
+            lastUsbPhoneSeen = usbPhone != null
+            if (usbPhone != null) switchedTo = null
+        }
+        // CarPlay runs over the unit's wireless link only: with it as the mode the card is decided as Wi-Fi alone, so a USB
+        // card from Android Auto (and its orange accent) does not carry over when the projection is flipped.
+        val carPlayMode = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(appSettings.projectionMode)
+        val chosen = if (carPlayMode) setOf(HomePrimaryPolicy.Connection.WIFI) else HomeUiHelper.chosenConnections(appSettings)
         val decision = HomePrimaryPolicy.decide(
             HomePrimaryPolicy.Input(
                 chosen = chosen,
@@ -597,7 +613,8 @@ class HomeFragment : Fragment() {
                 wifiScanning = AapService.scanningState.value,
                 sessionConnection = transportConnection().takeIf { sessionLive() },
                 stage = shownStage(),
-                attemptConnection = transportConnection().takeIf { !sessionLive() }
+                attemptConnection = transportConnection().takeIf { !sessionLive() },
+                userChoice = switchedTo
             )
         )
         this.decision = decision
@@ -609,9 +626,18 @@ class HomeFragment : Fragment() {
         // With more than one page the card is not always in view, so the bar carries every chosen
         // connection, the one the card offers included. Otherwise, on a page without the card, a
         // unit with a single chosen mode has no way to start it.
-        val barConnections = HomePrimaryPolicy.barConnections(
+        val allBarConnections = HomePrimaryPolicy.barConnections(
             decision, chosen, HomePagesPolicy.barCarriesEveryConnection(pageCount)
         )
+        // CarPlay has no USB or Wi-Fi to choose between: only the connection the card is on is kept, and it is a way into
+        // CarPlay. On a zLink unit with both USB and Wi-Fi, Android Auto shows the connection in use as one tile, like the
+        // projection tile does; a tap flips it to the other one.
+        val zlinkUnit = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(ctx).isNotEmpty()
+        val barConnections = when {
+            carPlayMode -> allBarConnections.filter { it == decision.primary }
+            zlinkUnit && decision.barConnections.isNotEmpty() -> listOf(decision.primary)
+            else -> allBarConnections
+        }
         HomeUiHelper.applyBar(ctx, root, appSettings, barConnections, palette, decision.tiles)
         HomeUiHelper.applyPrimaryCard(
             ctx, root, appSettings, decision, usbPhone?.let { phoneName(it) }, reconnectSecondsLeft, palette,
@@ -1970,7 +1996,7 @@ class HomeFragment : Fragment() {
         sidebarAppsButton?.setOnClickListener { openAppDrawer() }
         exitButton.setOnClickListener { exitApp() }
         selfModeTile.setOnClickListener { onSelfModeClicked() }
-        usbTile.setOnClickListener { onUsbClicked() }
+        usbTile.setOnClickListener { if (!switchCardTo(HomePrimaryPolicy.Connection.USB)) onUsbClicked() }
         projectionTile.setOnClickListener {
             val ctx = requireContext()
             val next = com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.other(App.provide(ctx).settings.projectionMode)
@@ -1980,7 +2006,7 @@ class HomeFragment : Fragment() {
             renderHome()
         }
         renderProjectionTile()
-        wifiTile.setOnClickListener { onWifiClicked() }
+        wifiTile.setOnClickListener { if (!switchCardTo(HomePrimaryPolicy.Connection.WIFI)) onWifiClicked() }
         wifiTile.setOnLongClickListener {
             openNetworkList()
             true
@@ -2041,6 +2067,30 @@ class HomeFragment : Fragment() {
                 com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkCarPlayActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+        return true
+    }
+
+    /**
+     * On a zLink unit with both USB and Wi-Fi chosen, the connection tile shows the connection in use and a tap flips the
+     * card to the other one; it does not connect, the card's own button does that. A session, a bring-up, a countdown
+     * and CarPlay keep the tile's old job (back to the session, show the step, open CarPlay). [connection] is the tile
+     * tapped. Returns whether the tap was a flip.
+     */
+    private fun switchCardTo(connection: HomePrimaryPolicy.Connection): Boolean {
+        val ctx = context ?: return false
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+                App.provide(ctx).settings.projectionMode)) return false
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(ctx).isEmpty()) return false
+        val current = decision ?: return false
+        val other = current.barConnections.firstOrNull() ?: return false
+        if (current.primary != connection) return false
+        val idle = current.status == HomePrimaryPolicy.Status.READY ||
+            current.status == HomePrimaryPolicy.Status.PHONE_DETECTED ||
+            current.status == HomePrimaryPolicy.Status.SEARCHING ||
+            current.status == HomePrimaryPolicy.Status.WAITING
+        if (!idle) return false
+        switchedTo = other
+        renderHome()
         return true
     }
 

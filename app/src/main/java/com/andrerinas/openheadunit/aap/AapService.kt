@@ -854,9 +854,18 @@ class AapService : Service() {
                     AppLog.i("WakeDetect: ACC off ($action)")
                     commManager.pauseForSleep()
                     AccPowerState.noteOff(action)
-                    maybeTearDownBeforeLinkGoes(
-                        LinkLossTrigger.ACC_POWER_LOST, accSignalIsExplicit = true
-                    ) { goAsync() }
+                    // The car is off, so nothing is to be connected until it is back. A teardown that left the service
+                    // running ended the session as a lost link and left every listener and retry going; stopping the
+                    // service through its normal stop closes the session with its goodbye to the phone and ends the
+                    // wireless stack, the USB listeners and the retries with it. The manifest receiver starts it again
+                    // when the car comes back (BootCompleteReceiver). The home stays open: it is the launcher.
+                    AppLog.i("WakeDetect: ACC off, stopping the service so no connection is attempted while the car is off")
+                    ContextCompat.startForegroundService(
+                        this@AapService,
+                        Intent(this@AapService, AapService::class.java)
+                            .setAction(ACTION_STOP_SERVICE)
+                            .putExtra(EXTRA_KEEP_HOME, true)
+                    )
                 }
                 WifiManager.WIFI_STATE_CHANGED_ACTION -> {
                     val state = intent.getIntExtra(

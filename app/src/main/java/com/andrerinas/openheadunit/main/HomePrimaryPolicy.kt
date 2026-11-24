@@ -49,6 +49,12 @@ object HomePrimaryPolicy {
          * securing) are the same words for every transport, so only this tells USB from WiFi.
          */
         val attemptConnection: Connection? = null,
+        /**
+         * The connection the user switched the card to with the other connection tile. It decides which one the card
+         * offers while nothing is running, ahead of the cable and the history, and does nothing by itself: the card
+         * button is what connects.
+         */
+        val userChoice: Connection? = null,
     )
 
     data class Decision(
@@ -103,6 +109,8 @@ object HomePrimaryPolicy {
         connecting(input) -> input.attemptConnection ?: connectionOf(input.stage!!)
         // The countdown names what is about to happen, even for a mode the user later unchose.
         input.reconnectTarget != null -> input.reconnectTarget
+        // The card the user switched to by hand.
+        input.userChoice != null && input.userChoice in available -> input.userChoice
         // A phone on the cable is a stronger hint than the history: it was plugged in to be used.
         input.usbPhoneDetected && Connection.USB in available -> Connection.USB
         input.lastConnection != null && input.lastConnection in available -> input.lastConnection

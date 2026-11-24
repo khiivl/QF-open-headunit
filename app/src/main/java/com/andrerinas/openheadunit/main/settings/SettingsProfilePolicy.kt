@@ -5,8 +5,9 @@ package com.andrerinas.openheadunit.main.settings
  *
  * Everything here is about how a phone is connected or about test tools, and each is either not used on such a unit or
  * can only make it stop working: the unit connects through zLink's hotspot and its Bluetooth module, so the other Wi-Fi
- * modes and the WiFi Direct transport, the USB and Android Bluetooth plumbing, and the fault-injection tools have
- * nothing to configure. The hotspot band, channel and Auto-enable rows are kept on purpose. The values behind the hidden
+ * modes and the WiFi Direct transport, the wireless USB adapter and Android Bluetooth plumbing, and the
+ * fault-injection tools have nothing to configure. A phone on a USB cable (wired Android Auto) is offered: the unit is a
+ * USB host. The hotspot band, channel and Auto-enable rows are kept on purpose. The values behind the hidden
  * rows are pinned at app start (see App), so a hidden setting can not stay on a value that breaks the connection.
  */
 object SettingsProfilePolicy {
@@ -16,10 +17,9 @@ object SettingsProfilePolicy {
         "scopeNotice",
         // The setup wizard picks connection and video settings for a generic unit; here they are fixed and proven
         "autoOptimize",
-        // Which connection types exist: only wireless, over the hotspot (and CarPlay, which is its own mode)
-        "connectionMode",
-        // USB and Android Bluetooth: the unit's phone link is the Bluetooth module, not these
-        "bluetoothAddress", "listenForUsbDevices", "usbWirelessDongle", "useLibusb",
+        // Android Bluetooth and the wireless USB adapter: the unit's phone link is the Bluetooth module, not these.
+        // The connection mode (Wi-Fi, USB cable), the USB listening switch and the libusb switch stay: wired Android Auto.
+        "bluetoothAddress", "usbWirelessDongle",
         "bluetoothAdapterServiceName", "nativePokeAllPaired",
         // Wi-Fi modes and the WiFi Direct transport: only Native Android Auto over the hotspot is used
         "wifiConnectionMode", "nativeApTransport", "wireless24ghzWarning",

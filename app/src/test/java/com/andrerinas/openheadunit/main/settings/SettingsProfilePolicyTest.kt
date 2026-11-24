@@ -13,7 +13,7 @@ class SettingsProfilePolicyTest {
 
     @Test fun theConnectionPlumbingAndTestToolsAreHiddenWithZlink() {
         val hidden = SettingsProfilePolicy.hiddenIds(true)
-        for (id in listOf("hotspotBand", "fiveGhzChannel", "scopeNotice", "autoOptimize", "connectionMode", "wifiConnectionMode", "nativeApTransport", "useLibusb", "oemAppManagement", "debugVideoFaultInjection")) {
+        for (id in listOf("hotspotBand", "fiveGhzChannel", "scopeNotice", "autoOptimize", "wifiConnectionMode", "nativeApTransport", "usbWirelessDongle", "oemAppManagement", "debugVideoFaultInjection")) {
             assertTrue("$id should be hidden", id in hidden)
         }
     }
@@ -22,6 +22,8 @@ class SettingsProfilePolicyTest {
         val hidden = SettingsProfilePolicy.hiddenIds(true)
         for (id in listOf(
             "projectionMode", "autoReconnectOnAccOn",
+            // wired Android Auto: the choice of connection, the USB listening and libusb switches
+            "connectionMode", "listenForUsbDevices", "useLibusb",
             "hotspotNameAndPassword", "resolution", "fpsLimit"
         )) {
             assertFalse("$id must stay", id in hidden)

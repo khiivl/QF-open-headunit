@@ -3521,16 +3521,23 @@ class SettingsFragment : Fragment() {
     }
 
     private fun showConnectionModeDialog() {
-        val order = listOf(
+        // A zLink unit has no Self Mode; Wi-Fi and a USB cable are the two ways a phone connects.
+        val zlinkUnit = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isNotEmpty()
+        val order = if (zlinkUnit) listOf(
+            Settings.ConnectionMode.USB,
+            Settings.ConnectionMode.WIFI
+        ) else listOf(
             Settings.ConnectionMode.USB,
             Settings.ConnectionMode.WIFI,
             Settings.ConnectionMode.SELF
         )
-        val labels = arrayOf(
-            getString(R.string.connection_kind_usb),
-            getString(R.string.connection_kind_wifi),
-            getString(R.string.self_mode)
-        )
+        val labels = order.map {
+            getString(when (it) {
+                Settings.ConnectionMode.USB -> R.string.connection_kind_usb
+                Settings.ConnectionMode.WIFI -> R.string.connection_kind_wifi
+                Settings.ConnectionMode.SELF -> R.string.self_mode
+            })
+        }.toTypedArray()
         val current = settings.connectionModes
         // An empty set means "All", which the label says out loud: the three of them start checked
         // so the dialog does not read as "none chosen".

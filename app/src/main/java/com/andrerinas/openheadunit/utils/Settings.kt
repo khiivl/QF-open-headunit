@@ -1376,6 +1376,12 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("auto-connect-last-session", false)
         set(value) { prefs.edit().putBoolean("auto-connect-last-session", value).apply() }
 
+    /** Whether the user (or a first-time default) ever set the single-USB-device auto-connect, so a default is never put over a choice. */
+    fun hasStoredAutoConnectSingleUsbDevice(): Boolean = prefs.contains("auto-connect-single-usb")
+
+    /** Whether the user (or a first-time default) ever set auto-start on USB. */
+    fun hasStoredAutoStartOnUsb(): Boolean = prefs.contains(KEY_AUTO_START_ON_USB)
+
     var autoConnectSingleUsbDevice: Boolean
         get() = prefs.getBoolean("auto-connect-single-usb", false)
         set(value) { prefs.edit().putBoolean("auto-connect-single-usb", value).apply() }

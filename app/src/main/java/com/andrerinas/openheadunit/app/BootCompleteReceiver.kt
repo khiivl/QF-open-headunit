@@ -34,6 +34,9 @@ class BootCompleteReceiver : BroadcastReceiver() {
         val usbEnabled = Settings.isAutoStartOnUsbEnabled(context) && Settings.isUsbConnectOnPlugInEnabled(context)
         val wifiEnabled = Settings.isAutoStartOnWifiEnabled(context)
         val floatingButtonEnabled = settings.enableFloatingButton
+        // The car coming back on: with "reconnect when the car starts" on, the service has to be running for the
+        // phone to connect, whichever of the other auto-start options is set. ACC off stops the service now.
+        val accReconnect = action in AapService.ACC_ON_ACTIONS && settings.autoReconnectOnAccOn
 
         if (floatingButtonEnabled) {
             AppLog.i("Boot auto-start: starting floating button overlay (trigger=$action)")
@@ -76,6 +79,9 @@ class BootCompleteReceiver : BroadcastReceiver() {
             AppLog.i("Boot auto-start: WiFi auto-start enabled, starting AapService to listen for WiFi (trigger=$action)")
             val serviceIntent = Intent(context, AapService::class.java)
             startService(context, serviceIntent, action)
+        } else if (accReconnect) {
+            AppLog.i("Boot auto-start: the car is back on, starting AapService so the phone reconnects (trigger=$action)")
+            startService(context, Intent(context, AapService::class.java), action)
         } else if (!floatingButtonEnabled) {
             AppLog.i("Boot auto-start: disabled, skipping")
         }

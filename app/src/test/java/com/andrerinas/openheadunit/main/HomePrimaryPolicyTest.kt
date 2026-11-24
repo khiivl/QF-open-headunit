@@ -21,10 +21,42 @@ class HomePrimaryPolicyTest {
         sessionConnection: Connection? = null,
         stage: ConnectionStage? = null,
         attemptConnection: Connection? = null,
+        userChoice: Connection? = null,
     ) = Input(
         chosen, lastConnection, usbPhoneDetected, sessionActive, reconnectTarget, wifiScanning, sessionConnection, stage,
-        attemptConnection
+        attemptConnection, userChoice
     )
+
+    @Test
+    fun `a connection the user switched to is the main button, ahead of the cable and the history`() {
+        val both = setOf(Connection.USB, Connection.WIFI)
+        val decision = HomePrimaryPolicy.decide(
+            input(chosen = both, userChoice = Connection.WIFI, usbPhoneDetected = true, lastConnection = Connection.USB)
+        )
+        assertEquals(Connection.WIFI, decision.primary)
+        assertEquals(listOf(Connection.USB), decision.barConnections)
+    }
+
+    @Test
+    fun `a switched-to connection that is no longer chosen is ignored`() {
+        val decision = HomePrimaryPolicy.decide(input(chosen = setOf(Connection.WIFI), userChoice = Connection.USB))
+        assertEquals(Connection.WIFI, decision.primary)
+    }
+
+    @Test
+    fun `a running session and a countdown still come before the switched-to connection`() {
+        val both = setOf(Connection.USB, Connection.WIFI)
+        assertEquals(
+            Connection.USB,
+            HomePrimaryPolicy.decide(
+                input(chosen = both, userChoice = Connection.WIFI, sessionActive = true, sessionConnection = Connection.USB)
+            ).primary
+        )
+        assertEquals(
+            Connection.USB,
+            HomePrimaryPolicy.decide(input(chosen = both, userChoice = Connection.WIFI, reconnectTarget = Connection.USB)).primary
+        )
+    }
 
     @Test
     fun `nothing chosen and no history starts with USB and keeps the rest on the bar`() {

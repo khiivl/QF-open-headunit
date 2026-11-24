@@ -55,8 +55,12 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
                 ?.let { settings.projectionMode = it }
         }
         com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(this)
+        // Listens for the car coming back on for the life of the process, since ACC off stops the service that did.
+        com.andrerinas.openheadunit.app.AccOnReceiver.register(this)
+        // Connects a phone plugged into the cable even when the Android Auto service is not running.
+        com.andrerinas.openheadunit.app.UsbAttachReceiver.register(this)
         com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.EarlyHotspot.start(this)
-        // The rows that could change these are hidden on a zLink unit, so the values are pinned to the ones that work:
+        // The rows that could change these are hidden on a zLink unit (except the choice of Wi-Fi and USB cable), so the values are pinned to the ones that work:
         // Native Android Auto, over zLink's hotspot (WiFi Direct shares the radio with it and drops CarPlay).
         run {
             val settings = com.andrerinas.openheadunit.utils.Settings(this)
@@ -68,8 +72,24 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
                 }
                 // 5 GHz only (setting value 1), the one band that carries Android Auto video well.
                 if (settings.hotspotBand != 1) settings.hotspotBand = 1
-                if (settings.connectionModes != setOf(com.andrerinas.openheadunit.utils.Settings.ConnectionMode.WIFI)) {
-                    settings.connectionModes = setOf(com.andrerinas.openheadunit.utils.Settings.ConnectionMode.WIFI)
+                // Wi-Fi stays chosen (it carries Android Auto and CarPlay). A phone on a USB cable is the user's to add;
+                // Self Mode does not exist on this unit. Empty means "all", which is left alone.
+                val wifi = com.andrerinas.openheadunit.utils.Settings.ConnectionMode.WIFI
+                val usb = com.andrerinas.openheadunit.utils.Settings.ConnectionMode.USB
+                val chosen = settings.connectionModes
+                if (chosen.isNotEmpty()) {
+                    val pinned = (chosen - com.andrerinas.openheadunit.utils.Settings.ConnectionMode.SELF) + wifi
+                    if (pinned != chosen) settings.connectionModes = pinned
+                }
+                // With a USB cable chosen, a phone on it connects by itself: when it is plugged in, when the home is
+                // opened, and after the car starts (the ACC-on wake checks the cable when auto-start on USB is on). Set
+                // once; the rows stay the user's to turn off.
+                if (com.andrerinas.openheadunit.utils.Settings.ConnectionMode.USB in settings.connectionModes) {
+                    if (!settings.hasStoredAutoStartOnUsb()) {
+                        settings.autoStartOnUsb = true
+                        com.andrerinas.openheadunit.utils.Settings.syncAutoStartOnUsbToDeviceStorage(this, true)
+                    }
+                    if (!settings.hasStoredAutoConnectSingleUsbDevice()) settings.autoConnectSingleUsbDevice = true
                 }
                 if (settings.nativeApStrategy != com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.HOTSPOT) {
                     settings.nativeApStrategy = com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.HOTSPOT
