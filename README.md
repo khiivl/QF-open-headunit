@@ -13,10 +13,6 @@ It runs on Android 4.1 and newer (Android 5.0 and newer for the Play Store build
 
 **Contents:** [How to use](#how-to-use) · [Known Issues](#known-issues) · [Planned](#planned) · [Changelog](#changelog) · [Contributing](#contributing)
 
-## NOTE!
-**Android Auto 17.4 and newer can prevent legacy wireless triggers from launching projection, including Self-Mode and automated startup via Wireless Helper. Rooted devices have a workaround: re-enable Android Auto's wireless startup receiver.**
-Use a **USB wireless dongle**, **Native Mode** or the **Headunit Server** instead. **Wireless Helper** works up to Android Auto **17.3**, or on **17.4+** with the root workaround. See [Wireless Connection Options](#wireless-connection-options).
-
 ## Screenshots
 <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/6ed31626-480e-404f-ba7a-753b14230a02" />
 <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/ce67584e-fcf6-4308-b11a-116780df47f7" />
