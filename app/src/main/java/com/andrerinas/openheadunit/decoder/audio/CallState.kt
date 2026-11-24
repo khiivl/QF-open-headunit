@@ -28,4 +28,9 @@ object CallState {
      * so this only exists to let an episode open a moment early and wait for the mode to catch up.
      */
     fun isCallStarting(audioMode: Int): Boolean = audioMode == AudioManager.MODE_RINGTONE
+
+    /** The unit's own call state, written by the dialer for SIM and Bluetooth hands-free calls (`sys.qf.call_state`). False off CoD OS. */
+    fun unitCallActive(): Boolean =
+        com.andrerinas.openheadunit.BuildConfig.CODOS &&
+            com.andrerinas.openheadunit.utils.SystemProperties.getBoolean("sys.qf.call_state", false)
 }

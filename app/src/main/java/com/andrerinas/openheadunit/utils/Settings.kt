@@ -246,10 +246,11 @@ class Settings(private val context: Context) {
      */
     var micSampleRate: Int
         get() {
-            // CoD OS: 48 kHz capture (the unit's noise suppression works there), converted to the 16 kHz Android Auto is told about.
-            val default = if (com.andrerinas.openheadunit.BuildConfig.CODOS && 48000 in MicSampleRates) 48000 else MicSampleRates.first()
-            val stored = prefs.getInt("mic-sample-rate", default)
-            return if (stored in MicSampleRates) stored else default
+            // CoD OS keeps 16 kHz as the default (sound line, 24.11): 48 kHz is allowed only behind a real anti-alias low-pass before the 3:1
+            // conversion (stopband of at least 60 dB from 8 kHz); MicPcmDecimator is a 3-sample mean, which is not that. The setting stays
+            // for the developer section, and P34 measures 16 against 48 kHz.
+            val stored = prefs.getInt("mic-sample-rate", MicSampleRates.first())
+            return if (stored in MicSampleRates) stored else MicSampleRates.first()
         }
         set(sampleRate) {
             prefs.edit().putInt("mic-sample-rate", sampleRate).apply()
