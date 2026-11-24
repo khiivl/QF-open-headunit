@@ -160,14 +160,17 @@ StartingTransport, Error and Disconnected are **down**: a phone that keeps faili
   AVRCP pause, no BT state toasts while a projection is up. Right for OHU: the owner's order.
 - **The A2DP drop** (`disableA2dpIfNeed`) now happens for OHU **as it does for Z-Link**. Right: in OHU the Android Auto link carries the media audio,
   as in Z-Link. The stock toast that goes with it is a BT state toast: v35 shows those only with no projection up, and `BTReceiver` sets the flag **before**
-  it calls `disableA2dpIfNeed()` (`BTReceiver.java:364` then `:365`), so the toast is suppressed. ❓ proof P28 on a unit.
+  it calls `disableA2dpIfNeed()` (`BTReceiver.java:364` then `:365`), so the toast is suppressed. **Confirmed by the BT line from its A14 build (24.11, v35 installed on 198):** the `auto_*` CONNECTED branch runs `setZlinkAutoConnectedStatus(true)`, then sets
+  `sys.qf.bt.aa.connect = true` (jadx `:302-304`), then `disableA2dpIfNeed()`, which only posts the toast runnable; `Projection.toast` re-reads the property when it runs, so it is already true and nothing shows.
+  On DISCONNECT `resumeA2dpIfNeed` reconnects A2DP only if HFP is up. Still ❓ on a unit with OHU as the sender: proof P28.
 - **The island, Canbus distributors and the in-call dialog** listen to the same action and receive OHU's session like Z-Link's.
 - **AI bridge (steering voice key):** on `true` it forwards the key to Z-Link's package (`onZlinkVoice`, `com.qf.action.cp.call`, `setPackage(com.zjinnova.zlink)`).
   With Z-Link disabled that reaches nobody, so during an OHU session the voice key opens nothing on the head-unit side; **until the fix lands the phone gets the key
   through OHU's own key watcher** (`BridgeVoiceKeyWatcher`). Fix (head lead's ruling): the owner's rule is ONE assistant function, so the resolver of design §4 B5
   lives in **AssistRouter**: its projection branch picks the active projection app, Z-Link or OHU, and AiBridge's `onZlinkVoice` defers to it. Owner of the change:
   repair. Proof P32.
-- **Sender check:** the broadcast is a plain implicit one, as Z-Link's. QF BT's receiver does not check the sender (A10 source). ❓ the A14 receiver: proof P27.
+- **Sender check: none** (A10 source, and confirmed for A14 by the BT line): `BlueToothApp` registers `BTReceiver` dynamically, `registerReceiver(receiver, filter)` for the action `com.zjinnova.zlink`, with no permission;
+  `BTReceiver` reads only `status` and `phoneMode`. The broadcast is a plain implicit one, as Z-Link's. Proof P27 still shows it end to end on a unit.
 
 ### 10.3 Stale case and gap (kept stock-like, head lead and BT line, 24.11)
 If the OHU process is killed (OOM, `kill -9`, force-stop) during a session no code runs, and the flag stays `true` until a new OHU process starts (it then sends the
