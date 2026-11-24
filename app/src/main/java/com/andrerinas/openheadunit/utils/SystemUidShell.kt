@@ -2,7 +2,11 @@ package com.andrerinas.openheadunit.utils
 
 import android.os.Process
 import android.os.SystemClock
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import kotlin.coroutines.coroutineContext
 
 /**
  * CoD OS: the replacement for every `su` / libsu / self-ADB route.
@@ -21,6 +25,28 @@ object SystemUidShell {
 
     /** True when this process really is the system uid, which is what the manifest asks for. */
     fun isSystemUid(uid: Int = Process.myUid()): Boolean = uid == Process.SYSTEM_UID
+
+    /**
+     * Runs a long-lived [command] (a filtered `logcat`, say) with `sh -c` and hands each output line to [onLine] until the
+     * stream ends or the calling coroutine is cancelled, which destroys the process. Returns why it ended.
+     */
+    suspend fun streamLines(command: String, onLine: (String) -> Unit): String = withContext(Dispatchers.IO) {
+        var process: java.lang.Process? = null
+        val closer = coroutineContext[Job]?.invokeOnCompletion { try { process?.destroy() } catch (_: Exception) { } }
+        try {
+            val proc = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
+            process = proc
+            proc.inputStream.bufferedReader(Charsets.UTF_8).forEachLine { line ->
+                try { onLine(line) } catch (e: Exception) { AppLog.w("SystemUidShell: line handler failed: ${e.message}") }
+            }
+            "stream closed"
+        } catch (e: Exception) {
+            "ended: ${e.javaClass.simpleName}: ${e.message}"
+        } finally {
+            closer?.dispose()
+            try { process?.destroy() } catch (_: Exception) { }
+        }
+    }
 
     /**
      * Runs [command] with `sh -c` and returns its exit code and combined stdout/stderr.
