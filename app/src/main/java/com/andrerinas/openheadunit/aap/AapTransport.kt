@@ -1233,6 +1233,10 @@ class AapTransport(
                         }
                         received = true
                         versionFrameSize = frame.size
+                        // The phone is answering: from here the connection is being secured.
+                        com.andrerinas.openheadunit.connection.ConnectionStageTracker.report(
+                            com.andrerinas.openheadunit.connection.ConnectionStage.SECURING
+                        )
                         break
                     }
                     // Wrong message — log and keep draining.

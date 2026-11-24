@@ -419,6 +419,14 @@ class MainActivity : BaseActivity() {
      */
     fun cancelBringUp(source: String = "status pill X") {
         AppLog.i("MainActivity: $source pressed, stopping the bring-up")
+        // CarPlay is not brought up by the Android Auto service: Cancel ends the progress and holds the offer off, as
+        // Disconnect does, until the user connects again.
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+                App.provide(this).settings.projectionMode)) {
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkConnectProgress.cancel()
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.holdOffUntilConnect()
+            return
+        }
         // Read before the disconnect below, which drops the connection the service would ask.
         val stage = ConnectionStageTracker.stage.value
         val usbAttempt = App.provide(this).commManager.isUsbSession ||
@@ -453,13 +461,10 @@ class MainActivity : BaseActivity() {
                         is CommManager.ConnectionState.Connected,
                         is CommManager.ConnectionState.StartingTransport -> {
                             hasAdvancedToActiveState = true
-                            ConnectionStageTracker.report(
-                                if (state is CommManager.ConnectionState.StartingTransport) {
-                                    ConnectionStage.SECURING
-                                } else {
-                                    ConnectionStage.CONNECTING
-                                }
-                            )
+                            // "Securing" is for after the phone has answered the version request (AapTransport reports
+                            // it then); while the handshake waits for an answer the step is still "Connecting", or a
+                            // phone that does not answer showed "Securing" from the first millisecond.
+                            ConnectionStageTracker.report(ConnectionStage.CONNECTING)
                             // The pill/overlay should already be visible (set when auto-connect
                             // was requested); ensure it is in case the request raced with
                             // setContentView or the activity was recreated mid-attempt.

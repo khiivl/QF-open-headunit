@@ -495,6 +495,8 @@ object ZlinkHub {
         if (wasSuspended) {
             AppLog.i("zlink hub: resuming, dropping daemon connections so the daemon restarts and the phone reconnects")
             proxyDropper?.invoke()
+            // The daemon says nothing of its steps, so the home would stay silent until the picture came.
+            if (!hasActiveSession) ZlinkConnectProgress.begin()
         }
         if (subscribers.isNotEmpty()) {
             requestKeyframe()

@@ -610,7 +610,9 @@ class UsbLauncherManager(val service: AapService) {
                 recoveryObservation.set(observationOwner)
             }) return@launchAttempt
             try {
-                ConnectionStageTracker.report(ConnectionStage.USB_SWITCHING)
+                // The phone is already in accessory mode, so this is not switching it into Android Auto: it is the
+                // connection being retried, and saying "switching" read as the attempt starting over.
+                ConnectionStageTracker.report(ConnectionStage.CONNECTING)
                 val before = usbManager.deviceList
                 val current = before[device.deviceName] ?: return@launchAttempt
                 if (current.vendorId != device.vendorId || current.productId != device.productId ||
