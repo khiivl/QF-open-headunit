@@ -170,18 +170,19 @@ clears OHU's `true`.
 
 **The one case no code covers:** the OHU process is killed (OOM, `kill -9`, force-stop) while a session is up. Nothing runs, and the flag stays
 `true` until OHU starts again (`App.onCreate` clears it) or the unit reboots. This is exactly how it already behaves with Z-Link (a Z-Link that
-dies without sending `DISCONNECT` leaves the flag true). Optional hardening, **on the reader's side and with no extra variable**: while
-`cod_projection_app = openheadunit`, a reader that cares can also require that the process `com.andrerinas.headunitrevived` is running. It is the
-head lead's and the BT line's call; the contract does not need it.
+dies without sending `DISCONNECT` leaves the flag true). **The gap is kept as it is, stock-like (head lead's and the BT line's ruling,
+24.11):** no reader-side process check, no extra variable, no pid. If a stale `true` is ever seen in the field, the question is reopened then.
 
 ### 10.4 What changes for readers, and one side effect to know about
 - **QF Bluetooth** needs no new reader for OHU: `Projection.active()` already reads this flag for Z-Link; it reads it at its decision points
   (head lead's ruling: no polling, callback or hint broadcast). The BT line's placeholder `sys.cod.projection.connected` and the draft pair
   `sys.qf.ohu.*` are not used.
 - **AI bridge (steering voice key):** when the flag is true it forwards the key to Z-Link's package (`onZlinkVoice`, `com.qf.action.cp.call`,
-  `setPackage(com.zjinnova.zlink)`). With Z-Link disabled that broadcast reaches nobody: during an OHU session the voice key opens nothing on the
-  head-unit side (the phone still gets it from OHU's key watcher). Before the flag was true the key would have opened the local assistant. Closing it
-  is the resolver of design §4 B5 (one answer for «which projection app»). Proof P32.
+  `setPackage(com.zjinnova.zlink)`). With Z-Link disabled that broadcast reaches nobody, so during an OHU session the voice key opens nothing on
+  the head-unit side. Before the flag was true the key would have opened the local assistant. **Until the fix lands, an OHU session sends the voice key to
+  the phone through OHU's own key watcher** (`BridgeVoiceKeyWatcher`). The fix (head lead's ruling): the owner's rule is ONE assistant function, so
+  the resolver of design §4 B5 lives in **AssistRouter**, the one function: its projection branch picks the active projection app, Z-Link or OHU,
+  and AiBridge's `onZlinkVoice` defers to it instead of hard-coding `com.zjinnova.zlink`. Owner of that change: repair (AssistRouter's owner). Proof P32.
 - The A2DP disable and the toast belong to Z-Link's **broadcast**, not to the flag: they are **not** applied for OHU; focus is handled by the BT line's own gate (register R2, §10.6).
 - The canon row for the flag lists its writer as `zlink`; it becomes «the projection app that is up (Z-Link through QF BT's broadcast handler,
   OHU directly)». The head lead edits the canon; this file is the source until she does.
@@ -202,7 +203,7 @@ there is not in this list. The evidence mark is 🔬 unless stated.
 | # | who | where | what it writes, when | note |
 |---|---|---|---|---|
 | W1 | **QF Bluetooth** `BTReceiver` (A10 decompile; the same call in the A10 mod smali `QF_Bluetooth_Mod/.../BTReceiver.smali:1617`) | `QF_Bluetooth/src/sources/com/qf/btsdk/receiver/BTReceiver.java:364` | **true** on Z-Link's broadcast `com.zjinnova.zlink`, `status=CONNECTED`, `phoneMode` = `auto_wireless` or `auto_wired` | the only writer in the firmware's own code. Also runs `disableA2dpIfNeed()` there |
-| W1 | same | `BTReceiver.java:368` | **false** on `status=DISCONNECT`, same phone modes (also `resumeA2dpIfNeed()`) | |
+| W1 | same | `BTReceiver.java:368` (the BT line's jadx of the A14 build gives the same three sites at `:303` true, `:307` false, `:325` false) | **false** on `status=DISCONNECT`, same phone modes (also `resumeA2dpIfNeed()`) | |
 | W1 | same | `BTReceiver.java:386` | **false** on `phoneMode="none"` | |
 | W2 | **QF_HID_Daemon** v1.75 (owner's Magisk module, root shell service) | `QF_HID_demon/hid_daemon.sh:551-563` (`AA_PROP` defined `:10`) | polls `sys.qf.top_pkg_name` every 1 s and writes **true** while the top app is `com.zjinnova.zlink`, **false** when it is not, on every change; its first write at start is `false` | it writes «Z-Link is in the foreground», not «a session is up» |
 | W3 | **QF_KeyLearn** (the module that replaces the HID daemon) | `QF_KeyLearn/module/src/40_system.sh:33-45` (`AA_PROP` `10_core.sh:11`) | the same block, the same logic | |
@@ -232,7 +233,7 @@ Only one projection app is active (design §13), so the firmware writer W1 and O
 **Recommended fix (SSOT, the owner's own modules):** remove the flag block from W2 and W3. Their own logic reads `sys.qf.top_pkg_name` directly; no reader needs their copy of «Z-Link is on top» under the name of «a session is up». With W2/W3 gone the flag has exactly one effective writer per selection.
 
 #### The stale case: OHU killed while «true»
-Stock Z-Link in the same case: **nothing clears the flag.** W1 clears only on Z-Link's own broadcast; if Z-Link dies without `DISCONNECT` (a crash, `QFSleepWakeup.java:347` `forceStopPackage(zlink)` at sleep, a user kill) the flag stays `true` until the next Z-Link broadcast or the next reboot. Nothing at boot, on BT disconnect or on ACC off clears it (see above). OHU does the same, **no extra property, no pid**, and a little better: it clears the flag at its next process start (`App.onCreate`), on service stop and on a crash handler, and the reconciler clears it on a switch. Readers may add a check against the running process, but that is their choice, not the contract's.
+Stock Z-Link in the same case: **nothing clears the flag.** W1 clears only on Z-Link's own broadcast; if Z-Link dies without `DISCONNECT` (a crash, `QFSleepWakeup.java:347` `forceStopPackage(zlink)` at sleep, a user kill) the flag stays `true` until the next Z-Link broadcast or the next reboot. Nothing at boot, on BT disconnect or on ACC off clears it (see above). OHU does the same, **no extra property, no pid**, and a little better: it clears the flag at its next process start (`App.onCreate`), on service stop and on a crash handler, and the reconciler clears it on a switch. No reader-side check is added: stock Z-Link has the same gap, and nothing extra is wanted.
 
 ## Ledger (each side ticks its own column, with proof)
 | item | Open Headunit (Volodymyr) | CoD OS (head lead / qf001 / repair / sound) |

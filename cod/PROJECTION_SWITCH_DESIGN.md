@@ -1,5 +1,7 @@
 # Projection switch: Z-Link ⇄ Open Headunit — design draft 1
 
+> **Note (24.11, head lead): the voice-key resolver of §4 B5 lives in AssistRouter, the one assistant function (its projection branch picks Z-Link or OHU; AiBridge `onZlinkVoice` defers to it). Owner: repair.**
+>
 > **Note (24.11, contract §10): OHU does NOT emit Z-Link's `com.zjinnova.zlink` broadcast (§6.3, §11.3 row 16 withdrawn): it triggers QF BT's stock A2DP disconnect and a toast. OHU writes the existing flag `sys.qf.bt.aa.connect` directly (one variable, owner's SSOT ruling; the `sys.qf.ohu.*` pair of the first draft is withdrawn).**
 >
 > **Note (24.11, §15): the earlier instruction «`getInstalledPackages()` empty in codos» (§6.2 revision 1, §13.2) is WITHDRAWN — it would switch off the QF-unit features of Volodymyr's code. See §15.1.**
