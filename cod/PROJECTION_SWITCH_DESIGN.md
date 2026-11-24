@@ -1,5 +1,7 @@
 # Projection switch: Z-Link ⇄ Open Headunit — design draft 1
 
+> **Note (24.11, §15): the earlier instruction «`getInstalledPackages()` empty in codos» (§6.2 revision 1, §13.2) is WITHDRAWN — it would switch off the QF-unit features of Volodymyr's code. See §15.1.**
+>
 > **Revision 4 (24.11.2026): D3 closed — the firmware's Z-Link daemon is ours, the Z-Link app is not used. Target model C
 > (section 14): OHU active, firmware daemon alive, Z-Link app disabled, OHU serves the daemon's loopback ports itself —
 > no iptables, no root. Model A (section 13) stays the safe default until the open items of section 14 are proven on a unit.**
@@ -682,3 +684,55 @@ plan, not a result.
   end to end with no Z-Link app (video, audio, touch, keys, Siri, call); P24 the daemon raises no Android Auto, no BT AA request,
   no USB claim for AA in OHU mode; P25 switching selection both ways with the daemon alive in OHU mode, no reboot.
 - **What is not changed:** the shipping default stays A until P22–P25 hold; the licence of Z-Link is untouched in every state.
+
+## 15. Review of Volodymyr's QF4 commits (24.11, `b7173a5b`…`b2da9c1d`) against this design
+
+Merged fast-forward into our branch; no conflict. Six commits: key-log watcher keeps running when the service dies, a cancelled key-log
+stream now really ends (also in `SystemUidShell.streamLines`, which is our codos helper — his edit is correct and keeps the codos branch),
+hold-to-seek for next/previous and a key-repeat debounce, a CarPlay «connecting» step, **wired Android Auto on a zLink unit** with a home
+USB/Wi-Fi switch, and **Android Auto that follows the ignition**. App version is now `4.1.0-beta1-QF4`, versionCode 127.
+
+**No new root, su, self-ADB, iptables or manifest permission** in these commits (checked by diff: manifest, `app/src/codos`, `magisk/`,
+Gradle flavors untouched; the only shell use added is the already-codos-guarded key-log stream). `cod/ROOT_TO_SYSTEM.md` needs no new row.
+
+### 15.1 One correction to §13.2 / §6.2 (this changes what Volodymyr must NOT do)
+
+`ZlinkScreenPolicy.getInstalledPackages()` is used at 17 call sites for **two different meanings**:
+- **(A) «this is a QF-family unit with the unit's own hotspot and key service»** — H.265 default (`Settings.kt:1291`), the unit's hotspot
+  and its 5 GHz keeping (`App.kt:101`, `EarlyHotspot.kt:37`, `SoftApCredentialsProvider.kt:316`, `AapService.kt:2114`, `HotspotConfigClient`
+  rows `SettingsFragment.kt:995,1241`), the key-log watcher and its setting (`BridgeVoiceKeyWatcher.kt:139`, `SettingsFragment.kt:2448`),
+  USB/Wi-Fi modes and the home switch (`SettingsFragment.kt:3525,3324`, `HomeFragment.kt:635,2083`), join-refusal restart
+  (`NativeAaHandshakeManager.kt:3444`), onboarding (`MainActivity.kt:1591`), OEM-app management hidden (`SettingsFragment.kt:2760`,
+  `OemAppManager.kt:293`).
+- **(B) «Z-Link is the CarPlay source»** — the CarPlay mode and its service, i.e. `ProjectionModePolicy`/`ProjectionSwitcher`/`ZlinkService`.
+
+§13.2 said «in `codos`, `getInstalledPackages()` returns an empty list». **Withdrawn.** On CoD OS the unit is still a QF unit in OHU mode
+(its hotspot, its key service, its H.265 decoder), so meaning (A) must stay **true while the Z-Link package is installed — enabled or
+disabled**. `getInstalledPackages()` uses `getPackageInfo(pkg, 0)` (`OemAppManager.kt:93-107`), which still returns a disabled app 🧩, so under
+model A it keeps working unchanged. What changes for model A is only meaning (B): in `codos` the projection mode is fixed to Android Auto and
+the CarPlay tile/row are not offered (`ProjectionModePolicy`, `ProjectionSwitcher`, `ZlinkService` never started). Proof P26: with the
+Z-Link package disabled, `getInstalledPackages()` still returns it and the hotspot rows, key watcher, H.265 default and the USB/Wi-Fi home
+switch are all present.
+
+### 15.2 Process-level receivers and the switch
+
+`AccOnReceiver` (implicit ACC_ON, `RECEIVER_EXPORTED`) and `UsbAttachReceiver` (USB attach) are registered in `App.onCreate`
+(`App.kt`), so they live as long as OHU's process. Under L1 (package disabled when Z-Link is selected) there is no process and nothing
+registers: silent as the contract demands. They do not read `cod_projection_app`; the §6.1 self-check is therefore still the belt to add
+(`AapService` start paths, these two receivers, `NativeAaHandshakeManager`). The new `ACTION_CHECK_USB` start makes a plug-in start the
+service from a cold process — another reason the package must be **disabled**, not merely idle, in Z-Link mode.
+
+### 15.3 Wired Android Auto on a zLink unit — an input for R6
+
+Volodymyr now offers USB (wired Android Auto through OHU's own USB host) on a unit where Z-Link's app and daemon are alive. If his
+unit really connects a phone over the cable while Z-Link's daemon runs, that is **evidence for model C**: the daemon does not take the
+Android Auto USB device. The commit says «on a zLink unit» but does not say it was measured with the daemon running and which Android Auto
+path Z-Link had on. **Ask him** (one question): was wired AA through OHU measured with Z-Link's daemon alive and its Android Auto not
+disabled? Proof P24 stays required on CoD.
+
+### 15.4 Build state
+
+Our last module zip (`2e0cce05…`) is built from QF3 and older than two of our code commits and now Volodymyr's QF4. Before the next
+hand-over: `module.prop` → `v4.1.0-beta1-QF4-codos`, versionCode 127, then `tools\build_codos.ps1`. Not done in this review (no request,
+and the stand is frozen). The new unit tests were not run here either; they are his and sit under his gate (`testGithubDebugUnitTest` /
+`testCodosDebugUnitTest` should be run once after the merge).
