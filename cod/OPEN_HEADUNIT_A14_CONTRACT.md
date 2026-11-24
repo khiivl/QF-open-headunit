@@ -125,6 +125,67 @@ The connection state as an island item: `C:\APPS_Contacts\SystemUI--CodIsland\CO
 - The APK comes from Volodymyr's `codos` build, CoD-signed with `android.uid.system`. A re-signed beta would freeze the
   wrong identity (§1).
 
+## 10. Projection session state: how Open Headunit tells the system «a session is up / down» (24.11.2026, DRAFT for the head lead's gate)
+
+Why: owner's order to the Bluetooth line, 24.11: «коли активний Android Auto в активному підключенні, ти не перехоплюєш фокуси і не виводиш
+ніякі повідомлення, які приходять по Bluetooth» — «поки є активне підключення». QF Bluetooth gates its focus and messages on one
+`Projection.active()`; it knows Z-Link from Z-Link's own broadcast `com.zjinnova.zlink` and the props `sys.qf.carplay.connect` /
+`sys.qf.bt.aa.connect`, and knows nothing about Open Headunit.
+
+**Rule: OHU does NOT imitate Z-Link's broadcast.** QF BT treats that action as Z-Link's and reacts with the stock A2DP disconnect and a
+Chinese toast (BT line, `BTReceiver`). This replaces the plan «OHU emits `com.zjinnova.zlink`» of earlier drafts (design §6.3, withdrawn).
+
+### 10.1 The contract: two system properties in the QF pattern (a prop, not a broadcast)
+
+| property | value | meaning |
+|---|---|---|
+| `sys.qf.ohu.connect` | `"true"` / `"false"` (absent = false) | an Open Headunit Android Auto session is up |
+| `sys.qf.ohu.pid` | the process id of the OHU process that set it up, or absent | lets a reader tell a live «true» from a stale one |
+
+**Up** means: OHU's `CommManager` state is `HandshakeComplete` or `TransportStarted` — the SSL handshake with the phone is done, i.e. the phone
+is a working Android Auto phone and a session exists (`CommManager.kt:201-218`). `Connecting`, `Connected`, `StartingTransport`, `Error` and
+`Disconnected` are **down** (a phone that connects and fails its handshake over and over must not toggle the system).
+
+**Reader rule (QF BT, and anyone else):** OHU's session is active **iff** `sys.qf.ohu.connect == true` **and** process `sys.qf.ohu.pid` is alive
+and is OHU (`/proc/<pid>/cmdline` equals `com.andrerinas.headunitrevived`; both sides run as uid 1000, so the process is visible). Anything else is
+down, whatever the property says. `Projection.active()` = Z-Link's existing signals **or** this. Reaction to changes: poll, or
+`SystemProperties.addChangeCallback` and re-read; nothing is pushed.
+
+Why a property and not a broadcast (the choice asked for):
+1. **Late readers and restarts.** A property holds the current truth; a reader that starts later (QF BT restart, boot order) reads it. A broadcast would be lost.
+2. **No spoof surface.** Only system domains can set a `sys.qf.*` property; a broadcast needs a signature permission declared by someone and checked at the receiver.
+3. **It is the pattern QF already uses** for exactly this (`sys.qf.carplay.connect`, `sys.qf.bt.aa.connect`; readers: AiBridge, Canbus, framework).
+4. **It cannot trigger Z-Link's reactions**, because nothing listens to the name.
+5. **No sepolicy change needed** if `sys.qf.*` is already settable from the system app domain (QF BT does it) ❓ proof P27: OHU, as the system app, sets and clears it on a unit.
+
+Cost accepted: a property cannot clear itself when its writer dies. That is why the reader rule includes the pid check, and why `sys.*` is reset at boot.
+
+### 10.2 Where OHU sets and clears it (`codos` only, one class `ProjectionSessionPublisher`)
+
+| event | action | where |
+|---|---|---|
+| state becomes `HandshakeComplete` or `TransportStarted` | write `sys.qf.ohu.pid = <pid>`, then `sys.qf.ohu.connect = true` (pid first, so a reader never sees `true` with no pid) | the one state setter `CommManager.connState` (`CommManager.kt:239-243`). A setter, not a flow collector: the state flow is conflated and a collector can miss the transition (comments `CommManager.kt:291-305`) |
+| state becomes anything else (disconnect, error, new attempt) | `sys.qf.ohu.connect = false` | the same setter, same call |
+| the service stops (ACC off, user stop, settings restart) | `false` | `AapService.onDestroy` and the `ACTION_STOP_SERVICE` path, as a second net |
+| process start | `false` and clear pid (drops a value left by the previous process) | `App.onCreate` |
+| uncaught exception | best-effort `false`, then the previous handler runs | a default `UncaughtExceptionHandler` installed in `App.onCreate` (none exists today) |
+| the process is killed (OOM, `kill`, `pm disable`, force-stop) | **no code runs** → the reader rule decides: the pid is gone, so «down» | readers |
+| switch to Z-Link | the reconciler (uid system) disables the OHU package, which kills the process, and **also clears** `sys.qf.ohu.connect` right after as hygiene | the reconciler (design §13.1); this is the only second writer and it only clears |
+| reboot | `sys.*` properties reset | system |
+
+So it is never left «up» after OHU dies: orderly paths clear it, disorderly ones are caught by the pid check, a reboot clears it, a
+switch clears it.
+
+### 10.3 What stays as it is
+- Z-Link keeps its own signals (`com.zjinnova.zlink` broadcast, `sys.qf.carplay.connect`, `sys.qf.bt.aa.connect`); OHU never writes those three.
+- The prop pair is documented here and must be added to `qf-platform` `PROPERTIES_SSOT` by whoever owns that canon (head lead); this file is the source until then.
+- Not in scope: audio focus rules inside OHU, the in-call dialog; they stay QF BT's, driven by `Projection.active()`.
+
+### 10.4 Proofs (stand, after the gate)
+P27 OHU sets/clears the pair as the system app. P28 a real session: `connect=true` and the pid is OHU's; QF BT stops taking focus and showing BT messages
+for its duration; Z-Link's A2DP/toast reaction does **not** occur. P29 `kill -9` of OHU mid-session: QF BT reads «down» within its poll interval. P30
+switch to Z-Link mid-session: down, nothing stale. P31 reboot: down.
+
 ## Ledger (each side ticks its own column, with proof)
 | item | Open Headunit (Volodymyr) | CoD OS (head lead / qf001 / repair / sound) |
 |---|---|---|
@@ -138,3 +199,4 @@ The connection state as an island item: `C:\APPS_Contacts\SystemUI--CodIsland\CO
 | §6 assistant key | | |
 | §7 volume answer | | |
 | §9 image slot | | |
+| §10 session state (`sys.qf.ohu.connect` / `.pid`) | | |
