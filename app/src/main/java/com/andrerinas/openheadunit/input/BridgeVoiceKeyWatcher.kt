@@ -73,6 +73,14 @@ object BridgeVoiceKeyPolicy {
         return m.groupValues[1].toInt() to m.groupValues[2].toInt()
     }
 
+    /** Wait before re-opening the log stream: 5 s after a stream that ran a while, doubling up to a minute after ones that died at once. */
+    const val RETRY_MIN_MS = 5_000L
+    const val RETRY_MAX_MS = 60_000L
+    const val STREAM_HEALTHY_MS = 30_000L
+
+    fun nextRetryDelayMs(previousMs: Long, streamLivedMs: Long): Long =
+        if (streamLivedMs >= STREAM_HEALTHY_MS) RETRY_MIN_MS else minOf(previousMs * 2, RETRY_MAX_MS)
+
     fun debounceMs(code: Int): Long = if (code == VOICE_KEY_CODE) VOICE_DEBOUNCE_MS else KEY_DEBOUNCE_MS
 
     /** The key code Android Auto takes for [code], or null if the unit's key is not one it forwards. */
@@ -144,6 +152,7 @@ object BridgeVoiceKeyWatcher {
     private val lastForwardedMs = java.util.concurrent.ConcurrentHashMap<Int, Long>()
 
     private suspend fun run(app: Context) {
+        var retryDelayMs = BridgeVoiceKeyPolicy.RETRY_MIN_MS / 2
         while (currentCoroutineContext().isActive) {
             // CoD OS: no self-ADB. The app is the system user there and reads the one log tag itself.
             val port = if (BuildConfig.CODOS) 0 else when {
@@ -192,8 +201,11 @@ object BridgeVoiceKeyWatcher {
             }
             val why = if (BuildConfig.CODOS) SystemUidShell.streamLines(LOGCAT_COMMAND, onLine)
             else AdbManager.streamLines(app, LOGCAT_COMMAND, port, onLine)
-            AppLog.i("BridgeVoiceKey: the log stream $why; reconnecting shortly.")
-            delay(5_000L)
+            // A stream that dies at once (no permission to read the log, say) is retried ever more slowly, not every 5 s.
+            val lived = android.os.SystemClock.elapsedRealtime() - startedAt
+            retryDelayMs = BridgeVoiceKeyPolicy.nextRetryDelayMs(retryDelayMs, lived)
+            AppLog.i("BridgeVoiceKey: the log stream $why; reconnecting in ${retryDelayMs / 1000} s.")
+            delay(retryDelayMs)
         }
     }
 }

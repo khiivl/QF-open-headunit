@@ -2,11 +2,12 @@ package com.andrerinas.openheadunit.utils
 
 import android.os.Process
 import android.os.SystemClock
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import kotlin.coroutines.coroutineContext
 
 /**
  * CoD OS: the replacement for every `su` / libsu / self-ADB route.
@@ -32,7 +33,11 @@ object SystemUidShell {
      */
     suspend fun streamLines(command: String, onLine: (String) -> Unit): String = withContext(Dispatchers.IO) {
         var process: java.lang.Process? = null
-        val closer = coroutineContext[Job]?.invokeOnCompletion { try { process?.destroy() } catch (_: Exception) { } }
+        // A completion handler would not do: it only runs once the block has ended, and the block is stuck in a read.
+        // This child waits for cancellation and then destroys the process, which ends the read.
+        val closer = launch(start = CoroutineStart.UNDISPATCHED) {
+            try { awaitCancellation() } finally { try { process?.destroy() } catch (_: Exception) { } }
+        }
         try {
             val proc = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
             process = proc
@@ -43,7 +48,7 @@ object SystemUidShell {
         } catch (e: Exception) {
             "ended: ${e.javaClass.simpleName}: ${e.message}"
         } finally {
-            closer?.dispose()
+            closer.cancel()
             try { process?.destroy() } catch (_: Exception) { }
         }
     }

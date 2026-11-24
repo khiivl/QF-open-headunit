@@ -71,6 +71,14 @@ class BridgeVoiceKeyPolicyTest {
         assertEquals(Forward(Target.CARPLAY, 88), forward(88, since = BridgeVoiceKeyPolicy.STARTUP_SKIP_MS, carPlay = true))
     }
 
+    @Test fun `a stream that dies at once is retried ever more slowly, a healthy one resets the wait`() {
+        val min = BridgeVoiceKeyPolicy.RETRY_MIN_MS
+        assertEquals(min, BridgeVoiceKeyPolicy.nextRetryDelayMs(min / 2, 100))
+        assertEquals(min * 2, BridgeVoiceKeyPolicy.nextRetryDelayMs(min, 100))
+        assertEquals(BridgeVoiceKeyPolicy.RETRY_MAX_MS, BridgeVoiceKeyPolicy.nextRetryDelayMs(BridgeVoiceKeyPolicy.RETRY_MAX_MS, 100))
+        assertEquals(min, BridgeVoiceKeyPolicy.nextRetryDelayMs(40_000, BridgeVoiceKeyPolicy.STREAM_HEALTHY_MS))
+    }
+
     @Test fun `the Siri key is the one zLink sends`() {
         assertEquals(1500, BridgeVoiceKeyPolicy.CARPLAY_SIRI_KEY)
     }

@@ -4,7 +4,10 @@ import com.andrerinas.openheadunit.utils.useSocket
 import android.content.Context
 import android.net.TrafficStats
 import com.andrerinas.openheadunit.utils.AppLog
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -132,8 +135,11 @@ object AdbManager {
         var socket: Socket? = null
         var adbConnection: AdbConnection? = null
         var stream: AdbStream? = null
-        val job = kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]
-        val closer = job?.invokeOnCompletion { try { socket?.close() } catch (_: Exception) {} }
+        // A completion handler would not do: it only runs once the block has ended, and the block is stuck in a read.
+        // This child waits for cancellation and then closes the socket, which ends the read.
+        val closer = launch(start = CoroutineStart.UNDISPATCHED) {
+            try { awaitCancellation() } finally { try { socket?.close() } catch (_: Exception) {} }
+        }
         try {
             TrafficStats.setThreadStatsTag(ADB_TRAFFIC_STATS_TAG)
             val crypto = setupCrypto(context.filesDir)
@@ -159,7 +165,7 @@ object AdbManager {
         } catch (e: Exception) {
             "ended: ${e.javaClass.simpleName}: ${e.message}"
         } finally {
-            closer?.dispose()
+            closer.cancel()
             try { stream?.close() } catch (_: Exception) {}
             try { adbConnection?.close() } catch (_: Exception) {}
             try { socket?.close() } catch (_: Exception) {}
