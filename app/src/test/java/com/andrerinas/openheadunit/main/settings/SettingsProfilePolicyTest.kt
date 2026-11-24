@@ -84,6 +84,8 @@ class SettingsProfilePolicyTest {
         assertTrue("scopeNotice" in hidden)
         assertTrue("listenForUsbDevices" in hidden)
         assertTrue("useLibusb" in hidden)
+        assertTrue("autoStartSettings" in hidden)
+        assertTrue("autoConnectSettings" in hidden)
     }
 
     @Test fun otherBuildsKeepTheChoiceOfConnectionTypes() {

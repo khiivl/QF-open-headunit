@@ -246,8 +246,10 @@ class Settings(private val context: Context) {
      */
     var micSampleRate: Int
         get() {
-            val stored = prefs.getInt("mic-sample-rate", MicSampleRates.first())
-            return if (stored in MicSampleRates) stored else MicSampleRates.first()
+            // CoD OS: 48 kHz capture (the unit's noise suppression works there), converted to the 16 kHz Android Auto is told about.
+            val default = if (com.andrerinas.openheadunit.BuildConfig.CODOS && 48000 in MicSampleRates) 48000 else MicSampleRates.first()
+            val stored = prefs.getInt("mic-sample-rate", default)
+            return if (stored in MicSampleRates) stored else default
         }
         set(sampleRate) {
             prefs.edit().putInt("mic-sample-rate", sampleRate).apply()
@@ -1562,7 +1564,8 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("attach_hw_dsp_equalizer", value).apply() }
 
     var micNoiseSuppressor: Boolean
-        get() = prefs.getBoolean("mic-noise-suppressor", false)
+        // CoD OS: on by default (the platform defines the effect for the microphone; it was only the pref that was off).
+        get() = prefs.getBoolean("mic-noise-suppressor", com.andrerinas.openheadunit.BuildConfig.CODOS)
         set(value) { prefs.edit().putBoolean("mic-noise-suppressor", value).apply() }
 
     var micAutoGainControl: Boolean

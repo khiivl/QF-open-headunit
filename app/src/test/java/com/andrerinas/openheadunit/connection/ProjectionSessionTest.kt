@@ -1,5 +1,6 @@
 package com.andrerinas.openheadunit.connection
 
+import android.content.pm.PackageManager
 import com.andrerinas.openheadunit.connection.projection.ProjectionConnection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -79,5 +80,34 @@ class ProjectionSessionTest {
         assertEquals(1, sent.size)
         w.apply(true, ProjectionConnection.Type.WIFI)
         assertEquals(connected, sent.last())
+    }
+
+    @Test fun theGuardKeepsOhuSilentWhileZLinkIsTheActiveProjectionApp() {
+        // selected Z-Link: never, whatever the package state
+        assertFalse(ProjectionSessionPolicy.mayAnnounce("zlink", null))
+        assertFalse(ProjectionSessionPolicy.mayAnnounce("zlink", PackageManager.COMPONENT_ENABLED_STATE_DISABLED))
+        // Z-Link enabled (DEFAULT or ENABLED): its own broadcasts go out, OHU stays silent
+        assertFalse(ProjectionSessionPolicy.mayAnnounce(null, PackageManager.COMPONENT_ENABLED_STATE_DEFAULT))
+        assertFalse(ProjectionSessionPolicy.mayAnnounce("openheadunit", PackageManager.COMPONENT_ENABLED_STATE_ENABLED))
+    }
+
+    @Test fun theGuardLetsOhuAnnounceWhenZLinkIsOffTheStage() {
+        assertTrue(ProjectionSessionPolicy.mayAnnounce(null, null)) // no Z-Link installed
+        assertTrue(ProjectionSessionPolicy.mayAnnounce("openheadunit", PackageManager.COMPONENT_ENABLED_STATE_DISABLED))
+        assertTrue(ProjectionSessionPolicy.mayAnnounce(null, PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER))
+        assertTrue(ProjectionSessionPolicy.mayAnnounce(null, PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED))
+    }
+
+    @Test fun aBlockedConnectSendsNothingAndItsDisconnectIsNotSent() {
+        val sent = mutableListOf<ProjectionSessionPolicy.Message>()
+        var allowed = false
+        val w = ProjectionSessionWriter({ sent += it }, mayAnnounce = { allowed })
+        w.startFresh(true) // stale flag, but Z-Link is the active app: no cleanup either
+        w.apply(true, ProjectionConnection.Type.WIFI)
+        w.apply(false)
+        assertTrue(sent.isEmpty())
+        allowed = true
+        w.apply(true, ProjectionConnection.Type.WIFI)
+        assertEquals(listOf(connected), sent)
     }
 }

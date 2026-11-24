@@ -412,6 +412,17 @@ object HomeUiHelper {
         paintTile(settingsTile, tileBackground(context, palette), palette.text, palette.text)
     }
 
+    /** CoD OS home: a protocol tile (Android Auto, CarPlay). The selected one is filled with [color], the other is plain. */
+    fun applyProtocolTile(context: Context, tile: ViewGroup, selected: Boolean, palette: Palette, @ColorInt color: Int) {
+        if (selected) {
+            val radius = context.resources.getDimension(R.dimen.home_tile_radius)
+            val onColor = readableOn(color)
+            paintTile(tile, pressable(color, radius, palette), onColor, onColor)
+        } else {
+            paintTile(tile, tileBackground(context, palette), palette.text, palette.text)
+        }
+    }
+
     private fun tileBackground(context: Context, palette: Palette): Drawable {
         val radius = context.resources.getDimension(R.dimen.home_tile_radius)
         val strokePx = dp(context, 1)
