@@ -2,7 +2,7 @@
 
 > **Note (24.11, head lead): the voice-key resolver of §4 B5 lives in AssistRouter, the one assistant function (its projection branch picks Z-Link or OHU; AiBridge `onZlinkVoice` defers to it). Owner: repair.**
 >
-> **Note (24.11, contract §10): OHU does NOT emit Z-Link's `com.zjinnova.zlink` broadcast (§6.3, §11.3 row 16 withdrawn): it triggers QF BT's stock A2DP disconnect and a toast. OHU writes the existing flag `sys.qf.bt.aa.connect` directly (one variable, owner's SSOT ruling; the `sys.qf.ohu.*` pair of the first draft is withdrawn).**
+> **Note (24.11, contract §10): OHU does NOT emit Z-Link's `com.zjinnova.zlink` broadcast (§6.3, §11.3 row 16 withdrawn): it triggers QF BT's stock A2DP disconnect and a toast. OHU sends **exactly Z-Link's own broadcast** (`com.zjinnova.zlink`, `status`, `phoneMode`) and writes no property: QF BT's receiver does the rest, as for Z-Link (owner's ruling of 24.11, contract §10; the earlier drafts, `sys.qf.ohu.*` and a direct write of the flag, are withdrawn). §6.3 stands again, with the A2DP drop right for OHU.**
 >
 > **Note (24.11, §15): the earlier instruction «`getInstalledPackages()` empty in codos» (§6.2 revision 1, §13.2) is WITHDRAWN — it would switch off the QF-unit features of Volodymyr's code. See §15.1.**
 >
