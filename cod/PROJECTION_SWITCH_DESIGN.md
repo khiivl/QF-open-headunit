@@ -1,5 +1,9 @@
 # Projection switch: Z-Link ⇄ Open Headunit — design draft 1
 
+> **Revision 4 (24.11.2026): D3 closed — the firmware's Z-Link daemon is ours, the Z-Link app is not used. Target model C
+> (section 14): OHU active, firmware daemon alive, Z-Link app disabled, OHU serves the daemon's loopback ports itself —
+> no iptables, no root. Model A (section 13) stays the safe default until the open items of section 14 are proven on a unit.**
+>
 > **Revision 3 (24.11.2026): D1 = Option A is the shipping model (owner: disable Z-Link entirely, enable it back; no root
 > anywhere). Section 13 is the current design; sections 11 and 12 (Z-Link «headless», Option B) are kept as the record
 > of a future option and are NOT part of the first image. Where section 13 and an earlier section differ, section 13 wins.**
@@ -371,7 +375,7 @@ Where «OHU calls» is empty, OHU does not call it. Evidence marks follow the le
 | 9 | app activities: `MainActivity`, `CarPlayActivity`, `CarPlayAutoActivity`, `AutoActivity`, `HiCarActivity`, `CarLifeActivity`, `MirrorActivity`, `DlnaActivity`, `*Unavailable*`; `SecondaryScreenService` 🔬 | **c** | `ZlinkScreenPolicy.kt:29-40,64,86-110` | the engine (`am start …ZLINK_MAIN`), launchers | component-disabled by the **reconciler** (it replaces `hideZlinkUi`). Disabling stops the app process → reconciler restarts `DaemonService` right after (📻 comment `ZlinkService.kt:52-55`) |
 | 10 | app `MediaButtonReceiver` (media keys) 🔬 | **b** (competes with OHU's `CarKeyBroadcastReceiver`, `RemoteControlReceiver`, `MediaButtonReceiver`) | none | system on media key | component-disabled in HEADLESS; whether CarPlay needs it: proof P21 |
 | 11 | app `PhoneStateReceiver` 🔬 | a ❓ | none | system | keep (CarPlay call state) |
-| 12 | app activation / licence (`ActivationActivity`, `CheckPermissionsAndActivationActivity`, `/great/protect_dir/.zjinnova`) 🔬 | a | none (the daemon will not run CarPlay unlicensed) | the app | **never touched**. D3: no licence ⇒ no CarPlay in OHU mode |
+| 12 | app activation / licence (`ActivationActivity`, `CheckPermissionsAndActivationActivity`, `/great/protect_dir/.zjinnova`) 🔬 | a | none (❓ whether the daemon itself refuses without activation is **not established**, see §14.1) | the app | **never touched**; D3 closed in §14 |
 | 13 | app audio engine / AEC (`libzlink` `AudioEngine`, `libzjaudio_jni` `Zaec`, `libwebrtc_apm_plus`) 🔬 | a ❓ | OHU plays and records itself: `ZlinkAudioSink.kt`; framework `AudioRecord` special-cases Z-Link (`:547`) | the app | **R9 ❓ who holds the microphone during a CarPlay session** (Siri/call): relevant to the owner's NS requirement |
 | 14 | the unit's soft-AP raised via the framework / `hostapd_cli` 🔬 📻 | d (shared) | `EarlyHotspot.kt:33-50`, `HotspotConfig*`, `ProjectionSwitcher.kt:46-62` | engine on a CarPlay/AA offer; OHU on its own start | one AP, two requesters. Rule: whoever's mode is active raises it; the reconciler stops it only on a switch (L3). OHU's mode switch (`ProjectionSwitcher`) already sequences CarPlay ⇄ AA inside OHU |
 | 15 | `gocsdk_zj` (module UART, `127.0.0.1:3152`, HFP/A2DP for QF BT) 🔬 | **d (not Z-Link's)** | `ZbtByteChannel.kt:92` and 4 more files | init at boot, QF BT | **never touched by the switch** (calls depend on it). Exclusivity of its AA client = #8 |
@@ -558,7 +562,7 @@ conveniences that now run as uid system.
 2. **OHU binds `127.0.0.1:1666…1999` itself** after Z-Link's app is disabled, so the daemon connects straight to OHU and no
    redirect is needed. Technically possible (these are ordinary unprivileged loopback ports), **but it is not acceptable:**
    the Z-Link *app* is the half that performs Z-Link's **activation and licence** and speaks to the daemon about it
-   (canon 52: the app deletes the licence file when its unit id is wrong; the daemon runs CarPlay only for an activated unit).
+   (canon 52: the app deletes the licence file when its unit id is wrong; whether the daemon itself asks anyone about activation is **not established**, ❓ — see §14.1, which withdraws this reason).
    An OHU that stands in for that half would use Z-Link's CarPlay engine **without Z-Link's authorisation check** — that is
    the «bypass of paid authorisation» the CoD rules forbid. We do not build it, even if the protocol were known (it is not:
    the app's side is a packed dex, canon 52).
@@ -585,3 +589,96 @@ licensed program), and we never touch its licence.
   `z-link` stanza and whether `ctl.stop` takes every child), R3 (USB gadget teardown on a live switch), R4 (soft-AP stop), R5 (A14
   image pass 2), D2 (migration of stock-`zj` units).
 - **Proofs P1–P14 stand;** P15–P21 apply only if Option B is ever built.
+
+## 14. Revision 4 — the firmware's Z-Link daemon is ours; OHU serves the feed itself (target model C)
+
+Owner (24.11), via the head lead: «Zclink по факту розповсюджується через сайт. А виробник магнітоли бере на себе частину
+сервісу в самій магнітолі. Тобто те, що в прошивці від QF, наше по природі своїй … І до ліцензії Zclink воно ніякого
+відношення не має. Самим Zclink ми не користуємося.»
+
+**D3 is closed.** The QF-firmware parts — the init service `z-link`, `zlink5.sh`, `/system/bin/z-link`, `/system/bin/z-mdnsd`, the
+engine libraries, `gocsdk_zj` — are ours; no Z-Link licence is involved in using them. The Z-Link **app** we do not use.
+
+### 14.1 Correction of two statements in earlier sections (they were stronger than the evidence)
+
+- §11.3 row 12 said «the daemon will not run CarPlay unlicensed» and §13.3 way 2 leaned on «the daemon runs CarPlay only for an
+  activated unit». **That is not established** (❓, now R11). The only measured fact (canon 52 📻) is that the **app** process deleted
+  the licence file when the unit id was wrong, the daemon alone did not. Whether the daemon itself asks anyone about activation is
+  unknown. Way 2 of §13.3 («OHU binds the ports») is therefore **not rejected on those grounds any more**; it is re-examined below.
+- The one red line stays and is now a rule of the design: **OHU may serve the CarPlay feed; it never answers an activation or
+  licence question on Z-Link's behalf.** If the daemon turns out to need such an answer from its app half, OHU does not give a
+  made-up one and CarPlay in OHU mode stays out (the model then falls back to A, §13).
+
+### 14.2 The target model C
+
+| selection | OHU | Z-Link app | firmware daemon `z-link` |
+|---|---|---|---|
+| `openheadunit` | enabled; **the server** on 127.0.0.1:1666/1777/1888/1999 | **disabled** | **running**, Android Auto and the rest of its features switched off by the flag (R6) |
+| `zlink` | disabled | enabled (its own servers on the same ports) | running, all features |
+
+Differences from A (§13): the daemon is **not stopped** in OHU mode, and OHU takes the place of the app on the ports. The
+unit's own CarPlay engine keeps feeding video and audio, OHU draws and plays them. No iptables, no REDIRECT, no root, no
+Z-Link app. The state machine of §13.1 stays; one parameter is added to it: `daemon_in_ohu_mode` ∈ {off = model A, on = model C}.
+It defaults to **off** and is turned on when the open items below are proven on a unit, so the first image is safe either way.
+
+### 14.3 Can OHU be the server? — answer
+
+**Mechanically yes, with no root; whether it is enough depends on three facts that nobody has read yet.**
+
+*What is certain (🔬 our code, no root involved):*
+- The daemon is the **client** and the app is the **server** on the four ports (`ZlinkProxy.kt:72-100` accepts the daemon's
+  connection and dials the app, `:94`). Ports above 1023 on `127.0.0.1` need no privilege: an app may bind them. With the Z-Link app
+  disabled the ports are free. So OHU does what the app does today: `ServerSocket` on the real ports instead of `+10000`, and
+  no upstream dial. In code this is `ZlinkProxy.runServer` with `listenPort = port` and the upstream branch replaced by OHU's own
+  endpoint — a small change; `ZlinkRedirect` and its iptables disappear from the CoD build entirely.
+- The port roles are known (`ZlinkProxy.kt:205-209`, `ZlinkHub.kt:371-378`): 1666 audio (daemon→app), 1777 control, 1888 video
+  (daemon→app), 1999 «extra» (role not known).
+- OHU already speaks the **daemon→app** direction completely (video 0x302, audio 0x202, control, heartbeat 0x118) and the part of
+  the **app→daemon** direction it injects today: touch 0x111, key 0x113, test 0x705, force-keyframe 0xd0b (`ZlinkHub.kt:301-310`).
+- OHU knows the app's start message, `0x102` on 1777: it already edits it — field 4 = frame rate, field 7 = link mode
+  (0 = offer off, 2 = offer CarPlay) (`ZlinkHoldPolicy.kt:45-61`, `ZlinkMessage.kt`), and keeps the last real one
+  (`lastInitFrame`).
+
+*What the daemon may need from its app half — the list, with what is known (❓ = not yet read; every ❓ is checked by observation, §14.4):*
+
+| # | what | known | note |
+|---|---|---|---|
+| 1 | the `0x102` init: screen geometry, fps, link mode, other fields | partly (fields 4, 7; the others are logged but not decoded) | OHU can send a template with its own fps/mode/size; the meaning of the remaining fields comes from one capture |
+| 2 | heartbeat `0x118` and other control types the app sends | `0x118` seen; further types are only logged when first seen (`ZlinkHub.kt:359-368`) | the full set = one capture of a live session |
+| 3 | the role of port **1999** | ❓ | must be read |
+| 4 | microphone path (Siri, calls): which port/type carries PCM app→daemon | ❓ | OHU owns the microphone by contract §5; format from the capture |
+| 5 | **how the daemon starts the screen:** canon 52 shows `am start -a zjinnova.android.intent.action.ZLINK_MAIN --es page LINK --es feature carplay` *and* `am start -n com.zjinnova.zlink/…CarPlayActivity` | both strings exist in the engine | OHU can answer the **action** form by declaring an activity with that intent filter (works while the Z-Link app is disabled); the **explicit component** form cannot be answered by OHU. **R12: which one CarPlay uses, and what the daemon does when the start fails** (the AA failure signature in canon 52 shows it restarts itself) |
+| 6 | `am broadcast -a com.zjinnova.zlink` (state), `…VIDEO_RESIZE_CHANGE` | known to be sent by the daemon | QF BT already consumes the first with no app involved; OHU can receive the second |
+| 7 | Bluetooth help for wireless CarPlay (phone wake, the AP details): the app's `ZBTService` talks to `gocsdk_zj` through `libzbt_core` | ❓ role of the app vs `libzbt-main` (daemon side) | OHU has its own `gocsdk_zj` client (`zbt/ZbtByteChannel.kt:92`); CarPlay's messages are not the AA ones → **R8** |
+| 8 | system properties the app writes for the daemon: `rw.zlink.act.ret`, `rw.zlink.mfi.id`, `rw.zlink.bt.*`, `persist.zj.*` | names known, writer and reader unknown | if the daemon *reads* an activation property the app *writes*, that is the licence question of §14.1: not answered by OHU |
+| 9 | USB for wired CarPlay (gadget `iap`+`ncm`, usbmuxd), MFi chip | daemon side, no app | unchanged by who serves the ports |
+
+*Not needed from the app:* audio output and AEC engines — OHU plays and records itself (`ZlinkAudioSink.kt`); the activities; the
+second screen; Mirror, CarLife, HiCar, DLNA.
+
+### 14.4 How to find out — read-only, no root, no change to Z-Link
+
+OHU's proxy already sits on a **live real session** and sees every frame in both directions. Add, in a debug build, a capture:
+log (to a file in the app's own storage) the type, length and first N bytes of every frame on all four ports in both directions
+for one session of each kind (wireless CarPlay, wired CarPlay, idle with a phone paired), and the daemon's own `logcat`
+lines. That answers #1, #2, #3, #4 and the start of #8 from the firmware's own interface (interoperability observation, the
+ground the CoD rules rely on). Second experiment: with the Z-Link app **disabled** and nothing listening, watch what the daemon
+does on a CarPlay offer (R12, #5). Third: a listener that only accepts and logs (no replies) on 1777, to see how long the daemon
+waits and what it prints. All three are stand work; the stand is frozen until the head lead releases it, so this section is the
+plan, not a result.
+
+### 14.5 Effect on the tasks (model C)
+
+- **OHU / Volodymyr (`codos`, only after the capture):** `ZlinkProxy` gets a *server mode* on the real ports; `ZlinkRedirect`
+  becomes unused on CoD; the app's `0x102` is produced by OHU from a captured template; a declared activity answers
+  `zjinnova.android.intent.action.ZLINK_MAIN`; the Z-Link UI policy and `hideZlinkUi` are not used (the app is disabled, not hidden).
+  Until then model A applies: mode fixed to Android Auto, `getInstalledPackages()` empty (§13.2).
+- **repair / ROM builder (unchanged from §13, plus one):** the `z-link` init service stays `disabled` in the image and is started by the
+  reconciler in both selections when `daemon_in_ohu_mode` is on; in A it is started only for `zlink`.
+- **Research:** R6 (which feature letter turns Android Auto off in the daemon and whether it also stops the USB claim, the BT request
+  and the AP raising), R8, R11 (does the daemon itself check activation), R12 (how CarPlay is started), plus the capture of §14.4.
+  R7/R10 are answered by this design (no iptables; the daemon is the client, the app was the server).
+- **Proofs added:** P22 the daemon connects to OHU on 1666…1999 with the Z-Link app disabled; P23 a wireless CarPlay session
+  end to end with no Z-Link app (video, audio, touch, keys, Siri, call); P24 the daemon raises no Android Auto, no BT AA request,
+  no USB claim for AA in OHU mode; P25 switching selection both ways with the daemon alive in OHU mode, no reboot.
+- **What is not changed:** the shipping default stays A until P22–P25 hold; the licence of Z-Link is untouched in every state.
