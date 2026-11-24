@@ -158,14 +158,14 @@ object ProjectionSessionPublisher {
     }
 
     /** Called from the one state setter of [CommManager]; every transition passes through it. */
-    fun onState(context: Context, state: CommManager.ConnectionState, type: ProjectionConnection.Type?) {
-        if (!BuildConfig.CODOS) return
+    fun onState(context: Context?, state: CommManager.ConnectionState, type: ProjectionConnection.Type?) {
+        if (!BuildConfig.CODOS || context == null) return
         appContext = context.applicationContext
         writer.apply(ProjectionSessionPolicy.isUp(state), type)
     }
 
     /** A safety net for service stop: publishes what the state really is, so a stop never leaves a stale answer. */
-    fun resync(context: Context, state: CommManager.ConnectionState) = onState(context, state, null)
+    fun resync(context: Context?, state: CommManager.ConnectionState) = onState(context, state, null)
 
     /** Process start: drops a session an earlier process left, and announces the end on an uncaught exception (best effort). */
     fun start(context: Context) {
