@@ -3478,7 +3478,9 @@ class AapService : Service() {
 
     @SuppressLint("WrongConstant")
     override fun onDestroy() {
-        com.andrerinas.openheadunit.input.BridgeVoiceKeyWatcher.stop()
+        // The key watcher is not stopped here: Android starts and destroys this service for every media key the unit
+        // simulates (a MEDIA_BUTTON broadcast), and tying the watcher to it dropped presses and left a second copy running.
+        // It follows the setting and the process instead (BridgeVoiceKeyWatcher.sync).
         closeRetainedHct()
         AppLog.i("AapService destroying... (wakeLock held=${bootWakeLock?.isHeld == true})")
         FloatingButtonManager.removeOverlay(this)

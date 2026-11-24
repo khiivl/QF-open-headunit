@@ -137,8 +137,10 @@ object BridgeVoiceKeyWatcher {
         job = null
     }
 
+    // Shared by every loop, so a loop that has not quite ended cannot send a key a second time.
+    private val lastForwardedMs = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+
     private suspend fun run(app: Context) {
-        val lastForwardedMs = HashMap<Int, Long>()
         while (currentCoroutineContext().isActive) {
             val port = when {
                 AdbManager.isAdbPortOpen(5555) -> 5555
@@ -152,17 +154,19 @@ object BridgeVoiceKeyWatcher {
                 val now = android.os.SystemClock.elapsedRealtime()
                 val connected = App.provide(app).commManager.isConnected
                 val carPlay = ZlinkHub.hasActiveSession
-                val forward = BridgeVoiceKeyPolicy.forward(
-                    code, action, now, lastForwardedMs[code] ?: 0L, now - startedAt,
-                    Settings(app).voiceKeyFromBridge, connected, carPlay
-                )
+                // Decide and claim the key in one step, so two loops that both see the line cannot both send it.
+                val forward = synchronized(lastForwardedMs) {
+                    BridgeVoiceKeyPolicy.forward(
+                        code, action, now, lastForwardedMs[code] ?: 0L, now - startedAt,
+                        Settings(app).voiceKeyFromBridge, connected, carPlay
+                    )?.also { lastForwardedMs[code] = now }
+                }
                 if (forward == null) {
                     if (action == 0) {
                         AppLog.i("BridgeVoiceKey: unit key $code seen, not forwarded (Android Auto connected=$connected, CarPlay active=$carPlay).")
                     }
                     return@streamLines
                 }
-                lastForwardedMs[code] = now
                 AppLog.i("BridgeVoiceKey: unit key $code goes to ${forward.target} as key ${forward.key}.")
                 when (forward.target) {
                     BridgeVoiceKeyPolicy.Target.ANDROID_AUTO -> {
