@@ -191,7 +191,7 @@ both (the owner's decision). The canon (`PROPERTIES_SSOT`, qf-knowledge `535e3d0
 In the `codos` build: `Settings.connectionModes` is always {USB, Wi-Fi} (both transports on, the way Z-Link takes whatever phone comes); the rows that choose it are hidden
 (`connectionMode`, `scopeNotice`, `listenForUsbDevices`, `useLibusb`; `SettingsProfilePolicy.HIDDEN_ON_CODOS`); the home screen shows both connections as two tiles and no longer
 collapses them into one that flips (`HomeFragment`). The rest of Volodymyr's zLink-unit profile (the hidden Wi-Fi modes, the pinned hotspot strategy, the 5 GHz keeping) already
-follows the Z-Link path and is unchanged. Not touched: the auto-start and auto-connect rows, the developer section.
+follows the Z-Link path and is unchanged. The auto-start and auto-connect rows are hidden too (owner, asked directly: «Сховати в розділ розробника»), with their values kept; **start at boot is pinned ON, in the background** (`autoStartOnBoot` and `autoStartOnBootInBackground` default to true in `codos`; head lead 24.11: Z-Link starts at boot), so the boot start arms the service and does not open OHU's screen over the launcher. Not touched: the developer section.
 
 ### 10.6 Proofs (stand 198, after the owner lifts the disable of 23.11; nothing runs before)
 P27 a real session: `logcat` shows QF BT receiving `com.zjinnova.zlink` from OHU, `getprop sys.qf.bt.aa.connect` before = false, during = true, after = false. P28 during the session: QF BT takes no
