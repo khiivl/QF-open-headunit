@@ -45,6 +45,7 @@ class SettingsPendingCopy {
     var enableRotary: Boolean? = null
     var mediaKeyRouting: MediaKeyRoutingPolicy.Mode? = null
     var volumeKeysToPhone: Boolean? = null
+    var voiceKeyFromBridge: Boolean? = null
     var speedVolumeMode: SpeedVolumePolicy.Mode? = null
     var audioLatencyMultiplier: Int? = null
     var audioMatchingMode: com.andrerinas.openheadunit.decoder.audio.AudioTimeCorrectionMode? = null
@@ -146,6 +147,7 @@ class SettingsPendingCopy {
         enableRotary = settings.enableRotary
         mediaKeyRouting = settings.mediaKeyRouting
         volumeKeysToPhone = settings.volumeKeysToPhone
+        voiceKeyFromBridge = settings.voiceKeyFromBridge
         speedVolumeMode = settings.speedVolumeMode
         audioLatencyMultiplier = settings.audioLatencyMultiplier
         audioMatchingMode = settings.audioMatchingMode
@@ -248,6 +250,7 @@ class SettingsPendingCopy {
         enableRotary != settings.enableRotary ||
         mediaKeyRouting != settings.mediaKeyRouting ||
         volumeKeysToPhone != settings.volumeKeysToPhone ||
+        voiceKeyFromBridge != settings.voiceKeyFromBridge ||
         speedVolumeMode != settings.speedVolumeMode ||
         audioLatencyMultiplier != settings.audioLatencyMultiplier ||
         audioMatchingMode != settings.audioMatchingMode ||

@@ -212,6 +212,7 @@ class SettingsFragment : Fragment() {
     private var pendingEnableRotary by pending::enableRotary
     private var pendingMediaKeyRouting by pending::mediaKeyRouting
     private var pendingVolumeKeysToPhone by pending::volumeKeysToPhone
+    private var pendingVoiceKeyFromBridge by pending::voiceKeyFromBridge
     private var pendingSpeedVolumeMode by pending::speedVolumeMode
     private var pendingAudioLatencyMultiplier by pending::audioLatencyMultiplier
     private var pendingAudioTimeCorrectionMode by pending::audioMatchingMode
@@ -676,6 +677,12 @@ class SettingsFragment : Fragment() {
         pendingEnableRotary?.let { if (it != settings.enableRotary) settings.enableRotary = it }
         pendingMediaKeyRouting?.let { if (it != settings.mediaKeyRouting) settings.mediaKeyRouting = it }
         pendingVolumeKeysToPhone?.let { if (it != settings.volumeKeysToPhone) settings.volumeKeysToPhone = it }
+        pendingVoiceKeyFromBridge?.let {
+            if (it != settings.voiceKeyFromBridge) {
+                settings.voiceKeyFromBridge = it
+                com.andrerinas.openheadunit.input.BridgeVoiceKeyWatcher.sync(requireContext().applicationContext)
+            }
+        }
         pendingSpeedVolumeMode?.let { if (it != settings.speedVolumeMode) settings.speedVolumeMode = it }
         pendingAudioLatencyMultiplier?.let { if (it != settings.audioLatencyMultiplier) settings.audioLatencyMultiplier = it }
         pendingAudioTimeCorrectionMode?.let { if (it != settings.audioMatchingMode) settings.audioMatchingMode = it }
@@ -2436,6 +2443,22 @@ class SettingsFragment : Fragment() {
                 updateSettingsList()
             }
         ))
+
+        // The unit's own voice service owns the steering-wheel voice button; this follows it. Only a zLink (QF) unit has one.
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(requireContext()).isNotEmpty()) {
+            items.add(SettingItem.ToggleSettingEntry(
+                stableId = "voiceKeyFromBridge",
+                nameResId = R.string.voice_key_from_bridge,
+                descriptionResId = R.string.voice_key_from_bridge_summary,
+                helpResId = R.string.voice_key_from_bridge_help,
+                isChecked = pendingVoiceKeyFromBridge ?: settings.voiceKeyFromBridge,
+                onCheckedChanged = { isChecked ->
+                    pendingVoiceKeyFromBridge = isChecked
+                    checkChanges()
+                    updateSettingsList()
+                }
+            ))
+        }
 
         // --- Navigation Settings ---
         items.add(SettingItem.CategoryHeader("navigation", R.string.category_navigation))

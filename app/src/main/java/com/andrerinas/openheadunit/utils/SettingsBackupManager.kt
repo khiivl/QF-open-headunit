@@ -213,6 +213,7 @@ object SettingsBackupManager {
         // ALWAYS for anything out of range.
         "media-key-routing" to ValueType.INT,
         "volume-keys-to-phone" to ValueType.BOOLEAN,
+        "voice-key-from-bridge" to ValueType.BOOLEAN,
         // Enum-backed like playback-focus-mode: read through SpeedVolumePolicy.Mode.fromInt, which
         // falls back to OFF for anything out of range.
         "speed-volume-mode" to ValueType.INT,

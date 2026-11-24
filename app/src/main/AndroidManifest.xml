@@ -374,6 +374,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Debug builds only act on this; see ZlinkDebugKeyReceiver. Not exported. -->
+        <receiver
+            android:name=".connection.zlinkcarplay.ZlinkDebugKeyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.andrerinas.openheadunit.DEBUG_ZLINK_KEY" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".app.RemoteControlReceiver"
             android:exported="true">
