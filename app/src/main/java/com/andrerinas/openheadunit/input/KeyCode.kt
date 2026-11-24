@@ -23,6 +23,9 @@ object KeyCode {
         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
         KeyEvent.KEYCODE_MEDIA_NEXT,
         KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+        // Declared so the phone takes them: a held next or previous seeks with these in apps that support it (VLC).
+        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+        KeyEvent.KEYCODE_MEDIA_REWIND,
         KeyEvent.KEYCODE_SEARCH,
         KeyEvent.KEYCODE_CALL,
         KeyEvent.KEYCODE_MUSIC,

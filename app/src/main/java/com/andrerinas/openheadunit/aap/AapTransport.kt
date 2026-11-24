@@ -1307,7 +1307,7 @@ class AapTransport(
         }
     }
 
-    fun send(keyCode: Int, isPress: Boolean) {
+    fun send(keyCode: Int, isPress: Boolean, longPress: Boolean = false) {
         val aapKeyCode = KeyCode.convert(keyCode)
 
         if (keyCode == KeyCode.KEY_NIGHT_MODE) {
@@ -1330,7 +1330,7 @@ class AapTransport(
             return
         }
 
-        send(KeyCodeEvent(ts, aapKeyCode, isPress))
+        send(KeyCodeEvent(ts, aapKeyCode, isPress, longPress))
     }
 
     fun send(sensor: SensorEvent): Boolean {

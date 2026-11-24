@@ -1480,9 +1480,9 @@ class CommManager(
      * [Legacy] Internal transport send. Use sendKey() for physical button inputs.
      * @deprecated Use sendKey(keyCode, isPress) for unified remapping and debouncing.
      */
-    fun send(keyCode: Int, isPress: Boolean) {
+    fun send(keyCode: Int, isPress: Boolean, longPress: Boolean = false) {
         if (_connectionState.value is ConnectionState.TransportStarted) {
-            _transport?.send(keyCode, isPress)
+            _transport?.send(keyCode, isPress, longPress)
         }
     }
 

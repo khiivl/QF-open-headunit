@@ -28,6 +28,45 @@ class KeyDebouncePolicyTest {
     }
 
     @Test
+    fun `a held media key is one click however many fresh presses the unit injects`() {
+        // The unit repeats a held button by injecting a new press every 0.4 s, each with its own identity.
+        val key = Key()
+        key.deliver(isPress = true, now = 0, downTime = 100)
+        key.deliver(isPress = true, now = 400, downTime = 500)
+        key.deliver(isPress = true, now = 800, downTime = 900)
+        key.deliver(isPress = true, now = 1_200, downTime = 1_300)
+        key.deliver(isPress = true, now = 1_600, downTime = 1_700)
+        key.deliver(isPress = false, now = 1_700, downTime = 1_700)
+        assertEquals(listOf(true, false), key.edges())
+    }
+
+    @Test
+    fun `two real presses with a release between are two clicks, also when quick`() {
+        val key = Key()
+        key.deliver(isPress = true, now = 0, downTime = 100)
+        key.deliver(isPress = false, now = 6, downTime = 100)
+        key.deliver(isPress = true, now = 300, downTime = 400)
+        key.deliver(isPress = false, now = 306, downTime = 400)
+        assertEquals(listOf(true, false, true, false), key.edges())
+    }
+
+    @Test
+    fun `a press whose release was lost does not block the next one for good`() {
+        val key = Key()
+        key.deliver(isPress = true, now = 0, downTime = 100)
+        key.deliver(isPress = true, now = 5_000, downTime = 5_000)
+        assertEquals(listOf(true, false, true), key.edges())
+    }
+
+    @Test
+    fun `other keys are not affected by the media repeat rule`() {
+        val key = Key(isMediaKey = false)
+        key.deliver(isPress = true, now = 0, downTime = 100)
+        key.deliver(isPress = true, now = 400, downTime = 500)
+        assertEquals(listOf(true, false, true), key.edges())
+    }
+
+    @Test
     fun `one press one click`() {
         val key = Key()
         key.deliver(isPress = true, now = 0, downTime = 100)

@@ -38,12 +38,22 @@ object KeyDebouncePolicy {
      */
     const val STUCK_PRESS_MS = 2_000L
 
+    /**
+     * A held media key comes in as a fresh press every 0.4 s or so (the unit repeats the key by injecting new events, each
+     * with an identity of its own). A press of a media key that arrives while the same key is still down and this soon after
+     * the last one is such a repeat, not a new press: forwarded, each would be one more skip on the phone. A real second
+     * press always has a release before it.
+     */
+    const val MEDIA_REPEAT_GAP_MS = 1_000L
+
     /** Per logical key. Owned by the caller, replaced wholesale by each [decide]. */
     data class KeyState(
         /** A press has been forwarded and its release has not. */
         val down: Boolean = false,
         /** When the held press was forwarded, for [STUCK_PRESS_MS]. */
         val downAt: Long = 0L,
+        /** When a press of this key was last seen, forwarded or not, for [MEDIA_REPEAT_GAP_MS]. */
+        val lastSeenAt: Long = 0L,
         /** When the last press was forwarded, for the fallback window. Null until there is one. */
         val lastForwardedPressAt: Long? = null,
         /** Identity of the last forwarded press, or null if that delivery carried none. */
@@ -93,6 +103,10 @@ object KeyDebouncePolicy {
         // least as often as it is a new one, so fall back to the window rather than assume.
         val identityProvesNewPress = id != null && last != null
 
+        if (isMediaKey && state.down && now - state.lastSeenAt < MEDIA_REPEAT_GAP_MS) {
+            return Result(forward = false, dropReason = "a repeat of a held media key", state = state.copy(lastSeenAt = now))
+        }
+
         if (state.down) {
             // A press that carries a different identity is a different press: the redelivery of the
             // held one was already dropped above. Otherwise only time can tell a duplicate from a
@@ -108,6 +122,7 @@ object KeyDebouncePolicy {
                 state = state.copy(
                     down = true,
                     downAt = now,
+                    lastSeenAt = now,
                     lastForwardedPressAt = now,
                     lastForwardedDownTime = id,
                     pressDropped = false
@@ -135,6 +150,7 @@ object KeyDebouncePolicy {
             state = state.copy(
                 down = true,
                 downAt = now,
+                lastSeenAt = now,
                 lastForwardedPressAt = now,
                 lastForwardedDownTime = id,
                 pressDropped = false

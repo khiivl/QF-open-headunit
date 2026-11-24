@@ -151,6 +151,65 @@ object BridgeVoiceKeyWatcher {
     // Shared by every loop, so a loop that has not quite ended cannot send a key a second time.
     private val lastForwardedMs = java.util.concurrent.ConcurrentHashMap<Int, Long>()
 
+    /**
+     * True while the key log is being followed. Then this sends the unit's next and previous keys itself (a short press on
+     * release, a hold as a seek), so the projection screen leaves those two keys alone; otherwise it forwards them as before.
+     */
+    @Volatile
+    private var following = false
+
+    /** Whether the watcher is the one sending next and previous to Android Auto right now. */
+    fun handlesSeekKeys(context: Context): Boolean = following && Settings(context.applicationContext).voiceKeyFromBridge
+
+    private val seekHold = MediaSeekHold()
+    private val seekHandler = Handler(Looper.getMainLooper())
+    private var seekApp: Context? = null
+
+    /** Ends a hold whose key up never came, so the phone cannot be left seeking. */
+    private val seekWatchdog = Runnable {
+        // The handler is on the main thread; sending a key can touch the network, so the work moves off it.
+        CoroutineScope(Dispatchers.IO).launch {
+            val steps = synchronized(seekHold) { seekHold.expire(android.os.SystemClock.elapsedRealtime()) }
+            steps.forEach { sendSeekStep(it) }
+            scheduleSeekWatchdog()
+        }
+    }
+
+    private fun scheduleSeekWatchdog() {
+        seekHandler.removeCallbacks(seekWatchdog)
+        if (synchronized(seekHold) { seekHold.isHolding() }) {
+            seekHandler.postDelayed(seekWatchdog, MediaSeekHold.WATCHDOG_MS / 2)
+        }
+    }
+
+    private fun handleSeekKey(app: Context, code: Int, action: Int, now: Long) {
+        seekApp = app
+        val step = synchronized(seekHold) { seekHold.onKey(code, action, now) }
+        if (step != null) sendSeekStep(step)
+        scheduleSeekWatchdog()
+    }
+
+    private fun sendSeekStep(step: MediaSeekHold.Step) {
+        val app = seekApp ?: return
+        val commManager = App.provide(app).commManager
+        when (step.kind) {
+            MediaSeekHold.Kind.PRESS -> {
+                AppLog.i("BridgeVoiceKey: unit key ${step.key} (short press) goes to ANDROID_AUTO as key ${step.key}.")
+                commManager.sendKey(step.key, true, null, "bridge-key")
+                commManager.sendKey(step.key, false, null, "bridge-key")
+            }
+            MediaSeekHold.Kind.SEEK_DOWN, MediaSeekHold.Kind.SEEK_REPEAT -> {
+                AppLog.i("BridgeVoiceKey: unit key held, Android Auto gets key ${step.key} down as a long press (${step.kind}).")
+                // Its own path: a second down of a key already down would be dropped as a repeat by the key debounce.
+                commManager.send(step.key, true, longPress = true)
+            }
+            MediaSeekHold.Kind.SEEK_UP -> {
+                AppLog.i("BridgeVoiceKey: unit key released, Android Auto gets key ${step.key} up.")
+                commManager.send(step.key, false)
+            }
+        }
+    }
+
     private suspend fun run(app: Context) {
         var retryDelayMs = BridgeVoiceKeyPolicy.RETRY_MIN_MS / 2
         while (currentCoroutineContext().isActive) {
@@ -170,6 +229,13 @@ object BridgeVoiceKeyWatcher {
                 val now = android.os.SystemClock.elapsedRealtime()
                 val connected = App.provide(app).commManager.isConnected
                 val carPlay = ZlinkHub.hasActiveSession
+                // Next and previous in Android Auto go on with their real press length, so the phone sees a long press.
+                if (connected && MediaSeekHold.isSeekKey(code) && Settings(app).voiceKeyFromBridge &&
+                    now - startedAt >= BridgeVoiceKeyPolicy.STARTUP_SKIP_MS
+                ) {
+                    handleSeekKey(app, code, action, now)
+                    return@onLine
+                }
                 // Decide and claim the key in one step, so two loops that both see the line cannot both send it.
                 val forward = synchronized(lastForwardedMs) {
                     BridgeVoiceKeyPolicy.forward(
@@ -199,8 +265,13 @@ object BridgeVoiceKeyWatcher {
                     }
                 }
             }
-            val why = if (BuildConfig.CODOS) SystemUidShell.streamLines(LOGCAT_COMMAND, onLine)
-            else AdbManager.streamLines(app, LOGCAT_COMMAND, port, onLine)
+            following = true
+            val why = try {
+                if (BuildConfig.CODOS) SystemUidShell.streamLines(LOGCAT_COMMAND, onLine)
+                else AdbManager.streamLines(app, LOGCAT_COMMAND, port, onLine)
+            } finally {
+                following = false
+            }
             // A stream that dies at once (no permission to read the log, say) is retried ever more slowly, not every 5 s.
             val lived = android.os.SystemClock.elapsedRealtime() - startedAt
             retryDelayMs = BridgeVoiceKeyPolicy.nextRetryDelayMs(retryDelayMs, lived)

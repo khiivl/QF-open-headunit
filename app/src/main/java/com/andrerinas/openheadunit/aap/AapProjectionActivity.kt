@@ -2931,7 +2931,12 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
             return super.dispatchKeyEvent(event)
         }
 
-        // 2. Funnel all other keys to CommManager
+        // 2. Funnel all other keys to CommManager. Next and previous are the one exception while the key log is followed:
+        // the watcher sends them, a short press on release and a hold as a seek, so they are not sent here as well.
+        if (com.andrerinas.openheadunit.input.MediaSeekHold.isSeekKey(event.keyCode) &&
+            com.andrerinas.openheadunit.input.BridgeVoiceKeyWatcher.handlesSeekKeys(this)) {
+            return true
+        }
         commManager.sendKey(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.downTime, "projection")
         return true
     }
