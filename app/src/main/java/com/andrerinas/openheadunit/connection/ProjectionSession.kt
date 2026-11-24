@@ -1,19 +1,36 @@
 package com.andrerinas.openheadunit.connection
 
+import android.content.Context
+import android.content.Intent
 import com.andrerinas.openheadunit.BuildConfig
+import com.andrerinas.openheadunit.connection.projection.ProjectionConnection
 import com.andrerinas.openheadunit.utils.AppLog
+import com.andrerinas.openheadunit.utils.SystemProperties
 
 /**
- * CoD OS: tells the system whether an Android Auto session is up, in the one place the system already looks.
+ * CoD OS: Open Headunit tells the system a session is up or down the way Z-Link does: the same broadcast, with the same
+ * words, and nothing else.
  *
- * Contract: `cod/OPEN_HEADUNIT_A14_CONTRACT.md` section 10. One variable, `sys.qf.bt.aa.connect` ("true" / "false"): the
- * existing «an Android Auto session is active» flag that QF Bluetooth and the AI bridge read. With Z-Link it is set by QF
- * Bluetooth from Z-Link's own broadcast; with Open Headunit selected Z-Link is off, so OHU sets the same flag itself. It is
- * never set in parallel with Z-Link (the projection switch keeps the two apart). OHU does not broadcast Z-Link's action:
- * QF Bluetooth answers it with an A2DP disconnect and a toast.
+ * Contract: `cod/OPEN_HEADUNIT_A14_CONTRACT.md` section 10 (revision of 24.11, owner: «що розсилає і що вмикає Z-Link, те саме
+ * маєш вмикати ти»). Z-Link announces its sessions with the broadcast `com.zjinnova.zlink`: `status` = `CONNECTED` / `DISCONNECT` and
+ * `phoneMode` = `auto_wireless` / `auto_wired` for Android Auto. QF Bluetooth's own receiver turns that into everything the system
+ * does for an Android Auto session, among them the flag `sys.qf.bt.aa.connect`. OHU writes no property itself: the flag has one
+ * writer, QF Bluetooth, as it always had. Only one projection app is ever active (the projection switch), so the two never
+ * announce at once.
  */
 object ProjectionSessionPolicy {
-    const val PROP_AA_CONNECT = "sys.qf.bt.aa.connect"
+    const val ACTION = "com.zjinnova.zlink"
+    const val EXTRA_STATUS = "status"
+    const val EXTRA_PHONE_MODE = "phoneMode"
+    const val STATUS_CONNECTED = "CONNECTED"
+    const val STATUS_DISCONNECT = "DISCONNECT"
+    const val MODE_WIRELESS = "auto_wireless"
+    const val MODE_WIRED = "auto_wired"
+
+    /** The flag QF Bluetooth derives from the broadcast. Read only, to drop a stale value left by an earlier process. */
+    const val FLAG = "sys.qf.bt.aa.connect"
+
+    data class Message(val status: String, val phoneMode: String)
 
     /**
      * Up from the end of the SSL handshake: the phone is a working Android Auto phone and a session exists.
@@ -23,80 +40,94 @@ object ProjectionSessionPolicy {
     fun isUp(state: CommManager.ConnectionState): Boolean =
         state is CommManager.ConnectionState.HandshakeComplete || state is CommManager.ConnectionState.TransportStarted
 
-    fun writes(up: Boolean): List<Pair<String, String>> = listOf(PROP_AA_CONNECT to if (up) "true" else "false")
+    /** A cable is `auto_wired`; anything else (the Wi-Fi link) is `auto_wireless`. */
+    fun phoneMode(type: ProjectionConnection.Type?): String =
+        if (type == ProjectionConnection.Type.USB) MODE_WIRED else MODE_WIRELESS
 
-    /** A process that starts knows of no session: whatever an earlier process left is dropped. */
-    fun startWrites(): List<Pair<String, String>> = writes(false)
+    fun message(up: Boolean, phoneMode: String): Message = Message(if (up) STATUS_CONNECTED else STATUS_DISCONNECT, phoneMode)
 }
 
 /**
- * Writes the flag through [setter], only when the published answer changes. If a write fails the answer is not
- * remembered, so the next state change tries again. Pure of Android and of the flavor, so it is unit tested.
+ * Sends the message only when the answer changes. A disconnect carries the mode of the connect it ends, as Z-Link's does. If a
+ * send fails the answer is not remembered, so the next state change tries again. Pure of Android and of the flavor: unit tested.
  */
 class ProjectionSessionWriter(
-    private val setter: (String, String) -> Unit,
+    private val send: (ProjectionSessionPolicy.Message) -> Unit,
     private val onFailure: (Throwable) -> Unit = {}
 ) {
     private val lock = Any()
     private var published: Boolean? = null
+    private var mode: String = ProjectionSessionPolicy.MODE_WIRELESS
 
-    fun apply(up: Boolean) = synchronized(lock) {
+    /** [type] is needed for a connect; a disconnect uses the mode it announced. */
+    fun apply(up: Boolean, type: ProjectionConnection.Type? = null) = synchronized(lock) {
         if (published == up) return@synchronized
+        if (up) mode = ProjectionSessionPolicy.phoneMode(type)
         try {
-            ProjectionSessionPolicy.writes(up).forEach { (k, v) -> setter(k, v) }
+            send(ProjectionSessionPolicy.message(up, mode))
             published = up
         } catch (t: Throwable) {
             onFailure(t)
         }
     }
 
-    fun clearAtStart() = synchronized(lock) {
+    /**
+     * A process that starts knows of no session. If an earlier process left the system believing one is up (a kill), the
+     * disconnect Z-Link would have sent is sent now; otherwise nothing is sent.
+     */
+    fun startFresh(systemThinksUp: Boolean) = synchronized(lock) {
+        published = false
+        if (!systemThinksUp) return@synchronized
         try {
-            ProjectionSessionPolicy.startWrites().forEach { (k, v) -> setter(k, v) }
-            published = false
+            send(ProjectionSessionPolicy.message(false, mode))
         } catch (t: Throwable) {
             onFailure(t)
         }
     }
 }
 
-/** The CoD build's instance: the system property write through the hidden `android.os.SystemProperties.set`. */
+/** The CoD build's instance: the broadcast goes out through the application context. */
 object ProjectionSessionPublisher {
     @Volatile private var warned = false
+    @Volatile private var appContext: Context? = null
 
     private val writer = ProjectionSessionWriter(
-        setter = ::setProperty,
+        send = { m ->
+            val ctx = appContext ?: throw IllegalStateException("no context yet")
+            ctx.sendBroadcast(
+                Intent(ProjectionSessionPolicy.ACTION)
+                    .putExtra(ProjectionSessionPolicy.EXTRA_STATUS, m.status)
+                    .putExtra(ProjectionSessionPolicy.EXTRA_PHONE_MODE, m.phoneMode)
+            )
+            AppLog.i("ProjectionSession: ${m.status} ${m.phoneMode}")
+        },
         onFailure = { t ->
             if (!warned) {
                 warned = true
-                AppLog.w("ProjectionSession: could not write the session flag: ${t.javaClass.simpleName}: ${t.message}")
+                AppLog.w("ProjectionSession: could not send the session broadcast: ${t.javaClass.simpleName}: ${t.message}")
             }
         }
     )
 
     /** Called from the one state setter of [CommManager]; every transition passes through it. */
-    fun onState(state: CommManager.ConnectionState) {
+    fun onState(context: Context, state: CommManager.ConnectionState, type: ProjectionConnection.Type?) {
         if (!BuildConfig.CODOS) return
-        writer.apply(ProjectionSessionPolicy.isUp(state))
+        appContext = context.applicationContext
+        writer.apply(ProjectionSessionPolicy.isUp(state), type)
     }
 
     /** A safety net for service stop: publishes what the state really is, so a stop never leaves a stale answer. */
-    fun resync(state: CommManager.ConnectionState) = onState(state)
+    fun resync(context: Context, state: CommManager.ConnectionState) = onState(context, state, null)
 
-    /** Process start: drops a value left by an earlier process, and clears on an uncaught exception (best effort). */
-    fun start() {
+    /** Process start: drops a session an earlier process left, and announces the end on an uncaught exception (best effort). */
+    fun start(context: Context) {
         if (!BuildConfig.CODOS) return
-        writer.clearAtStart()
+        appContext = context.applicationContext
+        writer.startFresh(SystemProperties.getBoolean(ProjectionSessionPolicy.FLAG, false))
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             try { writer.apply(false) } catch (_: Throwable) { }
             previous?.uncaughtException(thread, error)
         }
-    }
-
-    private fun setProperty(key: String, value: String) {
-        Class.forName("android.os.SystemProperties")
-            .getMethod("set", String::class.java, String::class.java)
-            .invoke(null, key, value)
     }
 }

@@ -1344,6 +1344,8 @@ class Settings(private val context: Context) {
      */
     var connectionModes: Set<ConnectionMode>
         get() {
+            // CoD OS: not a choice. A phone on the cable and a phone over Wi-Fi both connect, the way they do with Z-Link.
+            if (com.andrerinas.openheadunit.BuildConfig.CODOS) return setOf(ConnectionMode.USB, ConnectionMode.WIFI)
             val stored = prefs.getStringSet("connection-modes", null)
             if (stored != null) return stored.mapNotNull { ConnectionMode.fromKey(it) }.toSet()
             val migrated = migrateLegacyConnectionModes()

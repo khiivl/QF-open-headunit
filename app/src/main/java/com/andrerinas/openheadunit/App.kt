@@ -47,7 +47,7 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         super.onCreate()
         instance = this
         // CoD OS: this process knows of no session; drops an earlier process's value and clears on a crash (contract section 10).
-        com.andrerinas.openheadunit.connection.ProjectionSessionPublisher.start()
+        com.andrerinas.openheadunit.connection.ProjectionSessionPublisher.start(this)
         registerActivityLifecycleCallbacks(this)
         // A single projection chosen (or restored from a backup) while the other one was the running mode.
         run {

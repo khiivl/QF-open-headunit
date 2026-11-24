@@ -3493,7 +3493,7 @@ class AapService : Service() {
         closeRetainedHct()
         AppLog.i("AapService destroying... (wakeLock held=${bootWakeLock?.isHeld == true})")
         // CoD OS: a stop never leaves a stale «session up» answer; this publishes what the connection state really is.
-        com.andrerinas.openheadunit.connection.ProjectionSessionPublisher.resync(commManager.connectionState.value)
+        com.andrerinas.openheadunit.connection.ProjectionSessionPublisher.resync(this, commManager.connectionState.value)
         FloatingButtonManager.removeOverlay(this)
         stopForegroundForShutdown()
         deviceHackManager?.stop()

@@ -635,7 +635,7 @@ class HomeFragment : Fragment() {
         val zlinkUnit = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(ctx).isNotEmpty()
         val barConnections = when {
             carPlayMode -> allBarConnections.filter { it == decision.primary }
-            zlinkUnit && decision.barConnections.isNotEmpty() -> listOf(decision.primary)
+            zlinkUnit && !com.andrerinas.openheadunit.BuildConfig.CODOS && decision.barConnections.isNotEmpty() -> listOf(decision.primary)
             else -> allBarConnections
         }
         HomeUiHelper.applyBar(ctx, root, appSettings, barConnections, palette, decision.tiles)
@@ -2078,6 +2078,7 @@ class HomeFragment : Fragment() {
      */
     private fun switchCardTo(connection: HomePrimaryPolicy.Connection): Boolean {
         val ctx = context ?: return false
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) return false // CoD OS: both connections are always there, nothing to flip
         if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
                 App.provide(ctx).settings.projectionMode)) return false
         if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(ctx).isEmpty()) return false

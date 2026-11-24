@@ -1,5 +1,6 @@
 package com.andrerinas.openheadunit.connection
 
+import com.andrerinas.openheadunit.connection.projection.ProjectionConnection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -7,7 +8,7 @@ import org.junit.Test
 
 class ProjectionSessionTest {
 
-    private val flag = "sys.qf.bt.aa.connect"
+    private val connected = ProjectionSessionPolicy.Message("CONNECTED", "auto_wireless")
 
     @Test fun upOnlyAfterTheHandshake() {
         assertTrue(ProjectionSessionPolicy.isUp(CommManager.ConnectionState.HandshakeComplete))
@@ -19,46 +20,64 @@ class ProjectionSessionTest {
         assertFalse(ProjectionSessionPolicy.isUp(CommManager.ConnectionState.Disconnected()))
     }
 
-    @Test fun theOneVariableIsTheExistingAndroidAutoFlag() {
-        assertEquals("sys.qf.bt.aa.connect", ProjectionSessionPolicy.PROP_AA_CONNECT)
-        assertEquals(listOf(flag to "true"), ProjectionSessionPolicy.writes(true))
-        assertEquals(listOf(flag to "false"), ProjectionSessionPolicy.writes(false))
+    @Test fun theBroadcastIsZLinksOwnWords() {
+        assertEquals("com.zjinnova.zlink", ProjectionSessionPolicy.ACTION)
+        assertEquals("status", ProjectionSessionPolicy.EXTRA_STATUS)
+        assertEquals("phoneMode", ProjectionSessionPolicy.EXTRA_PHONE_MODE)
+        assertEquals(ProjectionSessionPolicy.Message("CONNECTED", "auto_wired"), ProjectionSessionPolicy.message(true, "auto_wired"))
+        assertEquals(ProjectionSessionPolicy.Message("DISCONNECT", "auto_wireless"), ProjectionSessionPolicy.message(false, "auto_wireless"))
     }
 
-    @Test fun startDropsWhateverAnEarlierProcessLeft() {
-        assertEquals(listOf(flag to "false"), ProjectionSessionPolicy.startWrites())
+    @Test fun aCableIsWiredAnythingElseIsWireless() {
+        assertEquals("auto_wired", ProjectionSessionPolicy.phoneMode(ProjectionConnection.Type.USB))
+        assertEquals("auto_wireless", ProjectionSessionPolicy.phoneMode(ProjectionConnection.Type.WIFI))
+        assertEquals("auto_wireless", ProjectionSessionPolicy.phoneMode(null))
     }
 
-    @Test fun writerWritesOnlyOnChange() {
-        val log = mutableListOf<Pair<String, String>>()
-        val w = ProjectionSessionWriter({ k, v -> log += k to v })
-        w.apply(true)
-        w.apply(true)
+    @Test fun writerSendsOnlyOnChange() {
+        val sent = mutableListOf<ProjectionSessionPolicy.Message>()
+        val w = ProjectionSessionWriter({ sent += it })
+        w.apply(true, ProjectionConnection.Type.WIFI)
+        w.apply(true, ProjectionConnection.Type.WIFI)
         w.apply(false)
         w.apply(false)
-        assertEquals(listOf(flag to "true", flag to "false"), log)
+        assertEquals(listOf(connected, ProjectionSessionPolicy.Message("DISCONNECT", "auto_wireless")), sent)
     }
 
-    @Test fun aFailedWriteIsRetriedOnTheNextChange() {
+    @Test fun theDisconnectCarriesTheModeOfTheConnectItEnds() {
+        val sent = mutableListOf<ProjectionSessionPolicy.Message>()
+        val w = ProjectionSessionWriter({ sent += it })
+        w.apply(true, ProjectionConnection.Type.USB)
+        w.apply(false)
+        assertEquals(
+            listOf(ProjectionSessionPolicy.Message("CONNECTED", "auto_wired"), ProjectionSessionPolicy.Message("DISCONNECT", "auto_wired")),
+            sent
+        )
+    }
+
+    @Test fun aFailedSendIsRetriedOnTheNextChange() {
         var fail = true
-        val log = mutableListOf<Pair<String, String>>()
+        val sent = mutableListOf<ProjectionSessionPolicy.Message>()
         var failures = 0
-        val w = ProjectionSessionWriter({ k, v -> if (fail) throw IllegalStateException("denied") else log += k to v }, { failures++ })
-        w.apply(true)
+        val w = ProjectionSessionWriter({ if (fail) throw IllegalStateException("denied") else sent += it }, { failures++ })
+        w.apply(true, ProjectionConnection.Type.WIFI)
         assertEquals(1, failures)
-        assertTrue(log.isEmpty())
+        assertTrue(sent.isEmpty())
         fail = false
-        w.apply(true)
-        assertEquals(listOf(flag to "true"), log)
+        w.apply(true, ProjectionConnection.Type.WIFI)
+        assertEquals(listOf(connected), sent)
     }
 
-    @Test fun clearAtStartThenFirstUpWritesAgain() {
-        val log = mutableListOf<Pair<String, String>>()
-        val w = ProjectionSessionWriter({ k, v -> log += k to v })
-        w.clearAtStart()
-        w.apply(false) // already published as down: nothing more
-        assertEquals(1, log.size)
-        w.apply(true)
-        assertEquals(flag to "true", log.last())
+    @Test fun startingFreshSendsADisconnectOnlyIfTheSystemThinksASessionIsUp() {
+        val sent = mutableListOf<ProjectionSessionPolicy.Message>()
+        val w = ProjectionSessionWriter({ sent += it })
+        w.startFresh(false)
+        assertTrue(sent.isEmpty())
+        w.startFresh(true)
+        assertEquals(listOf(ProjectionSessionPolicy.Message("DISCONNECT", "auto_wireless")), sent)
+        w.apply(false) // already down for this process: nothing more
+        assertEquals(1, sent.size)
+        w.apply(true, ProjectionConnection.Type.WIFI)
+        assertEquals(connected, sent.last())
     }
 }

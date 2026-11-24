@@ -242,7 +242,7 @@ class CommManager(
             ConnectionStateLog.state(_connectionState.value, next, _connection?.type?.name)
             _connectionState.value = next
             // CoD OS: tell the system whether a session is up (contract section 10). A setter, not a collector: the flow is conflated.
-            ProjectionSessionPublisher.onState(next)
+            ProjectionSessionPublisher.onState(context, next, _connection?.type)
         }
 
     /** Callback for audio focus state changes (isPlaying). Set by AapService. */
