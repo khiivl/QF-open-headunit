@@ -5,10 +5,12 @@ import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import com.andrerinas.openheadunit.App
+import com.andrerinas.openheadunit.BuildConfig
 import com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub
 import com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.Settings
+import com.andrerinas.openheadunit.utils.SystemUidShell
 import com.andrerinas.openheadunit.utils.adb.AdbManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -119,6 +121,7 @@ object BridgeVoiceKeyPolicy {
  * setting on, and re-connects by itself if the stream ends.
  */
 object BridgeVoiceKeyWatcher {
+    private const val LOGCAT_COMMAND = "logcat -T 1 -v brief -s McuKeyEventHandler:D"
     private var job: Job? = null
 
     /** Starts or stops the watcher to match the setting; safe to call whenever the setting or the app state may have changed. */
@@ -140,15 +143,19 @@ object BridgeVoiceKeyWatcher {
     private suspend fun run(app: Context) {
         val lastForwardedMs = HashMap<Int, Long>()
         while (currentCoroutineContext().isActive) {
-            val port = when {
+            // CoD OS: no self-ADB. The app is the system user there and reads the one log tag itself.
+            val port = if (BuildConfig.CODOS) 0 else when {
                 AdbManager.isAdbPortOpen(5555) -> 5555
                 AdbManager.isAdbPortOpen(9876) -> 9876
                 else -> { delay(30_000L); continue }
             }
             val startedAt = android.os.SystemClock.elapsedRealtime()
-            AppLog.i("BridgeVoiceKey: following the unit's key service log over adb port $port.")
-            val why = AdbManager.streamLines(app, "logcat -T 1 -v brief -s McuKeyEventHandler:D", port) { line ->
-                val (code, action) = BridgeVoiceKeyPolicy.parse(line) ?: return@streamLines
+            AppLog.i(
+                if (BuildConfig.CODOS) "BridgeVoiceKey: following the unit's key service log as the system user."
+                else "BridgeVoiceKey: following the unit's key service log over adb port $port."
+            )
+            val onLine: (String) -> Unit = onLine@{ line ->
+                val (code, action) = BridgeVoiceKeyPolicy.parse(line) ?: return@onLine
                 val now = android.os.SystemClock.elapsedRealtime()
                 val connected = App.provide(app).commManager.isConnected
                 val carPlay = ZlinkHub.hasActiveSession
@@ -160,7 +167,7 @@ object BridgeVoiceKeyWatcher {
                     if (action == 0) {
                         AppLog.i("BridgeVoiceKey: unit key $code seen, not forwarded (Android Auto connected=$connected, CarPlay active=$carPlay).")
                     }
-                    return@streamLines
+                    return@onLine
                 }
                 lastForwardedMs[code] = now
                 AppLog.i("BridgeVoiceKey: unit key $code goes to ${forward.target} as key ${forward.key}.")
@@ -179,6 +186,8 @@ object BridgeVoiceKeyWatcher {
                     }
                 }
             }
+            val why = if (BuildConfig.CODOS) SystemUidShell.streamLines(LOGCAT_COMMAND, onLine)
+            else AdbManager.streamLines(app, LOGCAT_COMMAND, port, onLine)
             AppLog.i("BridgeVoiceKey: the log stream $why; reconnecting shortly.")
             delay(5_000L)
         }
