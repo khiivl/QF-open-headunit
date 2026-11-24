@@ -1590,12 +1590,15 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("auto-start-on-usb", value).apply() }
 
     var autoStartOnBoot: Boolean
-        get() = prefs.getBoolean("auto-start-on-boot", false)
+        // CoD OS (head lead and owner, 24.11): Z-Link starts at boot and OHU is its behavioural copy, so the hidden row is ON by default.
+        get() = prefs.getBoolean("auto-start-on-boot", com.andrerinas.openheadunit.BuildConfig.CODOS)
         set(value) { prefs.edit().putBoolean("auto-start-on-boot", value).apply() }
 
     /** With [autoStartOnBoot], start only the service and leave the screen to the phone connecting. */
     var autoStartOnBootInBackground: Boolean
-        get() = prefs.getBoolean("auto-start-on-boot-in-background", false)
+        // CoD OS: the boot start arms the service in the background (the wireless stack waits for a phone) and does not open OHU's screen
+        // over the launcher, which is how Z-Link starts; the screen comes when a phone connects.
+        get() = prefs.getBoolean("auto-start-on-boot-in-background", com.andrerinas.openheadunit.BuildConfig.CODOS)
         set(value) { prefs.edit().putBoolean("auto-start-on-boot-in-background", value).apply() }
 
     var autoStartOnScreenOn: Boolean
@@ -2225,7 +2228,8 @@ class Settings(private val context: Context) {
             } else {
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             }
-            return prefs.getBoolean(KEY_AUTO_START_ON_BOOT, false)
+            // The first boot after an install reads this before the app has mirrored its value: the same CoD default as the setting.
+            return prefs.getBoolean(KEY_AUTO_START_ON_BOOT, com.andrerinas.openheadunit.BuildConfig.CODOS)
         }
 
         /**
