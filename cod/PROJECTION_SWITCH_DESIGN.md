@@ -443,3 +443,45 @@ protocol: large, not recommended).
 - **D3** CarPlay in OHU mode needs a valid Z-Link licence (we never touch it). A person who lost it gets Android Auto only —
   acceptable? (Recommended: yes; OHU's point is Android Auto without a licence.)
 - **D4** the HiCar checkbox in the factory menu stays but its write moves into the reconciler (single writer of the flag).
+
+## 12. The choice put to the owner (D1), both options designed
+
+Head lead, 24.11: put to the owner not only «OHU = Android Auto only», but also «Z-Link's daemon stays alive for OHU's
+CarPlay feed while Z-Link's AA record / AP / UI are silenced». Owner's own words so far: «Деякі потрібні хору.»
+
+| | **Option A — OHU = Android Auto only** | **Option B — Z-Link headless for OHU's CarPlay** (§11) |
+|---|---|---|
+| what runs in OHU mode | OHU only. Z-Link package disabled **and** `z-link` daemon stopped | OHU + Z-Link daemon + app services; Z-Link UI hidden; Android Auto off inside Z-Link |
+| CarPlay in OHU mode | none (an iPhone user selects Z-Link) | yes, through OHU's screen and feed |
+| needs Z-Link licence in OHU mode | no | **yes** (D3) |
+| conflict surface | none by construction: nothing of Z-Link is alive | Android Auto (module client, USB claim, AP), media buttons, AP ownership, mic ownership — each must be held silent |
+| extra work | none beyond the reconciler | init oneshots for the redirect (root), feature flag as single-writer, UI component control, R6–R10 |
+| what the owner experiences | switch is the only way to CarPlay | CarPlay and Android Auto both inside one app, no switch needed for them |
+| risk | low | medium: depends on facts not yet known |
+
+**What decides B** (and what R1 changed):
+- **R1 (partly answered, §11.1 item 7):** Z-Link's Android Auto record on the module is not Z-Link's own; it is `gocsdk_zj`'s
+  server, turned on by any client's `RequestInit enable_type=2`. So *silencing Z-Link's Android Auto means stopping Z-Link's
+  own BT client from asking for it*, not removing a record. That is possible only if Z-Link has an off switch for it:
+- **R6 (open, decisive):** does `rw.zlink.disable.features` have a letter that disables Android Auto *including* the BT request,
+  the USB claim and the AP raising for it? Outcomes:
+  1. **Yes** → Option B works as designed in §11.
+  2. **Letter exists but only hides the UI / refuses the session, the BT request and AP raising stay** → B is possible only with
+     the module-client rule R8 (Z-Link's BT service kept from `RequestInit` some other way) or with OHU as the sole client
+     of `gocsdk_zj` for Android Auto while CarPlay uses it only briefly; needs a test on a unit to be believed.
+  3. **No such letter** → B has no clean silencer. Fall back to **A**, or to **B′**: keep the daemon for CarPlay only when
+     the phone is an iPhone (OHU watches the module phone kind — `ModulePhoneWatcher`/`PhoneKindPolicy` already know it) and
+     stop the daemon otherwise. B′ is more state, more failure paths, and is proposed only if the owner insists on both.
+- **R7/R10 (feed prerequisites for B):** the redirect rule must really match the daemon's uid and the proxy must be the
+  server's peer; without them even a perfect silencer gives no CarPlay in OHU.
+
+**Recommendation to put to the owner:** build the switch and the reconciler **now for Option A's end states plus the Z-Link
+HEADLESS state as a switch-on flag** — i.e. the reconciler already has both states from §11; the first release ships with
+HEADLESS **off** (Z-Link daemon stopped in OHU mode = Option A), and Option B is enabled by one flag when R6/R7/R10 are
+proven on a unit. This costs nothing extra (the code path exists in the design), makes the first release safe, and keeps
+the owner's «Деякі потрібні хору» as the next step instead of a blocker. If the owner wants B on day one he accepts that
+the first image may have to drop to A after the stand test.
+
+**What the owner is asked** (morning): D1 — A first with B behind a flag (recommended), or B first? D2 — migration of stock-`zj`
+units. D3 — if B: a lost Z-Link licence means no CarPlay in OHU mode, acceptable? D4 — the factory HiCar checkbox write moves
+to the reconciler.
