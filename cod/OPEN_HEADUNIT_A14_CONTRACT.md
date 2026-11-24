@@ -182,7 +182,7 @@ head lead's and the BT line's call; the contract does not need it.
   `setPackage(com.zjinnova.zlink)`). With Z-Link disabled that broadcast reaches nobody: during an OHU session the voice key opens nothing on the
   head-unit side (the phone still gets it from OHU's key watcher). Before the flag was true the key would have opened the local assistant. Closing it
   is the resolver of design §4 B5 (one answer for «which projection app»). Proof P32.
-- The A2DP disable that Z-Link's broadcast also triggers is **not** applied for OHU; focus is handled by the BT line's own gate.
+- The A2DP disable and the toast belong to Z-Link's **broadcast**, not to the flag: they are **not** applied for OHU; focus is handled by the BT line's own gate (register R2, §10.6).
 - The canon row for the flag lists its writer as `zlink`; it becomes «the projection app that is up (Z-Link through QF BT's broadcast handler,
   OHU directly)». The head lead edits the canon; this file is the source until she does.
 
@@ -190,6 +190,49 @@ head lead's and the BT line's call; the contract does not need it.
 P27 OHU sets and clears `sys.qf.bt.aa.connect` as the system app (`getprop` before, during, after a real session). P28 during the session QF BT stops
 taking focus and showing BT messages; Z-Link's A2DP reaction does **not** occur. P29 session ends or the service stops: false. P30 switch to Z-Link mid-session:
 false. P31 reboot: false. P32 voice key during an OHU session: behaviour recorded (§10.4).
+
+### 10.6 Register of `sys.qf.bt.aa.connect`: every writer, clearer and reader found (24.11, head lead's request)
+
+Scope of the search: the A10 decompiles (`D:\De-compiled`, all trees), the owner's Magisk modules (`D:\My_K706_Magisk_Modules`), the A14 projects under
+`AndroidStudioProjects` (CarSettings, SystemUI, NetworkBurst, wDSP A14, DialerKM A14, KeyLearn, NotificationCenter, Companion, DVR, fmradio A14, QFPlayer A14,
+AccDelay, BitPerfectControl, TruthCheck), `D:\HeadUnitRomBuilder` and the canon. **Not covered:** the real A14 system image (task R5): an app that exists only
+there is not in this list. The evidence mark is 🔬 unless stated.
+
+#### Writers and clearers
+| # | who | where | what it writes, when | note |
+|---|---|---|---|---|
+| W1 | **QF Bluetooth** `BTReceiver` (A10 decompile; the same call in the A10 mod smali `QF_Bluetooth_Mod/.../BTReceiver.smali:1617`) | `QF_Bluetooth/src/sources/com/qf/btsdk/receiver/BTReceiver.java:364` | **true** on Z-Link's broadcast `com.zjinnova.zlink`, `status=CONNECTED`, `phoneMode` = `auto_wireless` or `auto_wired` | the only writer in the firmware's own code. Also runs `disableA2dpIfNeed()` there |
+| W1 | same | `BTReceiver.java:368` | **false** on `status=DISCONNECT`, same phone modes (also `resumeA2dpIfNeed()`) | |
+| W1 | same | `BTReceiver.java:386` | **false** on `phoneMode="none"` | |
+| W2 | **QF_HID_Daemon** v1.75 (owner's Magisk module, root shell service) | `QF_HID_demon/hid_daemon.sh:551-563` (`AA_PROP` defined `:10`) | polls `sys.qf.top_pkg_name` every 1 s and writes **true** while the top app is `com.zjinnova.zlink`, **false** when it is not, on every change; its first write at start is `false` | it writes «Z-Link is in the foreground», not «a session is up» |
+| W3 | **QF_KeyLearn** (the module that replaces the HID daemon) | `QF_KeyLearn/module/src/40_system.sh:33-45` (`AA_PROP` `10_core.sh:11`) | the same block, the same logic | |
+| W4 | **Open Headunit (new)** | `connection/ProjectionSession.kt`, hooks in `CommManager.connState`, `AapService.onDestroy`, `App.onCreate` | true after the SSL handshake, false otherwise; false at process start and on a crash | codos only |
+| W5 | the reconciler (design §13.1) | on a switch to Z-Link | clears once | clear-only |
+| — | **Z-Link itself: no.** No occurrence of the name in its 56 native libraries or its unpacked APK tree (`_build/zlink-map`); its Java layer is packed ❓. The canon row that lists the writer as `zlink` is wrong: the writer is W1, from Z-Link's broadcast | | | |
+| — | nothing writes it at boot, on BT disconnect or on ACC off: no other call site in QF BT (`MiscConstants.java:61` is only the name). `TechBTSettingManager.java:1269` clears the **carplay** flag, not this one. `sys.*` resets at reboot | | | |
+
+#### Readers and what each does on «true»
+| # | reader | where | on true | right for OHU? |
+|---|---|---|---|---|
+| R1 | **QF BT v34/v35 `Projection`** (BT line) | `QF_Bluetooth_Mod/helpers/btmeta/.../Projection.java:25-50` (`which()` reads the property) | no BT-music focus, no delayed AVRCP pause, no BT state toasts while a projection is up; calls untouched | **yes**, this is the owner's order |
+| R2 | QF BT stock A2DP drop and the Chinese toast | `BTReceiver.java:365` `disableA2dpIfNeed()` | **not a reader of the flag**: it is triggered by Z-Link's *broadcast*, not by the property. Setting the flag does **not** drop A2DP | So OHU does not get the stock A2DP drop. Whether OHU's session should drop A2DP is the BT line's call, and it is right only if the Android Auto link carries the media audio (it does in OHU: the AA audio channel); if wanted, the BT line derives it from this flag in its own reader — not from a broadcast of ours |
+| R3 | **AiBridge voice-key router** (A14 name `AssistRouter` ❓) | `QF_AiLit_Bridge/.../McuKeyEventHandler.java:79,98`; `ai_lib/common/Constants.java:56` (`isCarplayConnected`); same smali in `QF_AiBridge_Mod` | forwards the steering voice key to **Z-Link's package** (`onZlinkVoice`, `com.qf.action.cp.call`, key 1500, `setPackage(com.zjinnova.zlink)`); `isCarplayConnected` also requires `/data/data/com.zjinnova.zlink` to exist | **misfires for OHU**: with Z-Link disabled the broadcast reaches nobody, and before the flag was true the key opened the local assistant. Needs the resolver (design §4 B5): the target is OHU's entry (contract §6) when the selection is OHU. Proof P32 |
+| R4 | **NetworkBurst** BT2 pager (owner's) | `QF_NetworkBurst/.../NetworkBurstService.java:1495`, `PhonePager.java:109` | slows the BT2 ping to 60 s; the pager stops («Android Auto holds the phone») | **yes, and it is the point**: the 23.11 finding was exactly that paging during an Android Auto handshake hurt |
+| R5 | DialerKM `SmartCallRouter.isCarPlayConnected()` (owner's) | `DialerKM_a14/.../SmartCallRouter.kt:52-58` | defined and logged; **no caller** (`isExternalCallActive`, used by `CallManager:144` and `SwcKeyManager:169`, reads `sys.carplay.bt.call` and the MCU channel, not this flag) | nothing happens either way |
+| R6 | HID daemon / KeyLearn | (see W2, W3) | they define the name; they never read it (they read `sys.qf.top_pkg_name`) | n/a |
+| — | **launcher, island, CarSettings, SystemUI, Canbus, framework, services, wDSP, BitPerfect, fmradio, QFPlayer, DVR:** no occurrence in any tree searched. Canbus `BtDistributor:147` reads `sys.qf.carplay.connect` only | | | pass 2 on the real image (R5) can still add readers |
+
+So «OHU setting it triggers all of them» is true for **R1, R3, R4**; for R2 it is **not** (the broadcast triggers it); R5 does nothing; nobody else reads it.
+
+#### The two-writer cases (exact), and the fix
+Only one projection app is active (design §13), so the firmware writer W1 and OHU's W4 never overlap: W1 needs Z-Link's broadcast, which cannot arrive while Z-Link is disabled. The remaining conflicts come from the **owner's modules W2/W3**, which write «Z-Link is on top» into the same flag:
+- **C1, Z-Link selected (existing, independent of OHU):** W1 says true for the whole session; W2/W3 write false as soon as Z-Link leaves the top (the person opens navigation) and W1 does not rewrite it. The flag is false while the session runs; QF BT's gate lets BT music take focus again. A pre-existing inconsistency.
+- **C2, OHU selected:** W2/W3 see the top app is OHU (not Z-Link) and write only their first value, `false`, when their service starts. If that service starts or **restarts** mid-session, it clears OHU's `true`, and OHU writes only on a state change, so the flag stays false for the rest of that session.
+- **C3 switch to Z-Link / C4 reboot:** clear once / reset by the system; no conflict.
+**Recommended fix (SSOT, the owner's own modules):** remove the flag block from W2 and W3. Their own logic reads `sys.qf.top_pkg_name` directly; no reader needs their copy of «Z-Link is on top» under the name of «a session is up». With W2/W3 gone the flag has exactly one effective writer per selection.
+
+#### The stale case: OHU killed while «true»
+Stock Z-Link in the same case: **nothing clears the flag.** W1 clears only on Z-Link's own broadcast; if Z-Link dies without `DISCONNECT` (a crash, `QFSleepWakeup.java:347` `forceStopPackage(zlink)` at sleep, a user kill) the flag stays `true` until the next Z-Link broadcast or the next reboot. Nothing at boot, on BT disconnect or on ACC off clears it (see above). OHU does the same, **no extra property, no pid**, and a little better: it clears the flag at its next process start (`App.onCreate`), on service stop and on a crash handler, and the reconciler clears it on a switch. Readers may add a check against the running process, but that is their choice, not the contract's.
 
 ## Ledger (each side ticks its own column, with proof)
 | item | Open Headunit (Volodymyr) | CoD OS (head lead / qf001 / repair / sound) |
