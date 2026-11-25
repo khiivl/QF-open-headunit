@@ -1476,6 +1476,7 @@ class AapService : Service() {
                         hasEverConnected = true
                         projectingSinceMs = SystemClock.elapsedRealtime()
                         emitSessionState(SessionStateIntent.STATE_PROJECTING)
+                        watchForSilentH265()
                         sendBroadcast(Intent(ACTION_REQUEST_NIGHT_MODE_UPDATE).apply {
                             setPackage(packageName)
                         })
@@ -1517,6 +1518,36 @@ class AapService : Service() {
                 state is CommManager.ConnectionState.TransportStarted))
             commManager.acceptedWirelessAudioSession else null
         com.andrerinas.openheadunit.connection.bluetooth.xyauto.XyAutoMediaSession.update(this, this, accepted)
+    }
+
+    private var h265WatchJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * H.265 safeguard (see VideoCodecFallback): a session that advertised H.265 and shows no frame within the watch
+     * time is ended with a settings restart, and the next one advertises H.264.
+     */
+    private fun watchForSilentH265() {
+        h265WatchJob?.cancel()
+        if (com.andrerinas.openheadunit.aap.protocol.messages.VideoCodecFallback.forceH264) return
+        h265WatchJob = serviceScope.launch {
+            kotlinx.coroutines.delay(com.andrerinas.openheadunit.aap.protocol.messages.VideoCodecFallback.WATCH_MS)
+            // Read after the wait: the service discovery response that sets it is built just after this state is reached.
+            val advertised = com.andrerinas.openheadunit.aap.protocol.messages.VideoCodecFallback.advertisedH265
+            val rendered = App.provide(this@AapService).videoDecoder.framesRenderedThisSession
+            if (commManager.isConnected &&
+                com.andrerinas.openheadunit.aap.protocol.messages.VideoCodecFallback.shouldFallBack(
+                    advertised, com.andrerinas.openheadunit.aap.protocol.messages.VideoCodecFallback.forceH264, rendered)
+            ) {
+                AppLog.w("AapService: an H.265 session ran ${com.andrerinas.openheadunit.aap.protocol.messages.VideoCodecFallback.WATCH_MS / 1000} s " +
+                    "without a frame: reconnecting with H.264.")
+                com.andrerinas.openheadunit.aap.protocol.messages.VideoCodecFallback.engage()
+                commManager.disconnect(
+                    isUserExit = false,
+                    honorKillOnDisconnect = false,
+                    reason = CommManager.DisconnectReason.SETTINGS_RESTART,
+                )
+            }
+        }
     }
 
     private fun maybeAutoResumePlaybackOnReconnect() {

@@ -11,8 +11,11 @@ internal object VideoCodecNegotiationPolicy {
         forceSoftware: Boolean,
         selectedSoftwareHevcAvailable: Boolean,
         hardwareHevcSupported: Boolean,
-        hardwareHevcReliable: Boolean
+        hardwareHevcReliable: Boolean,
+        fallbackToH264: Boolean = false
     ): MediaCodecType {
+        // A session that advertised H.265 and never showed a frame: see VideoCodecFallback.
+        if (fallbackToH264) return MediaCodecType.MEDIA_CODEC_VIDEO_H264_BP
         // Software capability alone must not turn an explicit H.264 (or Auto) choice into HEVC.
         val explicitSoftwareHevc = preference == "H.265" && forceSoftware && selectedSoftwareHevcAvailable
         val highResolutionHevc = hardwareHevcReliable || explicitSoftwareHevc

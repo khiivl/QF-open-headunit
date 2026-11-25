@@ -76,8 +76,13 @@ internal class ServiceDiscoveryResponse(context: Context, audioConfig: AudioSess
                         forceSoftware = settings.forceSoftwareDecoding,
                         selectedSoftwareHevcAvailable = selectedSoftwareHevcAvailable,
                         hardwareHevcSupported = hardwareHevcSupported,
-                        hardwareHevcReliable = hardwareHevcReliable
+                        hardwareHevcReliable = hardwareHevcReliable,
+                        fallbackToH264 = VideoCodecFallback.forceH264
                     )
+                    VideoCodecFallback.advertisedH265 = effectiveCodec == Media.MediaCodecType.MEDIA_CODEC_VIDEO_H265
+                    if (VideoCodecFallback.forceH264) {
+                        AppLog.w("[ServiceDiscovery] H.265 gave no picture earlier in this run: advertising H.264.")
+                    }
                     if ((negotiatedResolution == Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType._2560x1440 ||
                         negotiatedResolution == Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType._1440x2560) &&
                         (hardwareHevcReliable || selectedSoftwareHevcAvailable)) {
