@@ -1920,6 +1920,6 @@
     <string name="home_hotspot_not_found">Brak połączenia z WiFi. Czy hotspot telefonu jest włączony?</string>
     <string name="home_wifi_hotspot_hint">Czy hotspot telefonu jest włączony?</string>
     <string name="home_wifi_off_hint">Włącz je, aby się połączyć</string>
-    <string name="debug_root_only_summary">Wykonuj wszystkie polecenia powłoki przez root i nigdy przez ADB.</string>
-    <string name="debug_root_only_description">Do testowania ścieżki root na urządzeniu z ADB. Gdy opcja jest włączona, ADB nie jest używane w ogóle. Włączenie prosi o root, co jest też sposobem na jego przyznanie, gdy ADB jest dostępne. Jeśli root odrzucono, a menedżer root to zapamiętał, prośba nie wróci, dopóki nie zmienisz tego tam.</string>
+    <string name="debug_root_only_summary">Gdy przyznano root, wykonuj wszystkie polecenia powłoki przez root i nigdy przez ADB.</string>
+    <string name="debug_root_only_description">Gdy przyznano root, ADB nie jest używane nigdzie. Bez root rozwiązaniem zapasowym jest ADB. Włączenie prosi o root, co jest też sposobem na jego przyznanie, gdy ADB jest dostępne. Jeśli root odrzucono, a menedżer root to zapamiętał, prośba nie wróci, dopóki nie zmienisz tego tam.</string>
 </resources>

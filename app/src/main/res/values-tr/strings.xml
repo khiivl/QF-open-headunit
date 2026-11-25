@@ -1910,6 +1910,6 @@
     <string name="home_hotspot_not_found">WiFi’ye bağlanılamadı. Telefonun erişim noktası açık mı?</string>
     <string name="home_wifi_hotspot_hint">Telefonun erişim noktası açık mı?</string>
     <string name="home_wifi_off_hint">Bağlanmak için açın</string>
-    <string name="debug_root_only_summary">Tüm kabuk komutlarını yalnızca root ile çalıştır, hiçbir zaman ADB ile değil.</string>
-    <string name="debug_root_only_description">ADB bulunan bir ünitede root yolunu denemek içindir. Açıkken ADB hiç kullanılmaz. Açmak root ister; bu, ADB kullanılabilirken root vermenin de yoludur. Root reddedildiyse ve root yöneticiniz bunu hatırlıyorsa, istek siz orada değiştirene kadar geri gelmez.</string>
+    <string name="debug_root_only_summary">Root verildiğinde tüm kabuk komutlarını root ile çalıştır, hiçbir zaman ADB ile değil.</string>
+    <string name="debug_root_only_description">Root verildiğinde ADB hiçbir yerde kullanılmaz. Root yoksa yedek olarak ADB kullanılır. Açmak root ister; bu, ADB kullanılabilirken root vermenin de yoludur. Root reddedildiyse ve root yöneticiniz bunu hatırlıyorsa, istek siz orada değiştirene kadar geri gelmez.</string>
 </resources>

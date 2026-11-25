@@ -1967,6 +1967,6 @@
     <string name="home_hotspot_not_found">Nenhum Wi-Fi ligado. A zona Wi-Fi do telemóvel está ativa?</string>
     <string name="home_wifi_hotspot_hint">A zona Wi-Fi do telemóvel está ativa?</string>
     <string name="home_wifi_off_hint">Ative-o para ligar</string>
-    <string name="debug_root_only_summary">Executar todos os comandos de shell por root e nunca por ADB.</string>
-    <string name="debug_root_only_description">Para testar o caminho de root numa unidade que tem ADB. Com isto ativado, o ADB não é usado de todo. Ativar pede root, que também é a forma de o conceder enquanto o ADB está disponível. Se o root foi negado e o seu gestor de root se lembra disso, o pedido não volta até alterar lá.</string>
+    <string name="debug_root_only_summary">Com root concedido, executar todos os comandos de shell por root e nunca por ADB.</string>
+    <string name="debug_root_only_description">Com root concedido, o ADB não é usado em lado nenhum. Sem root, o ADB é a alternativa. Ativar pede root, que também é a forma de o conceder enquanto o ADB está disponível. Se o root foi negado e o seu gestor de root se lembra disso, o pedido não volta até alterar lá.</string>
 </resources>

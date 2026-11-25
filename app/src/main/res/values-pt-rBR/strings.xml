@@ -1915,6 +1915,6 @@
     <string name="home_hotspot_not_found">Nenhum WiFi conectado. O hotspot do celular está ligado?</string>
     <string name="home_wifi_hotspot_hint">O hotspot do celular está ligado?</string>
     <string name="home_wifi_off_hint">Ligue-o para conectar</string>
-    <string name="debug_root_only_summary">Executar todos os comandos de shell por root e nunca por ADB.</string>
-    <string name="debug_root_only_description">Para testar o caminho de root em uma unidade que tem ADB. Com isto ativado, o ADB não é usado de forma alguma. Ativar pede root, que também é a forma de concedê-lo enquanto o ADB está disponível. Se o root foi negado e o seu gerenciador de root lembra disso, o pedido não volta até você alterar lá.</string>
+    <string name="debug_root_only_summary">Com root concedido, executar todos os comandos de shell por root e nunca por ADB.</string>
+    <string name="debug_root_only_description">Com root concedido, o ADB não é usado em lugar nenhum. Sem root, o ADB é a alternativa. Ativar pede root, que também é a forma de concedê-lo enquanto o ADB está disponível. Se o root foi negado e o seu gerenciador de root lembra disso, o pedido não volta até você alterar lá.</string>
 </resources>

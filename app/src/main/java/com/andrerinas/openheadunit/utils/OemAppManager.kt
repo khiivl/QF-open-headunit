@@ -8,6 +8,7 @@ import com.andrerinas.openheadunit.BuildConfig
 import com.andrerinas.openheadunit.utils.adb.AdbManager
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -147,23 +148,51 @@ object OemAppManager {
         if (BuildConfig.CODOS) {
             return@withContext if (SystemUidShell.isSystemUid()) ExecutionBackend.SYSTEM else ExecutionBackend.NONE
         }
-        if (rootOnly) return@withContext if (rootGranted()) ExecutionBackend.ROOT else ExecutionBackend.NONE
-        // Root first when it is the chosen way and has been granted; local ADB otherwise, which is the whole story
-        // when the unit is set to ADB.
-        if (preferRoot && rootGranted()) return@withContext ExecutionBackend.ROOT
+        // Root when it is the chosen way and has been granted; local ADB otherwise (not granted, or ADB chosen).
+        if (rootInUse()) return@withContext ExecutionBackend.ROOT
         if (adbAvailable()) return@withContext ExecutionBackend.ADB
         ExecutionBackend.NONE
     }
 
-    /** The debug switch: shell commands use root only, and ADB counts as not there. */
+    /** The "Root only" setting: with root granted, ADB is not used at all. Without root, ADB is the fallback. */
     @Volatile var rootOnly = false
 
     /** The chosen way in (see Settings.shellRootPreferred): root when granted, then ADB; or, when false, ADB only. */
     @Volatile var preferRoot = true
 
-    /** Whether local ADB is listening, on either port the app uses. Never, in root-only mode. */
+    /**
+     * Whether shell work goes through root: root is the chosen way (the setting, or Root only) and has been granted. While
+     * this is true ADB is not used anywhere; when root is not granted it is false and ADB is the fallback.
+     */
+    fun rootInUse(): Boolean {
+        if (BuildConfig.CODOS) return false
+        return (preferRoot || rootOnly) && rootGranted()
+    }
+
+    /** Whether local ADB is listening, on either port the app uses. Never while root is in use. */
     suspend fun adbAvailable(): Boolean =
-        !rootOnly && (AdbManager.isAdbPortOpen() || AdbManager.isAdbPortOpen(9876))
+        !rootInUse() && (AdbManager.isAdbPortOpen() || AdbManager.isAdbPortOpen(9876))
+
+    /** Follows [command]'s output line by line through a root process, until it ends or the coroutine is cancelled. */
+    suspend fun streamLinesAsRoot(command: String, onLine: (String) -> Unit): String = withContext(Dispatchers.IO) {
+        var process: java.lang.Process? = null
+        val closer = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            try { kotlinx.coroutines.awaitCancellation() } finally { try { process?.destroy() } catch (_: Exception) { } }
+        }
+        try {
+            val proc = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+            process = proc
+            proc.inputStream.bufferedReader(Charsets.UTF_8).forEachLine { line ->
+                try { onLine(line) } catch (e: Exception) { AppLog.w("OemAppManager: line handler failed: ${e.message}") }
+            }
+            "stream closed"
+        } catch (e: Exception) {
+            "ended: ${e.javaClass.simpleName}: ${e.message}"
+        } finally {
+            closer.cancel()
+            try { process?.destroy() } catch (_: Exception) { }
+        }
+    }
 
     /** Whether the app holds root, opening the root shell (which raises the su manager's prompt) if that is not known yet. */
     private fun rootGranted(): Boolean {
@@ -234,14 +263,10 @@ object OemAppManager {
         if (BuildConfig.CODOS) {
             return@withContext SystemUidShell.exec(command)
         }
-        if (rootOnly) {
-            // The debug switch: root or nothing, so a failure here is the root path's own.
-            return@withContext runAsRoot(command) ?: Pair(-1, "root-only mode: root is not granted")
-        }
-        // Root when it is the chosen way and has been granted; otherwise Self-ADB. Without either the command fails and
-        // the full-screen notice explains why.
-        if (preferRoot) {
-            runAsRoot(command)?.let { return@withContext it }
+        // Root when it is the chosen way and has been granted: then ADB is not used, whatever the root command does.
+        // Otherwise Self-ADB. Without either the command fails and the full-screen notice explains why.
+        if (rootInUse()) {
+            return@withContext runAsRoot(command) ?: Pair(-1, "root command failed")
         }
 
         // Self-ADB (localhost:5555 or localhost:9876)

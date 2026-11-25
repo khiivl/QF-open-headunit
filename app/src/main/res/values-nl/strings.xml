@@ -1919,6 +1919,6 @@
     <string name="home_hotspot_not_found">Geen wifi verbonden. Staat de hotspot van de telefoon aan?</string>
     <string name="home_wifi_hotspot_hint">Staat de hotspot van de telefoon aan?</string>
     <string name="home_wifi_off_hint">Zet het aan om te verbinden</string>
-    <string name="debug_root_only_summary">Voer alle shell-opdrachten alleen via root uit en nooit via ADB.</string>
-    <string name="debug_root_only_description">Om het rootpad te testen op een unit met ADB. Als dit aan staat, wordt ADB helemaal niet gebruikt. Inschakelen vraagt om root, wat ook de manier is om root te verlenen terwijl ADB beschikbaar is. Als root is geweigerd en uw rootbeheerder dat onthoudt, komt het verzoek pas terug als u het daar wijzigt.</string>
+    <string name="debug_root_only_summary">Als root is verleend, voer alle shell-opdrachten uit via root en nooit via ADB.</string>
+    <string name="debug_root_only_description">Als root is verleend, wordt ADB nergens gebruikt. Zonder root is ADB de terugvaloptie. Inschakelen vraagt om root, wat ook de manier is om root te verlenen terwijl ADB beschikbaar is. Als root is geweigerd en uw rootbeheerder dat onthoudt, komt het verzoek pas terug als u het daar wijzigt.</string>
 </resources>

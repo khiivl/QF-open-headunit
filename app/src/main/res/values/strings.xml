@@ -602,9 +602,9 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="onb_system_root">Use root (recommended)</string>
     <string name="onb_system_root_desc">Root is preferred: it is more secure, and it can be faster. Open Headunit asks for it now, and your root manager asks you to allow it.</string>
     <string name="onb_system_adb_note">If root is not granted, ADB has to be enabled at all times: most of what Open Headunit does on this unit runs through one or the other. Turn this off to use ADB only, and Open Headunit will never ask for root.</string>
-    <string name="debug_root_only">Root only (debug)</string>
-    <string name="debug_root_only_summary">Run every shell command through root and never through ADB.</string>
-    <string name="debug_root_only_description">For testing the root path on a unit that has ADB. With this on, ADB is not used at all. Turning it on asks for root, which is also how to grant root while ADB is available. If root was denied and your root manager remembers that, the prompt does not come back until you change it there.</string>
+    <string name="debug_root_only">Root only</string>
+    <string name="debug_root_only_summary">With root granted, run every shell command through root and never through ADB.</string>
+    <string name="debug_root_only_description">With root granted, ADB is not used anywhere. Without root, ADB is the fallback. Turning this on asks for root, which is also how to grant root while ADB is available. If root was denied and your root manager remembers that, the prompt does not come back until you change it there.</string>
     <string name="debug_root_only_granted">Root granted.</string>
     <string name="debug_root_only_denied">Root was not granted. Allow Open Headunit in your root manager.</string>
     <string name="no_shell_access_title">No root or ADB access</string>

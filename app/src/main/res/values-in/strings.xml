@@ -1962,6 +1962,6 @@
     <string name="home_hotspot_not_found">Tidak ada WiFi tersambung. Apakah hotspot ponsel menyala?</string>
     <string name="home_wifi_hotspot_hint">Apakah hotspot ponsel menyala?</string>
     <string name="home_wifi_off_hint">Nyalakan untuk terhubung</string>
-    <string name="debug_root_only_summary">Jalankan semua perintah shell lewat root dan tidak pernah lewat ADB.</string>
-    <string name="debug_root_only_description">Untuk menguji jalur root pada unit yang memiliki ADB. Saat aktif, ADB tidak digunakan sama sekali. Mengaktifkannya akan meminta root, yang juga merupakan cara memberikan root selagi ADB tersedia. Jika root ditolak dan pengelola root Anda mengingatnya, permintaan tidak akan muncul lagi sampai Anda mengubahnya di sana.</string>
+    <string name="debug_root_only_summary">Saat root diberikan, jalankan semua perintah shell lewat root dan tidak pernah lewat ADB.</string>
+    <string name="debug_root_only_description">Saat root diberikan, ADB tidak digunakan di mana pun. Tanpa root, ADB menjadi cadangan. Mengaktifkannya akan meminta root, yang juga merupakan cara memberikan root selagi ADB tersedia. Jika root ditolak dan pengelola root Anda mengingatnya, permintaan tidak akan muncul lagi sampai Anda mengubahnya di sana.</string>
 </resources>

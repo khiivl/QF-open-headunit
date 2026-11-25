@@ -214,7 +214,12 @@ object BridgeVoiceKeyWatcher {
         var retryDelayMs = BridgeVoiceKeyPolicy.RETRY_MIN_MS / 2
         while (currentCoroutineContext().isActive) {
             // CoD OS: no self-ADB. The app is the system user there and reads the one log tag itself.
-            val port = if (BuildConfig.CODOS) 0 else when {
+            // Root granted and chosen: the log is followed through root and ADB is not touched. Otherwise ADB.
+            val viaRoot = !BuildConfig.CODOS &&
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.andrerinas.openheadunit.utils.OemAppManager.rootInUse()
+                }
+            val port = if (BuildConfig.CODOS || viaRoot) 0 else when {
                 AdbManager.isAdbPortOpen(5555) -> 5555
                 AdbManager.isAdbPortOpen(9876) -> 9876
                 else -> { delay(30_000L); continue }
@@ -222,6 +227,7 @@ object BridgeVoiceKeyWatcher {
             val startedAt = android.os.SystemClock.elapsedRealtime()
             AppLog.i(
                 if (BuildConfig.CODOS) "BridgeVoiceKey: following the unit's key service log as the system user."
+                else if (viaRoot) "BridgeVoiceKey: following the unit's key service log through root."
                 else "BridgeVoiceKey: following the unit's key service log over adb port $port."
             )
             val onLine: (String) -> Unit = onLine@{ line ->
@@ -268,6 +274,7 @@ object BridgeVoiceKeyWatcher {
             following = true
             val why = try {
                 if (BuildConfig.CODOS) SystemUidShell.streamLines(LOGCAT_COMMAND, onLine)
+                else if (viaRoot) com.andrerinas.openheadunit.utils.OemAppManager.streamLinesAsRoot(LOGCAT_COMMAND, onLine)
                 else AdbManager.streamLines(app, LOGCAT_COMMAND, port, onLine)
             } finally {
                 following = false

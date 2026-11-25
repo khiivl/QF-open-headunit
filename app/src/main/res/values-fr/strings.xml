@@ -1960,6 +1960,6 @@
     <string name="home_hotspot_not_found">Aucun Wi-Fi connecté. Le point d’accès du téléphone est-il activé ?</string>
     <string name="home_wifi_hotspot_hint">Point d’accès du téléphone activé ?</string>
     <string name="home_wifi_off_hint">Activez-le pour vous connecter</string>
-    <string name="debug_root_only_summary">Exécuter toutes les commandes shell via root et jamais via ADB.</string>
-    <string name="debug_root_only_description">Pour tester la voie root sur une unité équipée d’ADB. Lorsque cette option est activée, ADB n’est pas du tout utilisé. L’activer demande root, ce qui est aussi la manière de l’accorder tant qu’ADB est disponible. Si root a été refusé et que votre gestionnaire root s’en souvient, la demande ne revient pas tant que vous ne la modifiez pas là-bas.</string>
+    <string name="debug_root_only_summary">Lorsque root est accordé, exécuter toutes les commandes shell via root et jamais via ADB.</string>
+    <string name="debug_root_only_description">Lorsque root est accordé, ADB n’est utilisé nulle part. Sans root, ADB sert de solution de repli. L’activer demande root, ce qui est aussi la manière de l’accorder tant qu’ADB est disponible. Si root a été refusé et que votre gestionnaire root s’en souvient, la demande ne revient pas tant que vous ne la modifiez pas là-bas.</string>
 </resources>

@@ -1915,6 +1915,6 @@
     <string name="home_hotspot_not_found">Žádná Wi-Fi není připojena. Je hotspot telefonu zapnutý?</string>
     <string name="home_wifi_hotspot_hint">Je hotspot telefonu zapnutý?</string>
     <string name="home_wifi_off_hint">Zapněte ji pro připojení</string>
-    <string name="debug_root_only_summary">Spouštět všechny příkazy shellu přes root a nikdy přes ADB.</string>
-    <string name="debug_root_only_description">Pro testování cesty přes root na jednotce, která má ADB. Když je zapnuto, ADB se vůbec nepoužívá. Zapnutí požádá o root, což je také způsob, jak root udělit, i když je ADB dostupné. Pokud byl root zamítnut a správce root to pamatuje, výzva se znovu neobjeví, dokud to tam nezměníte.</string>
+    <string name="debug_root_only_summary">Pokud je root udělen, spouštět všechny příkazy shellu přes root a nikdy přes ADB.</string>
+    <string name="debug_root_only_description">Pokud je root udělen, ADB se nikde nepoužívá. Bez root je záložní možností ADB. Zapnutí požádá o root, což je také způsob, jak root udělit, i když je ADB dostupné. Pokud byl root zamítnut a správce root to pamatuje, výzva se znovu neobjeví, dokud to tam nezměníte.</string>
 </resources>

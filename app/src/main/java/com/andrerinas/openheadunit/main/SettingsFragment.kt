@@ -1164,6 +1164,21 @@ class SettingsFragment : Fragment() {
             }
         ))
 
+        // Root only: with root granted ADB is not used anywhere; turning it on asks for root.
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "rootOnlyDebug",
+            nameResId = R.string.debug_root_only,
+            descriptionResId = R.string.debug_root_only_summary,
+            helpResId = R.string.debug_root_only_description,
+            isChecked = pendingRootOnlyDebug ?: settings.rootOnlyDebug,
+            searchKeywords = "root only magisk su adb shell grant",
+            onCheckedChanged = { isChecked ->
+                pendingRootOnlyDebug = isChecked
+                checkChanges()
+                updateSettingsList()
+            }
+        ))
+
         // --- Wireless Connection ---
         items.add(SettingItem.CategoryHeader("wirelessConnection", R.string.category_wireless))
 
@@ -1941,21 +1956,6 @@ class SettingsFragment : Fragment() {
             searchKeywords = "low latency vendor key decoder mediatek amlogic qualcomm exynos",
             onCheckedChanged = { isChecked ->
                 pendingDebugVideoLowLatency = isChecked
-                checkChanges()
-                updateSettingsList()
-            }
-        ))
-
-        // Debug: shell commands through root only, and a way to ask for root while ADB is there.
-        items.add(SettingItem.ToggleSettingEntry(
-            stableId = "rootOnlyDebug",
-            nameResId = R.string.debug_root_only,
-            descriptionResId = R.string.debug_root_only_summary,
-            helpResId = R.string.debug_root_only_description,
-            isChecked = pendingRootOnlyDebug ?: settings.rootOnlyDebug,
-            searchKeywords = "root only debug magisk su adb shell grant",
-            onCheckedChanged = { isChecked ->
-                pendingRootOnlyDebug = isChecked
                 checkChanges()
                 updateSettingsList()
             }

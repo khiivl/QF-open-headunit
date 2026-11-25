@@ -1916,6 +1916,6 @@
     <string name="home_hotspot_not_found">لا توجد شبكة WiFi متصلة. هل نقطة اتصال الهاتف مفعّلة؟</string>
     <string name="home_wifi_hotspot_hint">هل نقطة اتصال الهاتف مفعّلة؟</string>
     <string name="home_wifi_off_hint">شغّله للاتصال</string>
-    <string name="debug_root_only_summary">تشغيل كل أوامر الصدفة عبر الروت فقط وليس عبر ADB.</string>
-    <string name="debug_root_only_description">لاختبار مسار الروت على جهاز يدعم ADB. عند التفعيل لا يُستخدم ADB إطلاقًا. يؤدي التفعيل إلى طلب صلاحية الروت، وهي أيضًا طريقة منحها أثناء توفر ADB. إذا رُفض الروت وكان مدير الروت يتذكر ذلك، فلن يعود الطلب حتى تغيّره هناك.</string>
+    <string name="debug_root_only_summary">عند منح root، تشغيل كل أوامر الصدفة عبر root وليس عبر ADB أبدًا.</string>
+    <string name="debug_root_only_description">عند منح root، لا يُستخدم ADB في أي مكان. ومن دون root، يُستخدم ADB كبديل احتياطي. يؤدي تفعيل هذا الخيار إلى طلب root، وهي أيضًا طريقة منحه أثناء توفر ADB. إذا رُفض root وكان مدير root يتذكر ذلك، فلن يعود الطلب حتى تغيّره هناك.</string>
 </resources>

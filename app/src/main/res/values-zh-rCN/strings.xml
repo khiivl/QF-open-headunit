@@ -1913,6 +1913,6 @@
     <string name="home_hotspot_not_found">未连接 WLAN。手机热点已开启吗？</string>
     <string name="home_wifi_hotspot_hint">手机热点已开启吗？</string>
     <string name="home_wifi_off_hint">开启后即可连接</string>
-    <string name="debug_root_only_summary">所有 shell 命令只通过 root 执行，绝不使用 ADB。</string>
-    <string name="debug_root_only_description">用于在有 ADB 的设备上测试 root 路径。开启后完全不使用 ADB。开启时会请求 root，这也是在 ADB 可用时授予 root 的方式。如果 root 被拒绝且您的 root 管理器记住了这一点，则在您于该处更改之前不会再次提示。</string>
+    <string name="debug_root_only_summary">已授予 root 时，所有 shell 命令都通过 root 执行，绝不通过 ADB。</string>
+    <string name="debug_root_only_description">已授予 root 时，任何地方都不会使用 ADB。没有 root 时，ADB 作为后备方案。开启时会请求 root，这也是在 ADB 可用时授予 root 的方式。如果 root 被拒绝且您的 root 管理器记住了这一点，则在您于该处更改之前不会再次提示。</string>
 </resources>

@@ -1913,6 +1913,6 @@
     <string name="home_hotspot_not_found">Niciun WiFi conectat. Este pornit hotspotul telefonului?</string>
     <string name="home_wifi_hotspot_hint">Este pornit hotspotul telefonului?</string>
     <string name="home_wifi_off_hint">Pornește-l pentru conectare</string>
-    <string name="debug_root_only_summary">Rulează toate comenzile shell prin root și niciodată prin ADB.</string>
-    <string name="debug_root_only_description">Pentru testarea căii root pe o unitate care are ADB. Cât timp este activat, ADB nu este folosit deloc. Activarea cere root, ceea ce este și modul de a-l acorda cât timp ADB este disponibil. Dacă root a fost refuzat și managerul root îl reține, cererea nu revine până nu schimbați acolo.</string>
+    <string name="debug_root_only_summary">Cu root acordat, rulează toate comenzile shell prin root și niciodată prin ADB.</string>
+    <string name="debug_root_only_description">Cu root acordat, ADB nu este folosit nicăieri. Fără root, ADB este soluția de rezervă. Activarea cere root, ceea ce este și modul de a-l acorda cât timp ADB este disponibil. Dacă root a fost refuzat și managerul root îl reține, cererea nu revine până nu schimbați acolo.</string>
 </resources>

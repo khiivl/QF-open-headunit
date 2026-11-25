@@ -808,7 +808,10 @@ class OnboardingActivity : BaseActivity() {
         if (root != settings.shellRootPreferred) settings.shellRootPreferred = root
         if (root) {
             lifecycleScope.launch {
-                com.andrerinas.openheadunit.utils.OemAppManager.requestRootNow()
+                // Granted here means Root only is turned on: with root, ADB is not used anywhere.
+                if (com.andrerinas.openheadunit.utils.OemAppManager.requestRootNow()) {
+                    settings.rootOnlyDebug = true
+                }
             }
         }
     }
