@@ -88,7 +88,10 @@ object VideoPreflightClips {
         storedCodec: String,
         forceSoftware: Boolean,
         selectedSoftwareHevcAvailable: Boolean = false,
+        hevcOnly: Boolean = false,
     ): List<VideoPreflightClip> {
+        // A unit whose codec is fixed to H.265 has nothing to learn from an H.264 clip.
+        if (hevcOnly) return listOf(VideoPreflightClip.H265_1080P)
         val clips = mutableListOf(VideoPreflightClip.H264_480P)
         if (panelCeiling.height >= 720) clips += VideoPreflightClip.H264_720P
         if (panelCeiling.height >= 1080) clips += VideoPreflightClip.H264_1080P

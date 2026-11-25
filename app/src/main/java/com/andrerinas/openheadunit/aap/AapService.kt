@@ -1071,6 +1071,10 @@ class AapService : Service() {
                 AppLog.i("WakeDetect: connection active, but PiP is active. Skipping return to full screen.")
                 return
             }
+            if (com.andrerinas.openheadunit.main.OnboardingActivity.isForeground) {
+                AppLog.i("WakeDetect: connection active, but the setup wizard is open. Not returning to projection.")
+                return
+            }
             AppLog.i("WakeDetect: connection active, returning to projection")
             try {
                 val projectionIntent = AapProjectionActivity.intent(this).apply {
@@ -1653,6 +1657,12 @@ class AapService : Service() {
         // goes, and MainActivity.onResume does the same on the way back to the home screen.
         if (SettingsActivity.isForeground) {
             AppLog.i("AapService: Not raising the projection, the settings screen is open")
+            return false
+        }
+
+        // Same for the setup wizard: a phone connecting mid-setup must not take the screen from it.
+        if (com.andrerinas.openheadunit.main.OnboardingActivity.isForeground) {
+            AppLog.i("AapService: Not raising the projection, the setup wizard is open")
             return false
         }
 

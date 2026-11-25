@@ -61,6 +61,8 @@ class VideoPreflightRunner(
     private val portrait: Boolean,
     private val container: FrameLayout,
     private val onProgress: (VideoPreflightProgress) -> Unit,
+    /** Test only H.265 and recommend it: a unit whose codec is fixed has no use for an H.264 result. */
+    private val hevcOnly: Boolean = false,
 ) {
 
     suspend fun run(): VideoPreflightRun = withContext(Dispatchers.Main) {
@@ -87,8 +89,13 @@ class VideoPreflightRunner(
             storedCodec = settings.videoCodec,
             forceSoftware = settings.forceSoftwareDecoding,
             selectedSoftwareHevcAvailable = softwareHevc,
+            hevcOnly = hevcOnly,
         )
-        val backends = backendLadder(optimizerResult.recommendedViewMode)
+        // On a QF unit the renderer is GLES: measured on the unit under a 60 fps load it draws every frame and paces the
+        // swaps to the display, where TextureView merges 15-20% of them away and SurfaceView shows each frame the moment
+        // it is decoded, which judders. The generic recommendation (TextureView) is for units nobody has measured.
+        val staticViewMode = if (hevcOnly) Settings.ViewMode.GLES else optimizerResult.recommendedViewMode
+        val backends = backendLadder(staticViewMode)
         val outcomes = mutableListOf<VideoPreflightBackendOutcome>()
 
         for (backend in backends) {
@@ -132,11 +139,12 @@ class VideoPreflightRunner(
         val recommendation = VideoPreflightPolicy.recommend(
             staticCodec = staticCodec,
             staticResolution = staticResolution,
-            staticViewMode = optimizerResult.recommendedViewMode,
+            staticViewMode = staticViewMode,
             panelCeiling = panel,
             hevcSupported = hevc,
             backends = outcomes,
             allowCodecChange = !settings.forceSoftwareDecoding,
+            hevcOnly = hevcOnly,
         )
         AppLog.i(
             "VideoPreflight: recommended codec=${recommendation.codec.settingsValue} " +
@@ -146,7 +154,7 @@ class VideoPreflightRunner(
         VideoPreflightRun(
             recommendation = recommendation,
             backends = outcomes,
-            staticViewMode = optimizerResult.recommendedViewMode,
+            staticViewMode = staticViewMode,
         )
     }
 

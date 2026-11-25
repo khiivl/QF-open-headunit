@@ -1918,4 +1918,6 @@
     <string name="home_hotspot_not_found">Kein WLAN verbunden. Ist der Hotspot des Handys an?</string>
     <string name="home_wifi_hotspot_hint">Ist der Hotspot des Handys an?</string>
     <string name="home_wifi_off_hint">Zum Verbinden einschalten</string>
+    <string name="debug_root_only_summary">Alle Shell-Befehle über Root ausführen und nie über ADB.</string>
+    <string name="debug_root_only_description">Zum Testen des Root-Wegs auf einem Gerät mit ADB. Ist dies aktiv, wird ADB gar nicht verwendet. Das Einschalten fragt nach Root, was auch der Weg ist, Root zu erteilen, solange ADB verfügbar ist. Wurde Root abgelehnt und merkt sich Ihre Root-Verwaltung das, kommt die Abfrage erst wieder, wenn Sie es dort ändern.</string>
 </resources>

@@ -173,6 +173,10 @@ class OnboardingActivity : BaseActivity() {
 
         selectedPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         selectedSize = OnboardingDisplayPolicy.initialPreset(settings.displaySizePreset, estimateSizePreset())
+        // There is no phone-sized choice on a head unit panel, so a stored or estimated one starts on the smallest offered.
+        if (selectedSize == SystemOptimizer.DisplaySizePreset.PHONE_4_6) {
+            selectedSize = SystemOptimizer.DisplaySizePreset.SMALL_7_8
+        }
 
         buildStepperDots()
         bindSteps()
@@ -268,6 +272,7 @@ class OnboardingActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        isForeground = true
         // Reflect any changes made in deep-linked settings screens (theme, automation) or after
         // returning from a special-permission settings screen (overlay / modify system settings).
         updateThemeButtonText()
@@ -282,6 +287,7 @@ class OnboardingActivity : BaseActivity() {
 
     override fun onPause() {
         super.onPause()
+        isForeground = false
         dpiPicker?.stopDemo()
         audioStep?.onPause()
         // A codec and a surface must not outlive the visible wizard. The result is lost, which is
@@ -306,7 +312,9 @@ class OnboardingActivity : BaseActivity() {
      * separate phone, so it is hidden there.
      */
     private fun isStepHidden(s: Int): Boolean =
-        s == STEP_GPS && !settings.showsExternalGps()
+        (s == STEP_GPS && !settings.showsExternalGps()) ||
+            // The permissions step is for asking; head units like the QF ones grant them all by default.
+            (s == STEP_PERMISSIONS && AppPermissions.grantedCount(this) == AppPermissions.visible().size)
 
     /** The steps actually shown, in order, after removing the ones that do not apply. */
     private fun visibleSteps(): List<Int> = (0 until STEP_COUNT).filter { !isStepHidden(it) }
@@ -390,7 +398,6 @@ class OnboardingActivity : BaseActivity() {
         val modes = settings.connectionModes
         if (Settings.ConnectionMode.USB in modes) connGroup.check(R.id.onb_conn_usb)
         if (Settings.ConnectionMode.WIFI in modes) connGroup.check(R.id.onb_conn_wifi)
-        if (Settings.ConnectionMode.SELF in modes) connGroup.check(R.id.onb_conn_self)
         isBinding = false
         updateConnectionDetail()
         connGroup.addOnButtonCheckedListener { group, _, _ ->
@@ -399,7 +406,6 @@ class OnboardingActivity : BaseActivity() {
             val selected = buildSet {
                 if (R.id.onb_conn_usb in checked) add(Settings.ConnectionMode.USB)
                 if (R.id.onb_conn_wifi in checked) add(Settings.ConnectionMode.WIFI)
-                if (R.id.onb_conn_self in checked) add(Settings.ConnectionMode.SELF)
             }
             settings.connectionModes = selected
             updateConnectionDetail()
@@ -414,7 +420,6 @@ class OnboardingActivity : BaseActivity() {
         sizeGroup.addOnButtonCheckedListener { _, id, checked ->
             if (!checked) return@addOnButtonCheckedListener
             selectedSize = when (id) {
-                R.id.onb_size_phone -> SystemOptimizer.DisplaySizePreset.PHONE_4_6
                 R.id.onb_size_small -> SystemOptimizer.DisplaySizePreset.SMALL_7_8
                 R.id.onb_size_large -> SystemOptimizer.DisplaySizePreset.LARGE_11_PLUS
                 else -> SystemOptimizer.DisplaySizePreset.STANDARD_9_10
@@ -445,19 +450,27 @@ class OnboardingActivity : BaseActivity() {
         updateNightButtonText()
         findViewById<MaterialButton>(R.id.onb_night_button).setOnClickListener { showNightModeDialog() }
 
+        // --- System access: hide zLink (on until chosen otherwise: CarPlay needs it) and root or ADB (root, recommended) ---
+        findViewById<SwitchMaterial>(R.id.onb_sys_hide_zlink_switch).isChecked =
+            if (settings.hasStoredHideZlinkUi()) settings.hideZlinkUi else true
+        findViewById<SwitchMaterial>(R.id.onb_sys_root_switch).isChecked = settings.shellRootPreferred
+
         // --- Automation: simple toggles inline, priority + advanced via the real screens ---
         findViewById<SwitchMaterial>(R.id.onb_autoconnect_last_switch).apply {
             isChecked = settings.autoConnectLastSession
             setOnCheckedChangeListener { _, v -> settings.autoConnectLastSession = v }
         }
-        findViewById<SwitchMaterial>(R.id.onb_autoconnect_single_switch).apply {
-            isChecked = settings.autoConnectSingleUsbDevice
-            setOnCheckedChangeListener { _, v -> settings.autoConnectSingleUsbDevice = v }
+        findViewById<SwitchMaterial>(R.id.onb_autoreconnect_acc_switch).apply {
+            isChecked = settings.autoReconnectOnAccOn
+            setOnCheckedChangeListener { _, v -> settings.autoReconnectOnAccOn = v }
         }
         // USB-only auto-start toggles (also written to device storage, like AutoStartFragment).
+        // One switch covers both ways a phone on the cable gets connected: when it is plugged in ("connect when plugged
+        // in") and when it is already there as the app opens ("auto-connect USB device"). Settings keeps them apart.
         findViewById<SwitchMaterial>(R.id.onb_autostart_usb_switch).apply {
-            isChecked = settings.usbConnectOnPlugIn
+            isChecked = settings.usbConnectOnPlugIn || settings.autoConnectSingleUsbDevice
             setOnCheckedChangeListener { _, v ->
+                if (v != settings.autoConnectSingleUsbDevice) settings.autoConnectSingleUsbDevice = v
                 if (v != settings.usbConnectOnPlugIn) settings.usbConnectOnPlugIn = v
                 Settings.syncUsbConnectOnPlugInToDeviceStorage(this@OnboardingActivity, v)
                 applyAutomationVisibility()
@@ -474,14 +487,6 @@ class OnboardingActivity : BaseActivity() {
         findViewById<SwitchMaterial>(R.id.onb_reopen_switch).apply {
             isChecked = settings.reopenOnReconnection
             setOnCheckedChangeListener { _, v -> settings.reopenOnReconnection = v }
-        }
-        // WiFi-only auto-start toggle.
-        findViewById<SwitchMaterial>(R.id.onb_autostart_wifi_switch).apply {
-            isChecked = settings.autoStartOnWifi
-            setOnCheckedChangeListener { _, v ->
-                settings.autoStartOnWifi = v
-                Settings.syncAutoStartOnWifiToDeviceStorage(this@OnboardingActivity, v)
-            }
         }
         // --- Audio: a guided sound check, with the technical switches one level down ---
         audioStep = OnboardingAudioStep(this, settings, findViewById(R.id.onb_audio_root)).also {
@@ -717,8 +722,6 @@ class OnboardingActivity : BaseActivity() {
     /** Show only the auto-start toggles that match the chosen connection type. Self Mode
      * connects without USB or WiFi, so both groups are hidden. */
     private fun applyAutomationVisibility() {
-        val usbVis = if (settings.showsUsb()) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.onb_ac_single_row).visibility = usbVis
         // The same rows as the Auto-start screen. The launcher step carries its own Reopen note.
         val listen = settings.listenForUsbDevices
         val usbRows = UsbAutoStartRowsPolicy.rows(
@@ -732,9 +735,6 @@ class OnboardingActivity : BaseActivity() {
         findViewById<SwitchMaterial>(R.id.onb_autostart_usb_switch).isEnabled = usbRows.connectEnabled
         findViewById<View>(R.id.onb_as_usb_open_row).visibility = if (usbRows.open) View.VISIBLE else View.GONE
         findViewById<View>(R.id.onb_reopen_row).visibility = if (usbRows.reopen) View.VISIBLE else View.GONE
-        // Auto-start on WiFi is a legacy path that only applies up to Android 12L (API 32).
-        findViewById<View>(R.id.onb_as_wifi_row).visibility =
-            if (settings.showsWifi() && Build.VERSION.SDK_INT <= 32) View.VISIBLE else View.GONE
     }
 
     // --- Car launcher ---
@@ -791,7 +791,30 @@ class OnboardingActivity : BaseActivity() {
         else -> null
     }
 
+    /**
+     * What the first page chose: whether the zLink app is hidden (CarPlay needs it) and whether root or ADB is the way in.
+     * Choosing root asks for it now, so the root manager's prompt comes during setup rather than at some later start.
+     */
+    private fun applySystemStep() {
+        val hide = findViewById<SwitchMaterial>(R.id.onb_sys_hide_zlink_switch).isChecked
+        if (hide != settings.hideZlinkUi || !settings.hasStoredHideZlinkUi()) {
+            settings.hideZlinkUi = hide
+            lifecycleScope.launch {
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
+                    .applyVisibility(applicationContext, hide)
+            }
+        }
+        val root = findViewById<SwitchMaterial>(R.id.onb_sys_root_switch).isChecked
+        if (root != settings.shellRootPreferred) settings.shellRootPreferred = root
+        if (root) {
+            lifecycleScope.launch {
+                com.andrerinas.openheadunit.utils.OemAppManager.requestRootNow()
+            }
+        }
+    }
+
     private fun onNext() {
+        if (step == STEP_SYSTEM) applySystemStep()
         if (step == STEP_SAFETY) settings.hasAcceptedDisclaimer = true
         if (step == STEP_VIDEO) {
             val run = videoRun
@@ -1040,6 +1063,9 @@ class OnboardingActivity : BaseActivity() {
             portrait = selectedPortrait,
             container = preview,
             onProgress = { progress -> runOnUiThread { showVideoProgress(progress) } },
+            // A QF unit's codec is H.265, so that is the only clip played.
+            hevcOnly = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
+                .getInstalledPackages(this).isNotEmpty(),
         )
         videoJob = lifecycleScope.launch {
             try {
@@ -1331,7 +1357,6 @@ class OnboardingActivity : BaseActivity() {
     }
 
     private fun sizeButtonId(preset: SystemOptimizer.DisplaySizePreset): Int = when (preset) {
-        SystemOptimizer.DisplaySizePreset.PHONE_4_6 -> R.id.onb_size_phone
         SystemOptimizer.DisplaySizePreset.SMALL_7_8 -> R.id.onb_size_small
         SystemOptimizer.DisplaySizePreset.LARGE_11_PLUS -> R.id.onb_size_large
         else -> R.id.onb_size_standard
@@ -1407,8 +1432,14 @@ class OnboardingActivity : BaseActivity() {
             // slightly-larger standard resolution is allowed, heavy downscaling is not — see panelCeiling).
             settings.resolutionId = preflight?.resolution?.id
                 ?: SystemOptimizer.recommendedResolution(panel.widthPixels, panel.heightPixels).id
-            settings.videoCodec = preflight?.codec?.settingsValue ?: result.recommendedVideoCodec
-            settings.viewMode = preflight?.viewMode ?: result.recommendedViewMode
+            // A zLink unit decodes H.265, so that is the codec there whatever the preflight or the generic
+            // recommendation says; the recommendation came out as "Auto" and, once stored, hid the H.265 default.
+            val zlinkUnit = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
+                .getInstalledPackages(this).isNotEmpty()
+            settings.videoCodec = if (zlinkUnit) "H.265"
+                else preflight?.codec?.settingsValue ?: result.recommendedVideoCodec
+            settings.viewMode = preflight?.viewMode
+                ?: if (zlinkUnit) Settings.ViewMode.GLES else result.recommendedViewMode
             settings.screenOrientation = result.suggestedOrientation
             // If we changed the renderer, confirm the picture on the first projection.
             if (settings.viewMode != previousViewMode) settings.pendingRendererConfirm = true
@@ -1496,30 +1527,38 @@ class OnboardingActivity : BaseActivity() {
 
     companion object {
         const val CURRENT_ONBOARDING_VERSION = 2
+
+        /**
+         * Whether the setup wizard is on screen. A phone that connects meanwhile is not shown, or it would take the wizard's
+         * screen mid-step: AapService reads this before raising the projection, and MainActivity raises it when the wizard
+         * is done, as it does after Settings.
+         */
+        @Volatile var isForeground = false
         // Set when the user chooses "Do it later" so MainActivity does not immediately
         // relaunch the wizard this session. Resets on process restart (next app open).
         @Volatile
         var deferredThisSession = false
         private const val KEY_STEP = "onb_step"
         private const val KEY_LAUNCHER_PENDING = "onb_launcher_pending"
-        private const val STEP_COUNT = 14
+        private const val STEP_COUNT = 15
         /** Below this available height (dp) the footer goes to a single row. 800x480 lands
          * well under it; 1024x600 stays above, so its footer is unchanged. */
         private const val SHORT_SCREEN_MAX_HEIGHT_DP = 500
         /** The verdict box's wash: enough to tell pass from fail, light enough for its text. */
         private const val SUMMARY_WASH_ALPHA = 0x24
-        private const val STEP_SAFETY = 1
-        private const val STEP_CONNECTION = 2
-        private const val STEP_VIDEO = 3
-        private const val STEP_DISPLAY = 4
-        private const val STEP_DPI = 5
-        private const val STEP_AUDIO = 7
-        private const val STEP_AUTOMATION = 8
-        private const val STEP_LAUNCHER = 9
-        private const val STEP_GPS = 10
-        private const val STEP_VEHICLE = 11
-        private const val STEP_PERMISSIONS = 12
-        private const val STEP_READY = 13
+        private const val STEP_SYSTEM = 1
+        private const val STEP_SAFETY = 2
+        private const val STEP_CONNECTION = 3
+        private const val STEP_VIDEO = 4
+        private const val STEP_DISPLAY = 5
+        private const val STEP_DPI = 6
+        private const val STEP_AUDIO = 8
+        private const val STEP_AUTOMATION = 9
+        private const val STEP_LAUNCHER = 10
+        private const val STEP_GPS = 11
+        private const val STEP_VEHICLE = 12
+        private const val STEP_PERMISSIONS = 13
+        private const val STEP_READY = 14
 
         // The manufacturer half of the Desktop Head Unit identity we report by default.
         private const val DHU_MAKE = "Google"

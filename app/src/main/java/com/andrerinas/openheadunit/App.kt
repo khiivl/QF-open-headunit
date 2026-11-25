@@ -47,6 +47,13 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         super.onCreate()
         instance = this
         registerActivityLifecycleCallbacks(this)
+        // The root-only debug switch lives in settings and is read by the shell code from this copy.
+        try {
+            val shellSettings = com.andrerinas.openheadunit.utils.Settings(this)
+            com.andrerinas.openheadunit.utils.OemAppManager.rootOnly = shellSettings.rootOnlyDebug
+            com.andrerinas.openheadunit.utils.OemAppManager.preferRoot = shellSettings.shellRootPreferred
+        } catch (_: Exception) {
+        }
         // A single projection chosen (or restored from a backup) while the other one was the running mode.
         run {
             val settings = com.andrerinas.openheadunit.utils.Settings(this)

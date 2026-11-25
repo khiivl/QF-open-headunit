@@ -1900,4 +1900,6 @@
     <string name="home_hotspot_not_found">WiFi არ არის დაკავშირებული. ჩართულია ტელეფონის ჰოტსპოტი?</string>
     <string name="home_wifi_hotspot_hint">ჩართულია ტელეფონის ჰოტსპოტი?</string>
     <string name="home_wifi_off_hint">ჩართეთ დასაკავშირებლად</string>
+    <string name="debug_root_only_summary">ყველა shell ბრძანება შესრულდეს მხოლოდ root-ით და არასოდეს ADB-ით.</string>
+    <string name="debug_root_only_description">root გზის შესამოწმებლად ADB-ის მქონე მოწყობილობაზე. ჩართვისას ADB საერთოდ არ გამოიყენება. ჩართვა root-ს მოითხოვს, რაც ასევე root-ის მინიჭების გზაა, სანამ ADB ხელმისაწვდომია. თუ root უარყოფილია და თქვენი root მენეჯერი ამას ახსოვს, მოთხოვნა აღარ დაბრუნდება, სანამ იქ არ შეცვლით.</string>
 </resources>

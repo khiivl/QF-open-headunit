@@ -1917,4 +1917,6 @@
     <string name="home_hotspot_not_found">Chưa kết nối WiFi. Điểm phát của điện thoại đã bật chưa?</string>
     <string name="home_wifi_hotspot_hint">Điểm phát của điện thoại đã bật chưa?</string>
     <string name="home_wifi_off_hint">Bật lên để kết nối</string>
+    <string name="debug_root_only_summary">Chạy mọi lệnh shell chỉ qua root và không bao giờ qua ADB.</string>
+    <string name="debug_root_only_description">Dùng để thử đường root trên thiết bị có ADB. Khi bật, ADB hoàn toàn không được dùng. Bật sẽ yêu cầu root, đây cũng là cách cấp root khi ADB vẫn khả dụng. Nếu root đã bị từ chối và trình quản lý root ghi nhớ điều đó, yêu cầu sẽ không quay lại cho đến khi bạn đổi ở đó.</string>
 </resources>

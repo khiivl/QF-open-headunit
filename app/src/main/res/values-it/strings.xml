@@ -1917,4 +1917,6 @@
     <string name="home_hotspot_not_found">Nessun WiFi connesso. L’hotspot del telefono è attivo?</string>
     <string name="home_wifi_hotspot_hint">L’hotspot del telefono è attivo?</string>
     <string name="home_wifi_off_hint">Accendilo per connetterti</string>
+    <string name="debug_root_only_summary">Esegui tutti i comandi shell tramite root e mai tramite ADB.</string>
+    <string name="debug_root_only_description">Per provare il percorso root su un’unità con ADB. Quando è attivo, ADB non viene usato affatto. Attivarlo richiede root, che è anche il modo per concederlo mentre ADB è disponibile. Se root è stato negato e il gestore root lo ricorda, la richiesta non torna finché non lo cambi lì.</string>
 </resources>

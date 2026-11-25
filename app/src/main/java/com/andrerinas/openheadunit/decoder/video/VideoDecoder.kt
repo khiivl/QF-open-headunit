@@ -220,6 +220,10 @@ class VideoDecoder(
     @Volatile private var running = false
     private var startTime = 0L
 
+    // The paced SurfaceView experiment (Settings.debugPacedRelease): present only while a SurfaceView session runs.
+    @Volatile private var pacer: VsyncPacer? = null
+    private var vsyncClock: VsyncClock? = null
+
     private var mWidth = 0
     private var mHeight = 0
     private val parameterSets = ParameterSetCache()
@@ -831,8 +835,44 @@ class VideoDecoder(
         restartsSinceLastFrame = 0
     }
 
+    /**
+     * Starts the vsync pacing for a SurfaceView session when the experiment is on. Only a SurfaceView takes a release time
+     * from the codec; a TextureView or the GLES view takes the frame when it draws, so pacing there would only add delay.
+     */
+    private fun startPacingIfWanted() {
+        stopPacing()
+        if (!settings.debugPacedRelease || settings.viewMode != Settings.ViewMode.SURFACE) return
+        val newPacer = VsyncPacer(settings.debugPacedLeadMs.coerceIn(0, 12) * 1_000_000L)
+        pacer = newPacer
+        vsyncClock = VsyncClock(newPacer).also { it.start() }
+        AppLog.i("VideoDecoder: paced SurfaceView release is on (lead ${settings.debugPacedLeadMs} ms)")
+    }
+
+    /**
+     * Experiment only: `setprop debug.ohu.paced_lead_ms N` (0..16) changes the pacer's lead within five seconds, without
+     * restarting the app or reconnecting the phone, so values can be compared while the user keeps driving the map.
+     */
+    private fun applyPacedLeadOverride(p: VsyncPacer) {
+        val raw = try {
+            Class.forName("android.os.SystemProperties")
+                .getMethod("get", String::class.java, String::class.java)
+                .invoke(null, "debug.ohu.paced_lead_ms", "") as? String
+        } catch (_: Throwable) {
+            null
+        }
+        val ms = raw?.trim()?.toIntOrNull() ?: return
+        p.leadNs = ms.coerceIn(0, 16) * 1_000_000L
+    }
+
+    private fun stopPacing() {
+        vsyncClock?.stop()
+        vsyncClock = null
+        pacer = null
+    }
+
     /** Stops the decoder, terminates the output thread, and releases hardware resources. */
     fun stop(reason: String = "unknown") {
+        stopPacing()
         synchronized(this) {
             if (reason == DecoderStopPolicy.REASON_ACTIVITY_STOPPED ||
                 reason == DecoderStopPolicy.REASON_SCREEN_OFF_SLEEP) {
@@ -1818,6 +1858,10 @@ class VideoDecoder(
 
             running = true
             clearFrameQueue()
+            // PARKED EXPERIMENT: paced SurfaceView release (VsyncPacer / VsyncClock, Settings.debugPacedRelease). It matched
+            // GLES for smoothness on the QF units without being measurably faster, so GLES is the default and this stays off.
+            // Uncomment to bring it back; everything else it needs is still in place and inert while `pacer` is null.
+            // startPacingIfWanted()
             val newOutputThread = Thread {
                 android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DISPLAY)
                 LegacyOptimizer.setHighPriority()
@@ -2160,7 +2204,8 @@ class VideoDecoder(
                 "fed=$fed (${fedFps}fps), dropped=$dropped, skipped=$skipped, " +
                 "concealed=$concealed, inputWait=${inputWait}ms, enqueueWait=${enqueueWait}ms, " +
                 "codec=$currentCodecName, presented=$presented (${presentedFps}fps)" +
-                (if (latency == null) "" else ", $latency")
+                (if (latency == null) "" else ", $latency") +
+                (pacer?.let { applyPacedLeadOverride(it); it.consumeStats() }?.let { ", $it" } ?: "")
         )
         reportBackpressure(elapsed, inputWait, dropped, warn)
     }
@@ -2323,7 +2368,15 @@ class VideoDecoder(
                             )
                         } ?: break@outputLoop
                         val render = outcome.renders && (readyCount <= 2 || i == readyCount - 1)
-                        currentCodec.releaseOutputBuffer(readyIndices[i], render)
+                        // With the paced SurfaceView experiment on, a frame that is to be shown is handed to the display
+                        // with the time of its own refresh; null means show it at once (pacing off, no beat yet, or the
+                        // schedule is too far behind a burst).
+                        val releaseAtNs = if (render) pacer?.releaseTimeNs(System.nanoTime()) else null
+                        if (releaseAtNs != null) {
+                            currentCodec.releaseOutputBuffer(readyIndices[i], releaseAtNs)
+                        } else {
+                            currentCodec.releaseOutputBuffer(readyIndices[i], render)
+                        }
                         releasedCount++
                         // Each native completion is independent. A later failure must not erase
                         // the picture, repair evidence or notification already delivered here.

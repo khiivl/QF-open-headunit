@@ -1917,4 +1917,6 @@
     <string name="home_hotspot_not_found">Wi-Fiに接続できませんでした。スマートフォンのテザリングはオンですか？</string>
     <string name="home_wifi_hotspot_hint">スマートフォンのテザリングはオンですか？</string>
     <string name="home_wifi_off_hint">接続するにはオンにしてください</string>
+    <string name="debug_root_only_summary">すべてのシェルコマンドを root 経由でのみ実行し、ADB は使いません。</string>
+    <string name="debug_root_only_description">ADB が使えるユニットで root 経路をテストするためのものです。オンの間、ADB はまったく使われません。オンにすると root を要求し、ADB が使える状態でも root を許可する方法になります。root が拒否され、root 管理アプリがそれを記憶している場合、そちらで変更するまで要求は再表示されません。</string>
 </resources>

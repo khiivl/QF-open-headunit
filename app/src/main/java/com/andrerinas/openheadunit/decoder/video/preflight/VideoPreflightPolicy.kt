@@ -92,8 +92,10 @@ object VideoPreflightPolicy {
         hevcSupported: Boolean,
         backends: List<VideoPreflightBackendOutcome>,
         allowCodecChange: Boolean = true,
+        hevcOnly: Boolean = false,
     ): VideoPreflightRecommendation {
         val allClips = backends.flatMap { it.clips }
+        if (hevcOnly) return recommendHevcOnly(staticResolution, staticViewMode, panelCeiling, backends, allClips)
         val passedH264 = allClips.filter {
             it.clip.codec == VideoDecoder.CodecType.H264 && it.passed
         }
@@ -145,6 +147,52 @@ object VideoPreflightPolicy {
 
         return VideoPreflightRecommendation(
             codec = codec,
+            resolution = resolution,
+            viewMode = workingBackend,
+            notes = notes,
+            verified = verified,
+        )
+    }
+
+    /**
+     * The recommendation for a unit whose codec is fixed to H.265, where only H.265 clips were played. The codec is
+     * always H.265; what the clips decide is the resolution (the best one that played, within the panel) and the
+     * renderer that drew it. Nothing is recommended to apply when no clip played.
+     */
+    private fun recommendHevcOnly(
+        staticResolution: Settings.Resolution,
+        staticViewMode: Settings.ViewMode,
+        panelCeiling: Settings.Resolution,
+        backends: List<VideoPreflightBackendOutcome>,
+        allClips: List<VideoPreflightClipOutcome>,
+    ): VideoPreflightRecommendation {
+        val passed = allClips.filter { it.clip.codec == VideoDecoder.CodecType.H265 && it.passed }
+        if (passed.isEmpty()) {
+            val notes = mutableSetOf(VideoPreflightNote.NOT_TESTED)
+            if (allClips.any { it.clip.codec == VideoDecoder.CodecType.H265 && !it.passed }) {
+                notes += VideoPreflightNote.H265_FAILED
+            }
+            return VideoPreflightRecommendation(
+                codec = VideoDecoder.CodecType.H265,
+                resolution = staticResolution,
+                viewMode = staticViewMode,
+                notes = notes,
+                verified = false,
+            )
+        }
+        val best = passed.maxByOrNull { it.clip.width * it.clip.height }!!
+        val workingBackend = backends.firstOrNull { backend ->
+            backend.clips.any { it.clip.codec == VideoDecoder.CodecType.H265 && it.passed }
+        }?.viewMode ?: staticViewMode
+        var resolution = resolutionForWidth(best.clip.width)
+        if (resolution.width > panelCeiling.width) resolution = panelCeiling
+        val notes = mutableSetOf<VideoPreflightNote>()
+        if (resolution.width < staticResolution.width) notes += VideoPreflightNote.RESOLUTION_CAPPED
+        if (workingBackend != staticViewMode) notes += VideoPreflightNote.RENDERER_CHANGED
+        val verified = best.samples.isNotEmpty() && best.badSamples == 0
+        if (!verified) notes += VideoPreflightNote.PICTURE_UNVERIFIED
+        return VideoPreflightRecommendation(
+            codec = VideoDecoder.CodecType.H265,
             resolution = resolution,
             viewMode = workingBackend,
             notes = notes,

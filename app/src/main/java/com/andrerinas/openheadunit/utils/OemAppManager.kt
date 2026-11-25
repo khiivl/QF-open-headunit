@@ -147,40 +147,104 @@ object OemAppManager {
         if (BuildConfig.CODOS) {
             return@withContext if (SystemUidShell.isSystemUid()) ExecutionBackend.SYSTEM else ExecutionBackend.NONE
         }
-        if (LibsuAvailability.usable()) {
-            if (Shell.isAppGrantedRoot() == null) {
-                try { Shell.getShell() } catch (_: Throwable) {}
-            }
-            if (Shell.isAppGrantedRoot() == true) {
-                return@withContext ExecutionBackend.ROOT
-            }
-        }
-        if (AdbManager.isAdbPortOpen() || AdbManager.isAdbPortOpen(9876)) {
-            return@withContext ExecutionBackend.ADB
-        }
+        if (rootOnly) return@withContext if (rootGranted()) ExecutionBackend.ROOT else ExecutionBackend.NONE
+        // Root first when it is the chosen way and has been granted; local ADB otherwise, which is the whole story
+        // when the unit is set to ADB.
+        if (preferRoot && rootGranted()) return@withContext ExecutionBackend.ROOT
+        if (adbAvailable()) return@withContext ExecutionBackend.ADB
         ExecutionBackend.NONE
     }
+
+    /** The debug switch: shell commands use root only, and ADB counts as not there. */
+    @Volatile var rootOnly = false
+
+    /** The chosen way in (see Settings.shellRootPreferred): root when granted, then ADB; or, when false, ADB only. */
+    @Volatile var preferRoot = true
+
+    /** Whether local ADB is listening, on either port the app uses. Never, in root-only mode. */
+    suspend fun adbAvailable(): Boolean =
+        !rootOnly && (AdbManager.isAdbPortOpen() || AdbManager.isAdbPortOpen(9876))
+
+    /** Whether the app holds root, opening the root shell (which raises the su manager's prompt) if that is not known yet. */
+    private fun rootGranted(): Boolean {
+        if (!LibsuAvailability.usable()) return false
+        if (Shell.isAppGrantedRoot() == null) {
+            try { Shell.getShell() } catch (_: Throwable) {}
+        }
+        return Shell.isAppGrantedRoot() == true
+    }
+
+    /**
+     * Asks for root now, whether or not ADB is there, and says whether it was granted. For the root-only debug switch,
+     * which is also the way to grant root on a unit that has ADB.
+     */
+    suspend fun requestRootNow(): Boolean = withContext(Dispatchers.IO) {
+        if (BuildConfig.CODOS || !LibsuAvailability.usable()) return@withContext false
+        // The library keeps the first shell it opened for the life of the process. After a denial that is a plain shell,
+        // so without dropping it a root manager entry deleted since would never be asked again until the app restarts.
+        try {
+            Shell.getCachedShell()?.let { cached -> if (!cached.isRoot) cached.close() }
+        } catch (_: Throwable) {}
+        try { Shell.getShell() } catch (_: Throwable) {}
+        val granted = Shell.isAppGrantedRoot() == true
+        AppLog.i("OemAppManager: asked for root on request, granted=$granted")
+        granted
+    }
+
+    /** Runs [command] as root, or null when root is not granted. Logs sizes only: the output can hold a password. */
+    private fun runAsRoot(command: String): Pair<Int, String>? {
+        if (!rootGranted()) return null
+        return try {
+            val result = Shell.cmd(command).exec()
+            val out = (result.out + result.err).joinToString("\n").trim()
+            AppLog.i(
+                "OemAppManager: root ran '${command.take(60)}' code=${result.code} " +
+                    "stdout=${result.out.size} lines stderr=${result.err.size} lines, ${out.length} chars"
+            )
+            Pair(result.code, out)
+        } catch (e: Exception) {
+            AppLog.e("OemAppManager: Root execution failed: ${e.message}", e)
+            null
+        }
+    }
+
+    @Volatile private var rootAskedThisProcess = false
+
+    /**
+     * Asks for root at an app start, when root is the chosen way in (once per process, not on each screen resume): the
+     * Magisk (or other su manager) prompt appears then. Opening the shell is both the question and the check, so a grant
+     * already given just opens it silently. An answer the user stored as "deny" is the su manager's to keep: it does
+     * not prompt again, and only the user changing it there brings the prompt back. Set to ADB, the app never opens a
+     * root shell, so nothing is asked.
+     */
+    suspend fun requestRootIfNotGranted(context: Context) = withContext(Dispatchers.IO) {
+        if (BuildConfig.CODOS || rootAskedThisProcess) return@withContext
+        if (!preferRoot && !rootOnly) return@withContext
+        rootAskedThisProcess = true
+        if (!LibsuAvailability.usable()) return@withContext
+        // Opening the shell is what raises the prompt, and it waits there for the answer.
+        try { Shell.getShell() } catch (_: Throwable) {}
+        AppLog.i("OemAppManager: asked for root at start, granted=${Shell.isAppGrantedRoot()}")
+    }
+
+    /** Whether a shell can be reached at all, by root or by local ADB. */
+    suspend fun hasShellAccess(): Boolean = checkAvailableBackend() != ExecutionBackend.NONE
 
     suspend fun executeCommand(context: Context, command: String): Pair<Int, String> = withContext(Dispatchers.IO) {
         if (BuildConfig.CODOS) {
             return@withContext SystemUidShell.exec(command)
         }
-        if (LibsuAvailability.usable()) {
-            if (Shell.isAppGrantedRoot() == null) {
-                try { Shell.getShell() } catch (_: Throwable) {}
-            }
-            if (Shell.isAppGrantedRoot() == true) {
-                try {
-                    val result = Shell.cmd(command).exec()
-                    val out = (result.out + result.err).joinToString("\n").trim()
-                    return@withContext Pair(result.code, out)
-                } catch (e: Exception) {
-                    AppLog.e("OemAppManager: Root execution failed: ${e.message}", e)
-                }
-            }
+        if (rootOnly) {
+            // The debug switch: root or nothing, so a failure here is the root path's own.
+            return@withContext runAsRoot(command) ?: Pair(-1, "root-only mode: root is not granted")
+        }
+        // Root when it is the chosen way and has been granted; otherwise Self-ADB. Without either the command fails and
+        // the full-screen notice explains why.
+        if (preferRoot) {
+            runAsRoot(command)?.let { return@withContext it }
         }
 
-        // Fall back to Self-ADB (localhost:5555 or localhost:9876)
+        // Self-ADB (localhost:5555 or localhost:9876)
         if (AdbManager.isAdbPortOpen(5555)) {
             AdbManager.exec(context, command, 5555)
         } else if (AdbManager.isAdbPortOpen(9876)) {

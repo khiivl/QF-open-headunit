@@ -251,6 +251,14 @@
             android:launchMode="singleTask"
             android:theme="@style/AppTheme.CarPlay" />
 
+        <!-- Full-screen and not dismissable: shown while the unit offers neither root nor local ADB. -->
+        <activity
+            android:name=".main.NoShellAccessActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".main.SettingsActivity"
             android:label="@string/settings"

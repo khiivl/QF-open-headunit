@@ -9,6 +9,7 @@ import androidx.activity.result.ActivityResultLauncher
 import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
+import kotlinx.coroutines.launch
 
 object CarLauncherManager {
 
@@ -68,6 +69,8 @@ object CarLauncherManager {
      * older units and for the ones where the role is not available.
      */
     fun isDefaultLauncher(context: Context): Boolean {
+        // On a unit with the QF launcher setting that setting is the answer, whatever the role manager says.
+        if (QfLauncherSelect.current() == context.packageName) return true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
                 val roleManager = context.getSystemService(RoleManager::class.java)
@@ -96,6 +99,21 @@ object CarLauncherManager {
      * Older units, and units without the role, get the system Home settings instead.
      */
     fun promptSetDefaultLauncher(context: Context, roleRequest: ActivityResultLauncher<Intent>) {
+        // A QF unit chooses its launcher in its own Factory settings, which this reaches by the broadcast that screen's
+        // service answers: no role request, no root.
+        if (QfLauncherSelect.isSupported()) {
+            if (QfLauncherSelect.current() == context.packageName) return
+            val app = context.applicationContext
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                val done = QfLauncherSelect.select(app, app.packageName)
+                ToastUtils.showToast(
+                    app,
+                    if (done) com.andrerinas.openheadunit.R.string.qf_launcher_set else com.andrerinas.openheadunit.R.string.qf_launcher_not_set,
+                    android.widget.Toast.LENGTH_LONG, force = true
+                )
+            }
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
                 val roleManager = context.getSystemService(RoleManager::class.java)

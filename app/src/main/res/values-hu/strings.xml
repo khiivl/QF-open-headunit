@@ -1915,4 +1915,6 @@
     <string name="home_hotspot_not_found">Nincs Wi-Fi kapcsolat. Be van kapcsolva a telefon hotspotja?</string>
     <string name="home_wifi_hotspot_hint">Be van kapcsolva a telefon hotspotja?</string>
     <string name="home_wifi_off_hint">Kapcsold be a csatlakozáshoz</string>
+    <string name="debug_root_only_summary">Minden shell-parancs futtatása rootként, és soha nem ADB-n keresztül.</string>
+    <string name="debug_root_only_description">A root útvonal kipróbálásához ADB-vel rendelkező egységen. Bekapcsolt állapotban az ADB egyáltalán nincs használatban. A bekapcsolás rootot kér, ami egyben a root megadásának módja is, amíg az ADB elérhető. Ha a root megtagadásra került, és a root-kezelő ezt megjegyzi, a kérés addig nem tér vissza, amíg ott meg nem változtatja.</string>
 </resources>

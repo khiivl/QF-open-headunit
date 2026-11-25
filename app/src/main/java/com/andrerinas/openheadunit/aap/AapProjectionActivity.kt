@@ -2318,6 +2318,10 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
             consumeGestureUntilUp = false
             clearTwoFingerTracking()
+            // Android normally holds touches and hands them to the app once per display refresh: measured on a QF unit,
+            // each sample was handled 11-12 ms after the finger (21 ms at p95) before it left for the phone. Asking for
+            // unbuffered dispatch delivers each one as the touchscreen reports it, for the rest of this gesture.
+            window?.decorView?.requestUnbufferedDispatch(ev)
         }
         if (consumeGestureUntilUp) {
             if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
@@ -2778,6 +2782,16 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
     private fun pointersOf(event: MotionEvent): List<RemoteTouchPolicy.Pointer> =
         List(event.pointerCount) { RemoteTouchPolicy.Pointer(event.getPointerId(it), event.getX(it), event.getY(it)) }
 
+    /** The fingers as they were at batched sample [position] of a move event. */
+    private fun historicalPointersOf(event: MotionEvent, position: Int): List<RemoteTouchPolicy.Pointer> =
+        List(event.pointerCount) {
+            RemoteTouchPolicy.Pointer(
+                event.getPointerId(it), event.getHistoricalX(it, position), event.getHistoricalY(it, position)
+            )
+        }
+
+    private val touchStats = com.andrerinas.openheadunit.input.TouchGestureStats()
+
     private fun mapRemote(g: RemoteGeometry, x: Float, y: Float) = TouchCoordinateMapper.map(
         rawX = x,
         rawY = y,
@@ -2813,7 +2827,12 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
             else -> return
         }
         val g = remoteGeometry() ?: return
-        val ts = SystemClock.elapsedRealtime()
+        // The phone works out scroll and fling speed from the times in the events it is sent, so each sample carries the time
+        // the finger really was there, not the time this code got round to it. MotionEvent times are on the uptime clock and
+        // the protocol's on the elapsed-realtime clock; they differ by the time the unit has spent asleep. Never later than now.
+        val handledAt = SystemClock.elapsedRealtime()
+        val uptimeToElapsed = handledAt - SystemClock.uptimeMillis()
+        val ts = minOf(event.eventTime + uptimeToElapsed, handledAt)
 
         // The only instrument that says whether a tap reached the pixel it looked like it hit.
         // Verbose because it is one line per motion event.
@@ -2833,11 +2852,32 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
             remoteGiveUpPending = false
             sendRemote(remoteTouch.giveUp(pointersOf(event)), g, ts)
         }
+        val slop = ViewConfiguration.get(this).scaledTouchSlop.toFloat()
+        if (local == RemoteTouchPolicy.Local.DOWN) touchStats.reset()
+        // The touchscreen reports faster than the display refreshes, and Android bundles the extra samples into the move
+        // event as its history. Each goes to the phone with its own time, oldest first, then the newest below.
+        if (local == RemoteTouchPolicy.Local.MOVE) {
+            for (h in 0 until event.historySize) {
+                val at = minOf(event.getHistoricalEventTime(h) + uptimeToElapsed, handledAt)
+                touchStats.add(at, handledAt, fromHistory = true)
+                sendRemote(
+                    remoteTouch.onEvent(
+                        RemoteTouchPolicy.Local.MOVE, event.actionIndex, historicalPointersOf(event, h),
+                        false, twoFingerTracker != null, slop
+                    ),
+                    g, at
+                )
+            }
+        }
+        touchStats.add(ts, handledAt, fromHistory = false)
         val sends = remoteTouch.onEvent(
-            local, event.actionIndex, pointersOf(event), mayStart, twoFingerTracker != null,
-            ViewConfiguration.get(this).scaledTouchSlop.toFloat()
+            local, event.actionIndex, pointersOf(event), mayStart, twoFingerTracker != null, slop
         )
         sendRemote(sends, g, ts)
+        if (local == RemoteTouchPolicy.Local.UP || local == RemoteTouchPolicy.Local.CANCEL) {
+            touchStats.report()?.let { AppLog.i(it) }
+            touchStats.reset()
+        }
         if (!remoteTouch.mayStartGesture) {
             gestureHandler.removeCallbacks(remoteHoldExpired)
         } else if (local == RemoteTouchPolicy.Local.DOWN) {

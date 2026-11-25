@@ -35,7 +35,8 @@
             android:layout_width="@dimen/home_tile_size"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:fillViewport="true">
+            android:fillViewport="true"
+            android:scrollbars="none">
 
             <LinearLayout
                 android:id="@+id/home_bar_tiles"

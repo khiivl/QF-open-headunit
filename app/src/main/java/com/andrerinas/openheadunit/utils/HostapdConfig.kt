@@ -6,9 +6,16 @@ package com.andrerinas.openheadunit.utils
  */
 object HostapdConfig {
 
-    /** Where the units this was written for keep the file; the shell command prints whichever exist. */
+    /**
+     * Where the units this was written for keep the file; the shell command prints whichever exist.
+     *
+     * Ends in `; true` because `cat` exits 1 when any one of its files is missing, and on a unit that keeps the file in the
+     * first place the second never exists. A root shell reports that exit code and every reader here treats a non-zero one
+     * as a failed read, so the hotspot's band and password came back unread even though the file had been printed. Self-ADB
+     * reports 0 whatever the command did, which is why that route never showed it. An unreadable file is empty output.
+     */
     const val READ_COMMAND =
-        "cat /data/vendor/wifi/hostapd/hostapd_*.conf /data/misc/wifi/hostapd.conf 2>/dev/null"
+        "cat /data/vendor/wifi/hostapd/hostapd_*.conf /data/misc/wifi/hostapd.conf 2>/dev/null; true"
 
     /** (ssid, passphrase) from the configuration text, or null without a name and a passphrase. */
     fun parse(text: String): Pair<String, String>? {

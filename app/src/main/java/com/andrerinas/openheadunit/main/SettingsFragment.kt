@@ -226,6 +226,7 @@ class SettingsFragment : Fragment() {
     private var pendingAutoRestartWifi by pending::autoRestartWifi
     private var pendingNarrowBandProfileCap by pending::narrowBandProfileCap
     private var pendingDebugVideoLowLatency by pending::debugVideoLowLatency
+    private var pendingRootOnlyDebug by pending::rootOnlyDebug
     private var pendingAllowExternalConfiguration by pending::allowExternalConfiguration
     private var pendingKeepDummyVpnDuringSession by pending::keepDummyVpnDuringSession
 
@@ -744,6 +745,22 @@ class SettingsFragment : Fragment() {
         pendingUsbWirelessDongle?.let { if (it != settings.usbWirelessDongle) settings.usbWirelessDongle = it }
         pendingNarrowBandProfileCap?.let { if (it != settings.narrowBandProfileCap) settings.narrowBandProfileCap = it }
         pendingDebugVideoLowLatency?.let { if (it != settings.debugVideoLowLatency) settings.debugVideoLowLatency = it }
+        pendingRootOnlyDebug?.let { isChecked ->
+            if (isChecked != settings.rootOnlyDebug) {
+                settings.rootOnlyDebug = isChecked
+                // Turning it on asks for root now, which is also how root is granted on a unit that has ADB.
+                if (isChecked) {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val granted = com.andrerinas.openheadunit.utils.OemAppManager.requestRootNow()
+                        ToastUtils.showToast(
+                            requireContext().applicationContext,
+                            if (granted) R.string.debug_root_only_granted else R.string.debug_root_only_denied,
+                            Toast.LENGTH_LONG, force = true
+                        )
+                    }
+                }
+            }
+        }
         pendingAllowExternalConfiguration?.let { if (it != settings.allowExternalConfiguration) settings.allowExternalConfiguration = it }
         pendingKeepDummyVpnDuringSession?.let { if (it != settings.keepDummyVpnDuringSession) settings.keepDummyVpnDuringSession = it }
 
@@ -1924,6 +1941,21 @@ class SettingsFragment : Fragment() {
             searchKeywords = "low latency vendor key decoder mediatek amlogic qualcomm exynos",
             onCheckedChanged = { isChecked ->
                 pendingDebugVideoLowLatency = isChecked
+                checkChanges()
+                updateSettingsList()
+            }
+        ))
+
+        // Debug: shell commands through root only, and a way to ask for root while ADB is there.
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "rootOnlyDebug",
+            nameResId = R.string.debug_root_only,
+            descriptionResId = R.string.debug_root_only_summary,
+            helpResId = R.string.debug_root_only_description,
+            isChecked = pendingRootOnlyDebug ?: settings.rootOnlyDebug,
+            searchKeywords = "root only debug magisk su adb shell grant",
+            onCheckedChanged = { isChecked ->
+                pendingRootOnlyDebug = isChecked
                 checkChanges()
                 updateSettingsList()
             }

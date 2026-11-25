@@ -1326,6 +1326,7 @@ class MainActivity : BaseActivity() {
         applyCustomHomeBackground()
 
         checkSetupFlow()
+        checkShellAccess()
 
         requestedOrientation = Settings(this).screenOrientation.androidOrientation
         ContextCompat.registerReceiver(this, orientationReceiver, android.content.IntentFilter(AapService.ACTION_ORIENTATION_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -1583,15 +1584,37 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    private var shellCheck: kotlinx.coroutines.Job? = null
+
+    /**
+     * Root is asked for at an app start when it is the chosen way in (Settings.shellRootPreferred). Then, on a QF unit, a full screen that cannot be dismissed is shown
+     * when neither root nor local ADB can be reached: this build needs one of them for most of what it does. ADB may
+     * not be listening for the first seconds after a boot, so it is asked a few times before the screen is raised.
+     */
+    private fun checkShellAccess() {
+        if (shellCheck?.isActive == true) return
+        shellCheck = lifecycleScope.launch {
+            if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
+                    .getInstalledPackages(this@MainActivity).isEmpty()) return@launch
+            // With root as the chosen way in, it is asked for here (once per start); set to ADB, nothing is.
+            OemAppManager.requestRootIfNotGranted(applicationContext)
+            // Root granted, or ADB listening, is enough. ADB may not be up for the first seconds of a boot, so it is asked a
+            // few times before the notice is raised.
+            repeat(SHELL_CHECK_ATTEMPTS) { attempt ->
+                if (OemAppManager.hasShellAccess()) return@launch
+                if (attempt < SHELL_CHECK_ATTEMPTS - 1) kotlinx.coroutines.delay(SHELL_CHECK_GAP_MS)
+            }
+            if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                AppLog.w("MainActivity: neither root nor ADB is available, showing the full-screen notice")
+                startActivity(Intent(this@MainActivity, NoShellAccessActivity::class.java))
+            }
+        }
+    }
+
     fun checkSetupFlow() {
         val appSettings = Settings(this)
-        // On a zLink unit the setup is fixed and proven, so there is no welcome wizard: it counts as done, and the
-        // runtime permissions are asked for directly below, as they are for anyone who finished it.
-        if (appSettings.onboardingVersion < OnboardingActivity.CURRENT_ONBOARDING_VERSION &&
-            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()
-        ) {
-            appSettings.onboardingVersion = OnboardingActivity.CURRENT_ONBOARDING_VERSION
-        }
+        // A zLink unit gets the welcome wizard too, cut down to what applies to it (see OnboardingActivity): an
+        // install that already finished it, or was marked done by an earlier version, keeps its stored version.
         // Show the intelligent onboarding wizard once whenever the stored version is
         // older than the current one (covers fresh installs and upgraders alike).
         val wizardPending = appSettings.onboardingVersion < OnboardingActivity.CURRENT_ONBOARDING_VERSION
@@ -1661,6 +1684,8 @@ class MainActivity : BaseActivity() {
 
     companion object {
         private const val permissionRequestCode = 97
+        private const val SHELL_CHECK_ATTEMPTS = 5
+        private const val SHELL_CHECK_GAP_MS = 5_000L
         @Volatile var hasRequestedPermissionsThisSession: Boolean = false
         const val EXTRA_LAUNCH_SOURCE = "launch_source"
         const val EXTRA_TURN_SCREEN_ON = "turn_screen_on"

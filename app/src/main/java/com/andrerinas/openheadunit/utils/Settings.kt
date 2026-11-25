@@ -312,7 +312,10 @@ class Settings(private val context: Context) {
 
     var nightMode: NightMode
         get() {
-            val value = prefs.getInt("night-mode", 0)
+            // Until one is chosen, a QF unit follows the system's day and night; elsewhere it is sunrise and sunset.
+            val unchosen = if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
+                    .getInstalledPackages(context).isNotEmpty()) NightMode.SYSTEM.value else NightMode.AUTO.value
+            val value = prefs.getInt("night-mode", unchosen)
             return NightMode.fromInt(value) ?: NightMode.AUTO
         }
         set(nightMode) {
@@ -440,7 +443,11 @@ class Settings(private val context: Context) {
 
     var viewMode: ViewMode
         get() {
-            val value = prefs.getInt("view-mode", 1)
+            // Until one is chosen, a QF unit draws with GLES: under a 60 fps load it drew every frame on the display's
+            // cadence, where TextureView merged 15-20% of them away and SurfaceView judders. Elsewhere it is TextureView.
+            val unchosen = if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
+                    .getInstalledPackages(context).isNotEmpty()) ViewMode.GLES.value else ViewMode.TEXTURE.value
+            val value = prefs.getInt("view-mode", unchosen)
             return ViewMode.fromInt(value)!!
         }
         set(viewMode) {
@@ -515,6 +522,35 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("wifi-restart-root-granted", false)
         set(value) = prefs.edit().putBoolean("wifi-restart-root-granted", value).apply()
 
+    /**
+     * Debug: every shell command goes through root and never through ADB, so the root path can be tested on a unit that
+     * has ADB. Turning it on also asks the su manager for root. Mirrored into [OemAppManager.rootOnly].
+     */
+    /**
+     * Which way the app reaches a shell: root when it has been granted (the default, and the one to prefer: it is the more
+     * secure of the two and can be faster), or local ADB only. ADB must then be enabled at all times, and so it must be
+     * with root preferred but not granted. Mirrored into [OemAppManager.preferRoot].
+     */
+    var shellRootPreferred: Boolean
+        get() = prefs.getBoolean("shell-root-preferred", true)
+        set(value) {
+            prefs.edit().putBoolean("shell-root-preferred", value).apply()
+            OemAppManager.preferRoot = value
+        }
+
+    fun hasStoredHideZlinkUi(): Boolean = prefs.contains("hide-zlink-ui")
+
+    /** The launcher the unit had before Open Headunit chose itself through [QfLauncherSelect], to put back when it steps down. */
+    var qfPreviousLauncher: String
+        get() = prefs.getString("qf-previous-launcher", "") ?: ""
+        set(value) { prefs.edit().putString("qf-previous-launcher", value).apply() }
+
+    var rootOnlyDebug: Boolean
+        get() = prefs.getBoolean("debug-root-only", false)
+        set(value) {
+            prefs.edit().putBoolean("debug-root-only", value).apply()
+            OemAppManager.rootOnly = value
+        }
     /** Whether a real local ADB command ran when the switch was turned on. Automatic restarts need it. */
     var wifiRestartAdbVerified: Boolean
         get() = prefs.getBoolean("wifi-restart-adb-verified", false)
@@ -662,6 +698,14 @@ class Settings(private val context: Context) {
      */
     fun gestureAction(slot: GestureSlot): InputAction {
         prefs.getString(slot.key, null)?.let { return InputActionCodec.decode(it) }
+        // Until a gesture is chosen, a QF unit has none: a first finger that could start one is held back from the phone
+        // (up to 150 ms, or until it passes the touch slop) and then released with the same timestamp as its first move,
+        // which made scrolling in Android Auto start late and fling oddly. Anyone who picked a gesture keeps it.
+        if (!prefs.contains(slot.legacyKey) &&
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty()
+        ) {
+            return InputAction.None
+        }
         val legacy = GestureAction.fromInt(prefs.getInt(slot.legacyKey, slot.legacyDefault.value))
             ?: slot.legacyDefault
         return legacy.toInputAction()
@@ -1166,6 +1210,19 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("debug-video-low-latency", value).apply() }
 
     /**
+     * Experiment, set over adb with no row of its own: with SurfaceView, hand each decoded frame to the display on its own
+     * refresh (see [com.andrerinas.openheadunit.decoder.video.VsyncPacer]) instead of the instant it is decoded.
+     */
+    var debugPacedRelease: Boolean
+        get() = prefs.getBoolean("debug-paced-release", false)
+        set(value) { prefs.edit().putBoolean("debug-paced-release", value).apply() }
+
+    /** Experiment: how many milliseconds before a refresh a frame must be released to make it. 4 by default. */
+    var debugPacedLeadMs: Int
+        get() = prefs.getInt("debug-paced-lead-ms", 4)
+        set(value) { prefs.edit().putInt("debug-paced-lead-ms", value).apply() }
+
+    /**
      * Holds the feed thread for this many milliseconds after every frame it hands the codec,
      * simulating a decoder slower than the stream.
      *
@@ -1518,7 +1575,9 @@ class Settings(private val context: Context) {
     // Keep the existing default when this key is absent. Explicit low-latency choices
     // still use the adaptive sink, and saved values are never migrated implicitly.
     var audioLatencyMultiplier: Int
-        get() = prefs.getInt("audio-latency-multiplier", com.andrerinas.openheadunit.decoder.audio.AudioJitterBufferPolicy.DEFAULT_MULTIPLIER)
+        // 4 is a 100 ms reserve: what the tuned QF units settled on. The policy's own default (16, 400 ms) stays for callers
+        // that have no setting to read.
+        get() = prefs.getInt("audio-latency-multiplier", 4)
         set(value) { prefs.edit().putInt("audio-latency-multiplier", value).apply() }
 
     // Chunks the audio thread may hold before it starts dropping, or 0 for no limit. Bounded by
@@ -1533,7 +1592,7 @@ class Settings(private val context: Context) {
     // config: around 20ms on 48kHz stereo media, several times that on the 16kHz mono guidance
     // channel, so this cannot be stated in milliseconds from here.
     var audioQueueCapacity: Int
-        get() = prefs.getInt("audio-queue-capacity", 50)
+        get() = prefs.getInt("audio-queue-capacity", 20)
         set(value) { prefs.edit().putInt("audio-queue-capacity", value).apply() }
 
     var audioMatchingMode: com.andrerinas.openheadunit.decoder.audio.AudioTimeCorrectionMode
@@ -1885,10 +1944,10 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("show-home-favorite-apps", true)
         set(value) { prefs.edit().putBoolean("show-home-favorite-apps", value).apply() }
 
-    /** The widgets and their pages on the launcher home; off, they are hidden but kept. Until it is
-     *  first saved it follows the favorites switch, which used to control both. */
+    /** The widgets and their pages on the launcher home; off, they are hidden but kept. Off until it is
+     *  turned on in Customization: on a QF unit's panel they crowd the home, so a fresh install starts without them. */
     var showHomeWidgets: Boolean
-        get() = prefs.getBoolean("show-home-widgets", showHomeFavoriteApps)
+        get() = prefs.getBoolean("show-home-widgets", false)
         set(value) { prefs.edit().putBoolean("show-home-widgets", value).apply() }
 
     /** How opaque the home's panels and tiles are, so a background image can show through. */

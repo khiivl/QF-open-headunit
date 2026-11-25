@@ -59,6 +59,7 @@ class SettingsPendingCopy {
     var autoRestartWifi: Boolean? = null
     var narrowBandProfileCap: Boolean? = null
     var debugVideoLowLatency: Boolean? = null
+    var rootOnlyDebug: Boolean? = null
     var allowExternalConfiguration: Boolean? = null
     var keepDummyVpnDuringSession: Boolean? = null
     var wifiConnectionMode: WifiLauncherMode? = null
@@ -161,6 +162,7 @@ class SettingsPendingCopy {
         autoRestartWifi = settings.autoRestartWifiWhenP2pStuck
         narrowBandProfileCap = settings.narrowBandProfileCap
         debugVideoLowLatency = settings.debugVideoLowLatency
+        rootOnlyDebug = settings.rootOnlyDebug
         allowExternalConfiguration = settings.allowExternalConfiguration
         keepDummyVpnDuringSession = settings.keepDummyVpnDuringSession
         wifiConnectionMode = settings.wifiConnectionMode
@@ -264,6 +266,7 @@ class SettingsPendingCopy {
         autoRestartWifi != settings.autoRestartWifiWhenP2pStuck ||
         narrowBandProfileCap != settings.narrowBandProfileCap ||
         debugVideoLowLatency != settings.debugVideoLowLatency ||
+        rootOnlyDebug != settings.rootOnlyDebug ||
         allowExternalConfiguration != settings.allowExternalConfiguration ||
         keepDummyVpnDuringSession != settings.keepDummyVpnDuringSession ||
         wifiConnectionMode != settings.wifiConnectionMode ||

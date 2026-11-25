@@ -1950,4 +1950,6 @@
     <string name="hotspot_config_note">Телефони, підключені до точки доступу, від\'єднаються і підключаться знову, коли вона зміниться.</string>
     <string name="hotspot_config_done">Точку доступу оновлено</string>
     <string name="hotspot_config_failed">Не вдалося змінити точку доступу: %1$s</string>
+    <string name="debug_root_only_summary">Виконувати всі команди оболонки лише через root і ніколи через ADB.</string>
+    <string name="debug_root_only_description">Для перевірки шляху через root на пристрої з ADB. Поки опція ввімкнена, ADB не використовується взагалі. Увімкнення запитує root, що також є способом надати root, поки ADB доступний. Якщо root було відхилено і менеджер root це пам’ятає, запит не повернеться, доки ви не зміните це там.</string>
 </resources>

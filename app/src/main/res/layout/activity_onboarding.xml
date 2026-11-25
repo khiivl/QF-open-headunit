@@ -75,7 +75,88 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- Step 1: Safety -->
+        <!-- Step 1: System access (zLink and the way in) -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingBottom="24dp"
+            android:clipToPadding="false">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/onb_system_title"
+                    android:textAppearance="?attr/textAppearanceHeadline5"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/onb_system_help"
+                    android:textAppearance="?attr/textAppearanceBody2" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="20dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="@string/onb_system_hide_zlink"
+                        android:textAppearance="?attr/textAppearanceBody1" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/onb_sys_hide_zlink_switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/onb_system_hide_zlink_desc"
+                    android:textAppearance="?attr/textAppearanceCaption" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="20dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="@string/onb_system_root"
+                        android:textAppearance="?attr/textAppearanceBody1" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/onb_sys_root_switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/onb_system_root_desc"
+                    android:textAppearance="?attr/textAppearanceCaption" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:padding="12dp"
+                    android:background="@drawable/bg_setting_single"
+                    android:text="@string/onb_system_adb_note"
+                    android:textAppearance="?attr/textAppearanceCaption" />
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Step 2: Safety -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -151,14 +232,6 @@
                         app:icon="@drawable/ic_wifi"
                         app:iconGravity="textStart"
                         android:text="@string/connection_kind_wifi" />
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/onb_conn_self"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        app:icon="@drawable/ic_directions_car"
-                        app:iconGravity="textStart"
-                        android:text="@string/self_mode" />
                 </com.google.android.material.button.MaterialButtonToggleGroup>
                 <TextView
                     android:id="@+id/onb_conn_detail"
@@ -336,12 +409,6 @@
                     android:layout_marginTop="8dp"
                     android:orientation="vertical"
                     app:singleSelection="true">
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/onb_size_phone"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/setup_size_phone" />
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/onb_size_small"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -552,7 +619,6 @@
                 </LinearLayout>
 
                 <LinearLayout
-                    android:id="@+id/onb_ac_single_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
@@ -562,15 +628,15 @@
                         android:layout_width="0dp"
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
-                        android:text="@string/auto_connect_single_usb"
+                        android:text="@string/auto_reconnect_acc_on"
                         android:textAppearance="?attr/textAppearanceBody1" />
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/onb_autoconnect_single_switch"
+                        android:id="@+id/onb_autoreconnect_acc_switch"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
 
-                <!-- USB-only: auto-start on USB -->
+                <!-- USB-only: connect the phone on the cable (on plug-in, and when it is already there at app open) -->
                 <LinearLayout
                     android:id="@+id/onb_as_usb_row"
                     android:layout_width="match_parent"
@@ -582,7 +648,7 @@
                         android:layout_width="0dp"
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
-                        android:text="@string/auto_start_usb_connect_label"
+                        android:text="@string/onb_usb_connect_automatically"
                         android:textAppearance="?attr/textAppearanceBody1" />
                     <com.google.android.material.switchmaterial.SwitchMaterial
                         android:id="@+id/onb_autostart_usb_switch"
@@ -630,41 +696,11 @@
                         android:layout_height="wrap_content" />
                 </LinearLayout>
 
-                <!-- WiFi-only: auto-start on WiFi -->
-                <LinearLayout
-                    android:id="@+id/onb_as_wifi_row"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="8dp">
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:text="@string/auto_start_wifi_label"
-                        android:textAppearance="?attr/textAppearanceBody1" />
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/onb_autostart_wifi_switch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:text="@string/onb_automation_more_hint"
-                    android:textAppearance="?attr/textAppearanceCaption" />
-
-                <TextView
-                    android:id="@+id/onb_automation_oem"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:padding="12dp"
-                    android:background="@drawable/bg_setting_single"
-                    android:text="@string/auto_start_oem_warning"
                     android:textAppearance="?attr/textAppearanceCaption" />
             </LinearLayout>
         </ScrollView>

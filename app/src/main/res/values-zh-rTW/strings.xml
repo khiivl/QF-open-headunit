@@ -1913,4 +1913,6 @@
     <string name="home_hotspot_not_found">未連上 Wi-Fi。手機熱點已開啟嗎？</string>
     <string name="home_wifi_hotspot_hint">手機熱點已開啟嗎？</string>
     <string name="home_wifi_off_hint">開啟後即可連線</string>
+    <string name="debug_root_only_summary">所有 shell 指令只透過 root 執行，絕不使用 ADB。</string>
+    <string name="debug_root_only_description">用於在有 ADB 的裝置上測試 root 路徑。開啟後完全不使用 ADB。開啟時會要求 root，這也是在 ADB 可用時授予 root 的方式。如果 root 遭拒且您的 root 管理員記住了這一點，在您於該處變更之前不會再次提示。</string>
 </resources>

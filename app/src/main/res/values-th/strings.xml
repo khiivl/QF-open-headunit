@@ -1968,4 +1968,6 @@
     <string name="home_hotspot_not_found">ไม่ได้เชื่อมต่อ Wi-Fi ฮอตสปอตของโทรศัพท์เปิดอยู่หรือไม่</string>
     <string name="home_wifi_hotspot_hint">ฮอตสปอตของโทรศัพท์เปิดอยู่หรือไม่</string>
     <string name="home_wifi_off_hint">เปิดเพื่อเชื่อมต่อ</string>
+    <string name="debug_root_only_summary">รันคำสั่งเชลล์ทั้งหมดผ่าน root เท่านั้น และไม่ใช้ ADB เลย</string>
+    <string name="debug_root_only_description">สำหรับทดสอบเส้นทาง root บนเครื่องที่มี ADB เมื่อเปิดไว้ จะไม่ใช้ ADB เลย การเปิดจะขอสิทธิ์ root ซึ่งเป็นวิธีให้สิทธิ์ root ขณะที่ ADB ยังใช้งานได้ หากปฏิเสธ root และตัวจัดการ root จำไว้ คำขอจะไม่กลับมาจนกว่าคุณจะเปลี่ยนที่นั่น</string>
 </resources>
