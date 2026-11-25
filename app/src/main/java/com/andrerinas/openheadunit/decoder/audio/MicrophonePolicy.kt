@@ -23,6 +23,16 @@ object MicrophonePolicy {
         else -> Decline.NONE
     }
 
+    /**
+     * CoD OS (sound line, 24.11): the system attaches its own `ns` to the capture where it belongs (MIC); for VOICE_RECOGNITION it attaches
+     * none by design, because recognisers want the raw voice, so OHU adds none of its own there.
+     */
+    fun ownNoiseSuppressorAllowed(codos: Boolean, audioSource: Int): Boolean =
+        !(codos && audioSource == android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION)
+
+    /** CoD OS: no second capture in a live unit call (SIM or Bluetooth HFP, `sys.qf.call_state`); the capture reopens after. */
+    fun mustWaitForUnitCall(codos: Boolean, unitCallActive: Boolean): Boolean = codos && unitCallActive
+
     fun shouldCapture(headUnitMicEnabled: Boolean, recorderAvailable: Boolean): Boolean =
         declineReason(headUnitMicEnabled, recorderAvailable) == Decline.NONE
 

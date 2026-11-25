@@ -63,6 +63,17 @@ object SettingsProfilePolicy {
         "wifiDirectBand", "autoRestartWifiWhenP2pStuck", "wifiDirectNewIdentity", "wifiDirectLastNetwork", "wifiDirectGroupIdentity",
     )
 
+    /**
+     * CoD OS (owner, 24.11: «вибір типів підключення і т.п. нафіг»): the way a phone connects is not a choice, as it is not
+     * with Z-Link: a cable and Wi-Fi are both always on (Settings.connectionModes), the USB listening is on by default.
+     */
+    val HIDDEN_ON_CODOS: Set<String> = setOf(
+        "connectionMode", "scopeNotice", "listenForUsbDevices", "useLibusb",
+        // Owner, 24.11, asked directly: the auto-start and auto-connect rows go to the developer section (hidden from the person,
+        // values kept as they are, nothing deleted).
+        "autoStartSettings", "autoConnectSettings",
+    )
+
     /** Settings that only mean something to CarPlay (zLink's own screens). */
     val CARPLAY_ONLY: Set<String> = setOf("hideZlinkUi")
 
@@ -72,11 +83,11 @@ object SettingsProfilePolicy {
      * and CarPlay settings are offered. Shared settings (language, hotspot name and password, theming of the home,
      * launcher and floating button, backup, logs) are never in either set.
      */
-    fun hiddenIds(zlinkUnit: Boolean, carPlayMode: Boolean = false, both: Boolean = false): Set<String> =
-        if (!zlinkUnit) emptySet()
+    fun hiddenIds(zlinkUnit: Boolean, carPlayMode: Boolean = false, both: Boolean = false, codos: Boolean = false): Set<String> =
+        (if (!zlinkUnit) emptySet()
         else HIDDEN_ON_ZLINK_UNIT + when {
             both -> emptySet()
             carPlayMode -> ANDROID_AUTO_ONLY
             else -> CARPLAY_ONLY
-        }
+        }) + (if (codos) HIDDEN_ON_CODOS else emptySet())
 }

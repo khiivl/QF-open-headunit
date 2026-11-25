@@ -1258,7 +1258,8 @@ class NativeAaHandshakeManager(
                                 else -> BluetoothAdapterStartup.State.UNAVAILABLE
                             }
                         },
-                        requestEnable = { adapter.enable() },
+                        // CoD OS: the unit's Bluetooth is QF Bluetooth's; OHU never switches the adapter (owner, 24.11).
+                        requestEnable = { if (com.andrerinas.openheadunit.BuildConfig.CODOS) false else adapter.enable() },
                     )
                 }
                 if (measureGeneration != generation || !settings.nativeAaEnableBluetooth) return@launch
@@ -1973,6 +1974,10 @@ class NativeAaHandshakeManager(
         now: Long,
         linkWasAbsent: Boolean = false,
     ) {
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) {
+            AppLog.i("NativeAA: CoD OS does not cycle the unit's Bluetooth (it belongs to QF Bluetooth).")
+            return
+        }
         val adapter = BluetoothHelper.getBluetoothAdapter(context)
         val enabled = try { adapter != null && adapter.isEnabled } catch (e: Exception) { false }
         if (adapter == null || !enabled) {

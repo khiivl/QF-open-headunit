@@ -129,6 +129,9 @@ class MicRecorder(
         /** The user disabled capture after the phone's request was accepted. */
         const val ERROR_DISABLED = -7
 
+        /** CoD OS: a unit call (SIM or Bluetooth hands-free) is up; the microphone belongs to it. */
+        const val ERROR_UNIT_CALL = -8
+
         /**
          * How capture asks for the microphone foreground-service type, which Android 14 will not
          * grant at service start.
@@ -283,6 +286,10 @@ class MicRecorder(
     fun start(): Int {
         // The poll-side policy may have accepted Open before this lifecycle job ran.
         if (!settings.useHeadUnitMicrophone) return ERROR_DISABLED
+        if (MicrophonePolicy.mustWaitForUnitCall(com.andrerinas.openheadunit.BuildConfig.CODOS, CallState.unitCallActive())) {
+            AppLog.i("MicRecorder: a unit call is up (sys.qf.call_state); not opening a second capture")
+            return ERROR_UNIT_CALL
+        }
         if (!isAvailable) {
             AppLog.w("MicRecorder: Cannot start, mic not available on this device")
             return ERROR_UNAVAILABLE
@@ -417,7 +424,9 @@ class MicRecorder(
             val audioSessionId = audioRecord?.audioSessionId ?: 0
             if (audioSessionId != 0) {
                 try {
-                    if (settings.micNoiseSuppressor && NoiseSuppressor.isAvailable()) {
+                    if (!MicrophonePolicy.ownNoiseSuppressorAllowed(com.andrerinas.openheadunit.BuildConfig.CODOS, source)) {
+                        AppLog.i("MicRecorder: VOICE_RECOGNITION on CoD OS: no NoiseSuppressor of ours (the system attaches none by design)")
+                    } else if (settings.micNoiseSuppressor && NoiseSuppressor.isAvailable()) {
                         ns = NoiseSuppressor.create(audioSessionId)
                         ns?.enabled = true
                         AppLog.i("MicRecorder: NoiseSuppressor: ${if (ns?.enabled == true) "ON" else "failed"}")

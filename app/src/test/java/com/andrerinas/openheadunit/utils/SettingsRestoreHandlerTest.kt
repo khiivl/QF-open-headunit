@@ -64,6 +64,8 @@ class SettingsRestoreHandlerTest {
     }
 
     @Test fun `removing wireless connection mode stops instead of starting the launcher`() {
+        // CoD OS pins the connection modes to USB + Wi-Fi (Settings.connectionModes), so there is no wireless mode to remove there.
+        org.junit.Assume.assumeFalse(com.andrerinas.openheadunit.BuildConfig.CODOS)
         settings.connectionModes = setOf(Settings.ConnectionMode.WIFI)
         val before = SettingsRestoreHandler.capture(context, settings)
         settings.connectionModes = setOf(Settings.ConnectionMode.USB)

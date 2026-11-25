@@ -125,6 +125,110 @@ The connection state as an island item: `C:\APPS_Contacts\SystemUI--CodIsland\CO
 - The APK comes from Volodymyr's `codos` build, CoD-signed with `android.uid.system`. A re-signed beta would freeze the
   wrong identity (§1).
 
+## 10. Projection session state: Open Headunit announces a session exactly as Z-Link does (24.11.2026, owner's ruling, third revision)
+
+Owner (24.11): «ти розібрався що розсилає, і що вмикає Z-Link?? Ось те саме маєш вмикати ти, а все решту нафіг». Before that: «виставляти точно таку саму
+властивість; головне правило — SSOT і гармонія між програмами, а не 100 500 різних пропів». So OHU does **not** write any property of its own and
+does **not** invent a signal: it sends what Z-Link sends, and the system does what it already does for Z-Link. Replaces the earlier drafts
+(`sys.qf.ohu.connect` + `.pid`; then a direct write of `sys.qf.bt.aa.connect`), both withdrawn the same day.
+
+Why: owner's order to the Bluetooth line, 24.11: «коли активний Android Auto в активному підключенні, ти не перехоплюєш фокуси і не виводиш
+ніякі повідомлення, які приходять по Bluetooth» — «поки є активне підключення».
+
+### 10.1 What Z-Link does, and so what OHU does
+
+Z-Link announces an Android Auto session with one broadcast: action **`com.zjinnova.zlink`**, extras **`status`** = `CONNECTED` / `DISCONNECT` and
+**`phoneMode`** = `auto_wireless` / `auto_wired` (`BTReceiver`, branch `ANDROID_AUTO`/`ANDROID_AUTO_WIRED`, 🔬 A10 decompile and the BT line's jadx of A14).
+QF Bluetooth's own receiver turns it into everything the system does for an Android Auto session: it sets `sys.qf.bt.aa.connect` (`true` on CONNECTED,
+`false` on DISCONNECT or `phoneMode=none`), runs `disableA2dpIfNeed()` / `resumeA2dpIfNeed()`, and the other listeners of the same action
+(the in-call dialog, the Canbus distributors) get it too. **OHU sends the same broadcast with the same words.** Nothing else: no property, no
+second action, no pid. The flag has the **one writer it always had**, QF Bluetooth; only one projection app is active (design §13), so Z-Link's
+and OHU's announcements never overlap.
+
+| OHU sends | when |
+|---|---|
+| `com.zjinnova.zlink`, `status=CONNECTED`, `phoneMode=auto_wireless` (Wi-Fi link) or `auto_wired` (cable) | `CommManager` reaches `HandshakeComplete` / `TransportStarted`: the SSL handshake is done, a working Android Auto session exists (`CommManager.kt:201-218`) |
+| `status=DISCONNECT`, the `phoneMode` of the connect it ends | the state leaves those two (disconnect, error, a new attempt), the service stops, the process hits an uncaught exception |
+| `status=DISCONNECT` once at process start | only if `sys.qf.bt.aa.connect` is still `true` from an earlier process that was killed (the cleanup Z-Link's daemon restart does not do); otherwise nothing |
+
+Where in OHU (`codos` only, `connection/ProjectionSession.kt`): the one state setter `CommManager.connState` (a setter, not a collector: the flow is
+conflated); `AapService.onDestroy` (publishes what the state really is); `App.onCreate` (stale cleanup + crash handler). Connecting, Connected,
+StartingTransport, Error and Disconnected are **down**: a phone that keeps failing its handshake does not toggle the system.
+
+### 10.2 What this does for the system, and what is different from Z-Link
+- **QF BT v35 `Projection`** reads `sys.qf.bt.aa.connect` itself at its decision points (no polling, callback or hint broadcast): no BT-music focus, no delayed
+  AVRCP pause, no BT state toasts while a projection is up. Right for OHU: the owner's order.
+- **The A2DP drop** (`disableA2dpIfNeed`) now happens for OHU **as it does for Z-Link**. Right: in OHU the Android Auto link carries the media audio,
+  as in Z-Link. The stock toast that goes with it is a BT state toast: v35 shows those only with no projection up, and `BTReceiver` sets the flag **before**
+  it calls `disableA2dpIfNeed()` (`BTReceiver.java:364` then `:365`), so the toast is suppressed. **Confirmed by the BT line from its A14 build (24.11, v35 installed on 198):** the `auto_*` CONNECTED branch runs `setZlinkAutoConnectedStatus(true)`, then sets
+  `sys.qf.bt.aa.connect = true` (jadx `:302-304`), then `disableA2dpIfNeed()`, which only posts the toast runnable; `Projection.toast` re-reads the property when it runs, so it is already true and nothing shows.
+  On DISCONNECT `resumeA2dpIfNeed` reconnects A2DP only if HFP is up. Still ❓ on a unit with OHU as the sender: proof P28.
+- **The island, Canbus distributors and the in-call dialog** listen to the same action and receive OHU's session like Z-Link's.
+- **AI bridge (steering voice key):** on `true` it forwards the key to Z-Link's package (`onZlinkVoice`, `com.qf.action.cp.call`, `setPackage(com.zjinnova.zlink)`).
+  With Z-Link disabled that reaches nobody, so during an OHU session the voice key opens nothing on the head-unit side; **until the fix lands the phone gets the key
+  through OHU's own key watcher** (`BridgeVoiceKeyWatcher`). Fix (head lead's ruling): the owner's rule is ONE assistant function, so the resolver of design §4 B5
+  lives in **AssistRouter**: its projection branch picks the active projection app, Z-Link or OHU, and AiBridge's `onZlinkVoice` defers to it. Owner of the change:
+  repair. Proof P32.
+- **Sender check: none** (A10 source, and confirmed for A14 by the BT line): `BlueToothApp` registers `BTReceiver` dynamically, `registerReceiver(receiver, filter)` for the action `com.zjinnova.zlink`, with no permission;
+  `BTReceiver` reads only `status` and `phoneMode`. The broadcast is a plain implicit one, as Z-Link's. Proof P27 still shows it end to end on a unit.
+
+### 10.3 Stale case and gap (kept stock-like, head lead and BT line, 24.11)
+If the OHU process is killed (OOM, `kill -9`, force-stop) during a session no code runs, and the flag stays `true` until a new OHU process starts (it then sends the
+`DISCONNECT`, §10.1) or the unit reboots. Stock Z-Link has the same gap (nothing clears the flag except its own broadcast). No reader-side check, no pid, nothing extra.
+The reconciler of the projection switch (design §13.1) also sends `DISCONNECT` once after it disables the OHU package, so a switch leaves nothing stale.
+
+### 10.4 Register of the flag: writers, readers, two-writer cases (24.11, accepted by the head lead as §10.6)
+Writers/clearers found in the whole searched image: **QF BT `BTReceiver` only** (A10 `BTReceiver.java:364` true, `:368` false on DISCONNECT, `:386` false on `phoneMode=none`;
+the A14 jadx `:303`, `:307`, `:325`) plus the owner's two Magisk modules that write «Z-Link is on top» into the same flag: **QF_HID_Daemon v1.75** (`hid_daemon.sh:551-563`)
+and **QF_KeyLearn** (`module/src/40_system.sh:33-45`); neither is installed on stand 198. Z-Link itself does not write it (no occurrence in its 56 native libraries; the Java
+layer is packed ❓). Nothing writes it at boot, on BT disconnect or on ACC off; `sys.*` resets at reboot. Readers: QF BT `Projection` (v35), the AI bridge voice-key router
+(`McuKeyEventHandler.java:79,98`, `Constants.java:56`), NetworkBurst's BT2 pager (`NetworkBurstService.java:1495`, `PhonePager.java:109`: slows or stops, right for OHU), DialerKM
+`isCarPlayConnected` (no caller). **The conflict is only the owner's modules**: while Z-Link is selected they write `false` when Z-Link leaves the top although the session goes on;
+while OHU is selected they write only their start value `false`, which clears OHU's `true` if one of them starts or restarts mid-session. Proposed fix: delete the flag block in
+both (the owner's decision). The canon (`PROPERTIES_SSOT`, qf-knowledge `535e3d0`) carries these rows.
+
+### 10.5 The connection types are not a choice on CoD OS (same owner order: «вибір типів підключення і т.п. нафіг»)
+In the `codos` build: `Settings.connectionModes` is always {USB, Wi-Fi} (both transports on, the way Z-Link takes whatever phone comes); the rows that choose it are hidden
+(`connectionMode`, `scopeNotice`, `listenForUsbDevices`, `useLibusb`; `SettingsProfilePolicy.HIDDEN_ON_CODOS`); the home screen shows both connections as two tiles and no longer
+collapses them into one that flips (`HomeFragment`). The rest of Volodymyr's zLink-unit profile (the hidden Wi-Fi modes, the pinned hotspot strategy, the 5 GHz keeping) already
+follows the Z-Link path and is unchanged. The auto-start and auto-connect rows are hidden too (owner, asked directly: «Сховати в розділ розробника»), with their values kept; **start at boot is pinned ON, in the background** (`autoStartOnBoot` and `autoStartOnBootInBackground` default to true in `codos`; head lead 24.11: Z-Link starts at boot), so the boot start arms the service and does not open OHU's screen over the launcher. Not touched: the developer section.
+
+### 10.6 Proofs (stand 198, after the owner lifts the disable of 23.11; nothing runs before)
+P27 a real session: `logcat` shows QF BT receiving `com.zjinnova.zlink` from OHU, `getprop sys.qf.bt.aa.connect` before = false, during = true, after = false. P28 during the session: QF BT takes no
+focus, shows no BT toast, A2DP is dropped as with Z-Link. P29 service stop and ACC off: DISCONNECT, flag false. P30 switch to Z-Link mid-session: false. P31 reboot: false.
+P32 voice key in an OHU session: recorded; fixed when AssistRouter's resolver lands. P33 a phone on the cable connects as `auto_wired`; a wireless phone as `auto_wireless`; both with no
+setting touched.
+
+### 10.7 Receivers and users of `com.zjinnova.zlink` in the real A14 image (R5, 24.11, read-only decompile of the images' own apps)
+
+Source: the A14 `system.img` / `system_ext.img` of `a14-jitu2.romws` (the image Z-Link and the CoD graft run in); every APK and the two framework jars that
+mention `zjinnova` were decompiled with jadx. **Two apps register a receiver for the action** (`addAction("com.zjinnova.zlink")`): QF Bluetooth and QF Canbus. Everything
+else only starts Z-Link by name, checks it, or declares its package in a list. Z-Link's own receiver of the action cannot be read: the app's dex is the Legu wrapper
+(`MyWrapperProxyApplication`, the real code is an encrypted asset), so «Z-Link's `SystemEventsBroadcastReceiver` receives it» rests on the head lead's statement ❓ and is
+the reason for the guard `ProjectionSessionPolicy.mayAnnounce` (OHU sends nothing while Z-Link is enabled).
+
+| # | who (A14) | where | what it does with `com.zjinnova.zlink` | right for OHU's `auto_wireless` / `auto_wired`? |
+|---|---|---|---|---|
+| 1 | **QF Bluetooth** `QF_Bluetooth_Gongban3` | `BTReceiver.java:234` (`case "com.zjinnova.zlink"`), registered dynamically by `BlueToothApp`, no permission, no sender check (BT line, jadx `:302-304`) | `auto_*` CONNECTED: `setZlinkAutoConnectedStatus(true)`, **`sys.qf.bt.aa.connect=true`**, `disableA2dpIfNeed()` (toast gated by `Projection.toast`); DISCONNECT: flag false, `resumeA2dpIfNeed()` (A2DP back only if HFP is up) | **Yes**, the whole point of §10 |
+| 2 | QF BT `TechBTSettingManager.java:994`, `Function.java:334` | not receivers: a check of `/data/data/com.zjinnova.zlink` and the «easy connect» launch of Z-Link's `MainActivity` | the data directory stays when the package is disabled; the launch does nothing while Z-Link is disabled | harmless; the easy-connect launch needs the resolver (design §4 B4) |
+| 3 | **Canbus** `QF_Canbus` `SourceDistributor:448` | receiver; A10 reading of the same code: reacts only to `phoneMode=carplay_wireless` (source id 33 on CONNECTED) | nothing for `auto_*` | **Yes: inert** |
+| 4 | Canbus `TeslaDataController:204` | receiver; only `phoneMode=carplay_wireless` sets a CarPlay flag | nothing for `auto_*` | **Yes: inert** |
+| 5 | Canbus `KeyDistributor:355` (`:162` handler) | receiver; reacts to `status=PHONE_CALL_ON/OFF` only (remaps steering call keys); `:542` starts Z-Link's `MainActivity` on an MCU key | OHU never sends `PHONE_CALL_*`, so nothing; the MCU key `Zlink=79` opens Z-Link's screen | **Yes: inert** for the session; the key's target needs the resolver (design §4 B7) |
+| 6 | **AiBridge** `QF_AiLit_Bridge` | `McuKeyEventHandler.java:29`, `Constants.java:55` | not a receiver: **sends** `com.qf.action.cp.call` to Z-Link's package for the voice key and checks `/data/data/com.zjinnova.zlink`; reads `sys.qf.bt.aa.connect` | the voice key goes nowhere while Z-Link is disabled: **AssistRouter's resolver** (repair), §10.4; until then OHU forwards it to the phone itself |
+| 7 | CarSettings `QF_CarSettings_GongBan3` | `CarSettingService:794` (top package is Z-Link and the AP failed → Wi-Fi on), `Tools:267` (voice app list), `KillApps` white list | not receivers | inert for OHU; the voice-app list entry for Z-Link stays visible (design §4 B10) |
+| 8 | **Launchers** (FutureWings, BlueDesert, CyanMountains, QFUIMountainSea, QFUIDreamMountain), Recent, NavigationBar | `Utils`, `Function.RunApp`, `CustomAppWidget*`, `BubbleTextView`, `RecentService:104`, `Utils:149`, `Utils:183` | not receivers: launch Z-Link by name, name its tile «ZLINK», default the first launcher card to it | none of them can start OHU; the OHU tile is repair's (design §4 B12). With Z-Link disabled a tap on the old tile does nothing |
+| 9 | `QF_OTAUpgrade`, `QF_Test` | `QFAppPackageConstants`, `FactoryTestMainActivity:1164`, `Constants.ZLINK_ENABLE_FILE=/great/protect_dir/.zjinnova` | not receivers: a constant, a factory-test launch, the licence file path | inert for OHU |
+| 10 | **NetworkBurst** `QF_NetworkBurst` | `tunnel/QFTunnelVpnService.java:30` `EXCLUDED_PACKAGES = {"com.zjinnova.zlink"}` | not a receiver: keeps Z-Link's traffic **out of its VPN tunnel** (the wireless Android Auto link is local to the unit) | **No misfire today (corrected by the NetworkBurst line, 24.11, 📻 `dumpsys package` on 198):** NetworkBurst, Open Headunit and Z-Link all run as sharedUser `android.uid.system` (1000); `VpnService.Builder.addDisallowedApplication` works per UID and the tunnel already excludes its own package (`QFTunnelVpnService.java:125`, so its SOCKS socket does not loop), so uid 1000, and OHU with it, never enters the tunnel. My first reading («OHU is not excluded») ignored the shared uid. **Revisit only if OHU ever leaves uid 1000** (e.g. a package-id change): then tell the NetworkBurst line, who adds `com.andrerinas.headunitrevived` to `EXCLUDED_PACKAGES` in the same round |
+| 11 | **framework** `framework.jar` (the patched `Activity` and `Display`) | `android/app/Activity.java:841` and `:1223`: **in every Activity of package `com.zjinnova.zlink`, `onCreate` registers a receiver for `com.qf.action.cp.call` and `onDestroy` removes it**; `android/view/Display.java:711,:747`: Z-Link (and a camera app) get their own window height (1292 / 1372 on the tall-screen units) | not a receiver of our action, but **the call/voice key path into Z-Link lives here**: QF BT and AiBridge send `com.qf.action.cp.call` to Z-Link's package, and only a Z-Link Activity listens. OHU's activities have no such receiver, so the call keys and the voice key **cannot** reach OHU through that route | **Misfire for OHU**: needs the same hook for the projection app the resolver names (framework change: ROM builder / repair), or OHU's own exported, uid-1000-only receiver for `com.qf.action.cp.call` (contract §6). The `Display` special case is a parity point on tall screens (design D2). `QF_OTAUpgrade` also embeds A10 copies of `AudioRecord` (`:547,:581` mutes the amp ~100 ms when Z-Link starts recording), `View` (`:12113`) and `Display` (`:415,:428`) |
+| 12 | `services.jar` | `ActivityManagerShellCommand.java:116-117` + `:1629,:1663` (the `START_DAEMON_SERVICE` boot gate), `BroadcastSkipPolicy.java:25` (constant only), `MediaFocusControl.java:1096` (`sys.carplay.bt.call` true: every audio-focus request except Z-Link's fails) | the focus rule can only bite if someone sets `sys.carplay.bt.call`, which only QF BT does on `PHONE_CALL_ON` for CarPlay/HiCar | OHU never sets it, so no effect; if OHU ever announced a call state it would need the resolver here (design §4 C4) |
+| 13 | **SystemUI** `SystemUI.apk` | `statusbar/NotificationListener.java:174`: a notification suppression list that names `zjinnova` packages (the status-bar listener drops certain notifications by package and channel) | not a receiver; **hides some of Z-Link's own notifications** | parity point: OHU's foreground-service notification is not in that list and shows in the status bar; whether that is wanted is a UI decision (design §4 / UI design) |
+| 14 | **Z-Link app** `zlink6-qianfeng-release-v6.1.06` | Legu wrapper only (`WrapperProxyApplication`) | ❓ not readable | guarded: OHU announces only when Z-Link is not enabled |
+
+**Vendor files that name Z-Link** (text scan of all four images): `system/etc/init/hw/init.rc` and `vendor/etc/init/hw/init.common.rc` (`service z-link /system/bin/zlink5.sh`, `class main`, `oneshot`, `seclabel u:r:shell:s0`; the same stanza in both),
+`system/bin/zlink5.sh` (gadget functions `iap.gs0`, `ncm.gs1`, the watchdog loop, `LD_LIBRARY_PATH=/data/data/com.zjinnova.zlink/lib`), `vendor/build.prop` (`rw.zlink.disable.features=hl`,
+`rw.zlink.audiostream.*`), `system/config/NotKillAppsBeforeSleep.ini` and `FreezerIgnore.ini` (both list `com.zjinnova.zlink`; **OHU is in neither: for repair, design L6**).
+The flag `sys.qf.bt.aa.connect` itself occurs only in `QF_Bluetooth_Gongban3` and `QF_AiLit_Bridge` in this image.
+
 ## Ledger (each side ticks its own column, with proof)
 | item | Open Headunit (Volodymyr) | CoD OS (head lead / qf001 / repair / sound) |
 |---|---|---|
@@ -138,3 +242,4 @@ The connection state as an island item: `C:\APPS_Contacts\SystemUI--CodIsland\CO
 | §6 assistant key | | |
 | §7 volume answer | | |
 | §9 image slot | | |
+| §10 session announced as Z-Link does (`com.zjinnova.zlink`) | | |

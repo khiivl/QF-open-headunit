@@ -246,6 +246,9 @@ class Settings(private val context: Context) {
      */
     var micSampleRate: Int
         get() {
+            // CoD OS keeps 16 kHz as the default (sound line, 24.11): 48 kHz is allowed only behind a real anti-alias low-pass before the 3:1
+            // conversion (stopband of at least 60 dB from 8 kHz); MicPcmDecimator is a 3-sample mean, which is not that. The setting stays
+            // for the developer section, and P34 measures 16 against 48 kHz.
             val stored = prefs.getInt("mic-sample-rate", MicSampleRates.first())
             return if (stored in MicSampleRates) stored else MicSampleRates.first()
         }
@@ -1401,6 +1404,8 @@ class Settings(private val context: Context) {
      */
     var connectionModes: Set<ConnectionMode>
         get() {
+            // CoD OS: not a choice. A phone on the cable and a phone over Wi-Fi both connect, the way they do with Z-Link.
+            if (com.andrerinas.openheadunit.BuildConfig.CODOS) return setOf(ConnectionMode.USB, ConnectionMode.WIFI)
             val stored = prefs.getStringSet("connection-modes", null)
             if (stored != null) return stored.mapNotNull { ConnectionMode.fromKey(it) }.toSet()
             val migrated = migrateLegacyConnectionModes()
@@ -1619,7 +1624,8 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("attach_hw_dsp_equalizer", value).apply() }
 
     var micNoiseSuppressor: Boolean
-        get() = prefs.getBoolean("mic-noise-suppressor", false)
+        // CoD OS: on by default (the platform defines the effect for the microphone; it was only the pref that was off).
+        get() = prefs.getBoolean("mic-noise-suppressor", com.andrerinas.openheadunit.BuildConfig.CODOS)
         set(value) { prefs.edit().putBoolean("mic-noise-suppressor", value).apply() }
 
     var micAutoGainControl: Boolean
@@ -1643,12 +1649,15 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("auto-start-on-usb", value).apply() }
 
     var autoStartOnBoot: Boolean
-        get() = prefs.getBoolean("auto-start-on-boot", false)
+        // CoD OS (head lead and owner, 24.11): Z-Link starts at boot and OHU is its behavioural copy, so the hidden row is ON by default.
+        get() = prefs.getBoolean("auto-start-on-boot", com.andrerinas.openheadunit.BuildConfig.CODOS)
         set(value) { prefs.edit().putBoolean("auto-start-on-boot", value).apply() }
 
     /** With [autoStartOnBoot], start only the service and leave the screen to the phone connecting. */
     var autoStartOnBootInBackground: Boolean
-        get() = prefs.getBoolean("auto-start-on-boot-in-background", false)
+        // CoD OS: the boot start arms the service in the background (the wireless stack waits for a phone) and does not open OHU's screen
+        // over the launcher, which is how Z-Link starts; the screen comes when a phone connects.
+        get() = prefs.getBoolean("auto-start-on-boot-in-background", com.andrerinas.openheadunit.BuildConfig.CODOS)
         set(value) { prefs.edit().putBoolean("auto-start-on-boot-in-background", value).apply() }
 
     var autoStartOnScreenOn: Boolean
@@ -2278,7 +2287,8 @@ class Settings(private val context: Context) {
             } else {
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             }
-            return prefs.getBoolean(KEY_AUTO_START_ON_BOOT, false)
+            // The first boot after an install reads this before the app has mirrored its value: the same CoD default as the setting.
+            return prefs.getBoolean(KEY_AUTO_START_ON_BOOT, com.andrerinas.openheadunit.BuildConfig.CODOS)
         }
 
         /**

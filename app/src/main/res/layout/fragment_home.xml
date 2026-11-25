@@ -60,6 +60,20 @@
                         android:text="@string/projection_short_carplay" />
                 </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/carplay_button"
+            style="@style/HomeTile"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/carplay_icon"
+                style="@style/HomeTileIcon"
+                app:srcCompat="@drawable/ic_carplay" />
+            <com.andrerinas.openheadunit.view.WordFitTextView
+                android:id="@+id/carplay_label"
+                style="@style/HomeTileLabel.Wrap"
+                android:text="@string/projection_short_carplay" />
+        </LinearLayout>
+
                 <LinearLayout
                     android:id="@+id/usb_button"
                     style="@style/HomeTile">
@@ -150,6 +164,17 @@
                 style="@style/HomeTileLabel.Wrap"
                 android:text="@string/home_all_apps" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/codos_version_label"
+            android:layout_width="@dimen/home_tile_size"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="12dp"
+            android:alpha="0.45"
+            android:textSize="10sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:visibility="gone" />
 
     </LinearLayout>
 

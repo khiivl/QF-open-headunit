@@ -56,6 +56,8 @@ object ProjectionSwitcher {
      * shell can: turning the station Wi-Fi on makes the hotspot give way.
      */
     private suspend fun bringStationWifiUp(context: Context) {
+        // CoD OS: OHU does not switch the unit's station Wi-Fi (owner, 24.11); the strategy is pinned to the hotspot anyway.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) return
         val (code, out) = OemAppManager.executeCommand(context, "svc wifi enable")
         AppLog.i("projection switch: station Wi-Fi enable finished with code=$code $out")
     }

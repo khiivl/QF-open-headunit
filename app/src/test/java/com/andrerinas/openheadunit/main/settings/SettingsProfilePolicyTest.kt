@@ -77,4 +77,21 @@ class SettingsProfilePolicyTest {
             }
         }
     }
+
+    @Test fun codosHidesTheChoiceOfConnectionTypes() {
+        val hidden = SettingsProfilePolicy.hiddenIds(zlinkUnit = true, codos = true)
+        assertTrue("connectionMode" in hidden)
+        assertTrue("scopeNotice" in hidden)
+        assertTrue("listenForUsbDevices" in hidden)
+        assertTrue("useLibusb" in hidden)
+        assertTrue("autoStartSettings" in hidden)
+        assertTrue("autoConnectSettings" in hidden)
+    }
+
+    @Test fun otherBuildsKeepTheChoiceOfConnectionTypes() {
+        val hidden = SettingsProfilePolicy.hiddenIds(zlinkUnit = true)
+        assertFalse("connectionMode" in hidden)
+        assertFalse("listenForUsbDevices" in hidden)
+        assertTrue(SettingsProfilePolicy.hiddenIds(zlinkUnit = false, codos = false).isEmpty())
+    }
 }

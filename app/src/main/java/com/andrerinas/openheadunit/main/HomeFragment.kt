@@ -126,6 +126,10 @@ class HomeFragment : Fragment() {
     private lateinit var exitButton: View
     private lateinit var appsButton: View
     private var sidebarAppsButton: View? = null
+    private var carPlayTile: View? = null
+    private var versionLabel: android.widget.TextView? = null
+    private var versionTaps = 0
+    private var versionTapAtMs = 0L
     private var primaryAction: View? = null
     private var primaryCancel: View? = null
     private lateinit var favoriteSlots: List<View>
@@ -238,6 +242,8 @@ class HomeFragment : Fragment() {
         exitButton = container.findViewById(R.id.exit_button)
         appsButton = container.findViewById(R.id.apps_button)
         sidebarAppsButton = container.findViewById(R.id.sidebar_apps_button)
+        carPlayTile = container.findViewById(R.id.carplay_button)
+        versionLabel = container.findViewById(R.id.codos_version_label)
         primaryAction = container.findViewById(R.id.home_primary_action)
         primaryCancel = container.findViewById(R.id.home_primary_cancel)
         favoriteSlots = HomeUiHelper.favoriteSlotIds.mapNotNull { container.findViewById(it) }
@@ -634,8 +640,9 @@ class HomeFragment : Fragment() {
         // projection tile does; a tap flips it to the other one.
         val zlinkUnit = com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(ctx).isNotEmpty()
         val barConnections = when {
+            com.andrerinas.openheadunit.BuildConfig.CODOS -> emptyList()
             carPlayMode -> allBarConnections.filter { it == decision.primary }
-            zlinkUnit && decision.barConnections.isNotEmpty() -> listOf(decision.primary)
+            zlinkUnit && !com.andrerinas.openheadunit.BuildConfig.CODOS && decision.barConnections.isNotEmpty() -> listOf(decision.primary)
             else -> allBarConnections
         }
         HomeUiHelper.applyBar(ctx, root, appSettings, barConnections, palette, decision.tiles)
@@ -651,6 +658,7 @@ class HomeFragment : Fragment() {
         renderWifiStatus()
         renderHomeInfo()
         reportBringUpOwner()
+        renderCodosHome()
         // Cancel, the progress bar and the step come and go with the status, so the lines that fit
         // change with it, not only with the layout.
         scheduleCardFit(root)
@@ -2006,6 +2014,7 @@ class HomeFragment : Fragment() {
             renderHome()
         }
         renderProjectionTile()
+        setUpCodosHome()
         wifiTile.setOnClickListener { if (!switchCardTo(HomePrimaryPolicy.Connection.WIFI)) onWifiClicked() }
         wifiTile.setOnLongClickListener {
             openNetworkList()
@@ -2078,6 +2087,7 @@ class HomeFragment : Fragment() {
      */
     private fun switchCardTo(connection: HomePrimaryPolicy.Connection): Boolean {
         val ctx = context ?: return false
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) return false // CoD OS: both connections are always there, nothing to flip
         if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
                 App.provide(ctx).settings.projectionMode)) return false
         if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(ctx).isEmpty()) return false
@@ -2158,8 +2168,74 @@ class HomeFragment : Fragment() {
     }
 
     /** The tile shows the active projection; tapping it switches to the other one. */
+    /**
+     * CoD OS home (design `OHU_COD_UI_DESIGN.md` section 3): the protocol tiles and the developer gesture. Every other tile is hidden
+     * by [renderCodosHome]; nothing is deleted, so the other flavors and the developer section are untouched.
+     */
+    private fun setUpCodosHome() {
+        if (!com.andrerinas.openheadunit.BuildConfig.CODOS) return
+        projectionTile.setOnClickListener { switchCodosProjection(Settings.ProjectionMode.ANDROID_AUTO) }
+        carPlayTile?.setOnClickListener { switchCodosProjection(Settings.ProjectionMode.CARPLAY_ZLINK) }
+        versionLabel?.apply {
+            text = com.andrerinas.openheadunit.BuildConfig.VERSION_NAME
+            setOnClickListener { onCodosVersionTapped() }
+        }
+    }
+
+    private fun switchCodosProjection(mode: Settings.ProjectionMode) {
+        val ctx = context ?: return
+        com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionSwitcher.set(ctx, mode)
+        renderHome()
+    }
+
+    /** Seven quick taps on the version label open the developer section: today's settings, all of them. */
+    private fun onCodosVersionTapped() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val next = CodosHomePolicy.nextTaps(versionTaps, versionTapAtMs, now)
+        versionTaps = if (next.openDeveloper) 0 else next.count
+        versionTapAtMs = now
+        if (next.openDeveloper) startActivity(Intent(requireContext(), SettingsActivity::class.java))
+    }
+
+    /** Whether Z-Link's side of CarPlay is there to be used: its package installed and not disabled. */
+    private fun zlinkSideIsThere(ctx: Context): Boolean = try {
+        val state = ctx.packageManager.getApplicationEnabledSetting(
+            com.andrerinas.openheadunit.connection.ProjectionSessionPolicy.ZLINK_PACKAGE
+        )
+        state == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
+            state == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+    } catch (_: Exception) {
+        false
+    }
+
+    private fun renderCodosHome() {
+        if (!com.andrerinas.openheadunit.BuildConfig.CODOS) return
+        val ctx = context ?: return
+        val root = view ?: return
+        val s = App.provide(ctx).settings
+        val tiles = CodosHomePolicy.tiles(
+            s.projectionAvailability, s.projectionMode,
+            carPlayPathReady = CodosHomePolicy.CARPLAY_PATH_READY && zlinkSideIsThere(ctx)
+        )
+        val palette = homePalette(ctx)
+        val shown = { v: Boolean -> if (v) View.VISIBLE else View.GONE }
+        projectionTile.visibility = shown(tiles.androidAutoVisible)
+        projectionTile.findViewById<android.widget.ImageView>(R.id.projection_icon).setImageResource(R.drawable.ic_stat_aa)
+        projectionTile.findViewById<android.widget.TextView>(R.id.projection_label).setText(R.string.projection_short_android_auto)
+        carPlayTile?.visibility = shown(tiles.carPlayVisible)
+        (projectionTile as? ViewGroup)?.let { HomeUiHelper.applyProtocolTile(ctx, it, tiles.androidAutoSelected, palette, palette.wifi) }
+        (carPlayTile as? ViewGroup)?.let { HomeUiHelper.applyProtocolTile(ctx, it, tiles.carPlaySelected, palette, palette.wifi) }
+        // The rest of the home is not offered on CoD OS: the transport is not a choice, the settings are the developer section.
+        listOf<View?>(usbTile, wifiTile, selfModeTile, settingsTile, bluetoothTile, sidebarAppsButton).forEach { it?.visibility = View.GONE }
+        versionLabel?.visibility = View.VISIBLE
+        listOf(R.id.home_favorites_area, R.id.home_widgets_row, R.id.home_page_dots).forEach {
+            root.findViewById<View>(it)?.visibility = View.GONE
+        }
+    }
+
     private fun renderProjectionTile() {
         if (!::projectionTile.isInitialized) return
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) { renderCodosHome(); return }
         // The tile only switches between the two projections; with one of them turned off there is nothing to switch.
         projectionTile.visibility =
             if (App.provide(requireContext()).settings.projectionAvailability == Settings.ProjectionAvailability.BOTH) View.VISIBLE else View.GONE

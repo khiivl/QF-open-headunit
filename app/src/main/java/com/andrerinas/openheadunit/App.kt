@@ -46,6 +46,8 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        // CoD OS: this process knows of no session; drops an earlier process's value and clears on a crash (contract section 10).
+        com.andrerinas.openheadunit.connection.ProjectionSessionPublisher.start(this)
         registerActivityLifecycleCallbacks(this)
         // The root-only debug switch lives in settings and is read by the shell code from this copy.
         try {
@@ -105,7 +107,9 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         }
         // zLink's hotspot is the network Android Auto and CarPlay run on, and it only carries them well on 5 GHz: make sure
         // it is, a little after start so the adb bridge it goes through is up.
-        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
+        // CoD OS: the hotspot's band is the system's; OHU does not rewrite the unit's hotspot configuration at every start (owner, 24.11).
+        if (!com.andrerinas.openheadunit.BuildConfig.CODOS &&
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 kotlinx.coroutines.delay(20_000L)
                 com.andrerinas.openheadunit.utils.HotspotConfigClient.ensure5Ghz(this@App)
