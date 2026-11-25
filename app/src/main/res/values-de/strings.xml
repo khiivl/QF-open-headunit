@@ -1918,6 +1918,10 @@
     <string name="home_hotspot_not_found">Kein WLAN verbunden. Ist der Hotspot des Handys an?</string>
     <string name="home_wifi_hotspot_hint">Ist der Hotspot des Handys an?</string>
     <string name="home_wifi_off_hint">Zum Verbinden einschalten</string>
+    <string name="touch_send_rate">Touch-Senderate</string>
+    <string name="touch_send_rate_help">Wie oft die Bewegung deines Fingers an das Telefon gesendet wird. Die Panel-Rate sendet jeden Messwert so, wie ihn der Touchscreen meldet: am schnellsten, aber das Scrollen kann ruckeln, wenn diese Rate nicht zu den 60 Bildern pro Sekunde des Bildes passt. Interpolierte 120 Hz und 60 Hz senden gleichmäßig verteilte, zwischen den Messwerten berechnete Positionen, was flüssiger scrollt und dem Finger etwa 13 ms weiter hinterherhängt.</string>
+    <string name="touch_send_rate_panel">Panel-Rate</string>
+    <string name="touch_send_rate_resampled">Interpoliert %1$d Hz</string>
     <string name="debug_root_only_summary">Wenn Root erteilt ist, alle Shell-Befehle über Root ausführen und nie über ADB.</string>
     <string name="debug_root_only_description">Wenn Root erteilt ist, wird ADB nirgends verwendet. Ohne Root dient ADB als Ausweichlösung. Das Einschalten fragt nach Root, was auch der Weg ist, Root zu erteilen, solange ADB verfügbar ist. Wurde Root abgelehnt und merkt sich Ihre Root-Verwaltung das, kommt die Abfrage erst wieder, wenn Sie es dort ändern.</string>
 </resources>

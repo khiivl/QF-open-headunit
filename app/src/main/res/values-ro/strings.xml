@@ -1913,6 +1913,10 @@
     <string name="home_hotspot_not_found">Niciun WiFi conectat. Este pornit hotspotul telefonului?</string>
     <string name="home_wifi_hotspot_hint">Este pornit hotspotul telefonului?</string>
     <string name="home_wifi_off_hint">Pornește-l pentru conectare</string>
+    <string name="touch_send_rate">Rată trimitere atingere</string>
+    <string name="touch_send_rate_help">Cât de des este trimisă mișcarea degetului către telefon. Rata panoului trimite fiecare eșantion așa cum îl raportează ecranul tactil: este cea mai rapidă, dar derularea poate sacada atunci când această rată nu se potrivește cu cele 60 de cadre pe secundă ale imaginii. Valorile interpolate de 120 Hz și 60 Hz trimit poziții egal distanțate calculate între eșantioane, ceea ce face derularea mai fluidă și rămâne în urma degetului cu aproximativ 13 ms în plus.</string>
+    <string name="touch_send_rate_panel">Rata panoului</string>
+    <string name="touch_send_rate_resampled">Interpolat %1$d Hz</string>
     <string name="debug_root_only_summary">Cu root acordat, rulează toate comenzile shell prin root și niciodată prin ADB.</string>
     <string name="debug_root_only_description">Cu root acordat, ADB nu este folosit nicăieri. Fără root, ADB este soluția de rezervă. Activarea cere root, ceea ce este și modul de a-l acorda cât timp ADB este disponibil. Dacă root a fost refuzat și managerul root îl reține, cererea nu revine până nu schimbați acolo.</string>
 </resources>

@@ -1917,6 +1917,10 @@
     <string name="home_hotspot_not_found">Wi-Fiに接続できませんでした。スマートフォンのテザリングはオンですか？</string>
     <string name="home_wifi_hotspot_hint">スマートフォンのテザリングはオンですか？</string>
     <string name="home_wifi_off_hint">接続するにはオンにしてください</string>
+    <string name="touch_send_rate">タッチ送信レート</string>
+    <string name="touch_send_rate_help">指の動きをスマートフォンへ送信する頻度です。パネルレートはタッチスクリーンが報告したすべてのサンプルをそのまま送信するため最も高速ですが、そのレートが映像の毎秒 60 フレームと合わないとスクロールがカクつくことがあります。補間された 120 Hz と 60 Hz はサンプル間で計算された等間隔の位置を送信するため、スクロールがより滑らかになり、指への追従は約 13 ms 遅れます。</string>
+    <string name="touch_send_rate_panel">パネルレート</string>
+    <string name="touch_send_rate_resampled">補間 %1$d Hz</string>
     <string name="debug_root_only_summary">root が許可されている場合、すべてのシェルコマンドを root 経由で実行し、ADB は使いません。</string>
     <string name="debug_root_only_description">root が許可されている場合、ADB はどこでも使われません。root がない場合は ADB がフォールバックになります。オンにすると root を要求し、ADB が使える状態でも root を許可する方法になります。root が拒否され、root 管理アプリがそれを記憶している場合、そちらで変更するまで要求は再表示されません。</string>
 </resources>

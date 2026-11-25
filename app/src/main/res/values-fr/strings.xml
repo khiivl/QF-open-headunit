@@ -1960,6 +1960,10 @@
     <string name="home_hotspot_not_found">Aucun Wi-Fi connecté. Le point d’accès du téléphone est-il activé ?</string>
     <string name="home_wifi_hotspot_hint">Point d’accès du téléphone activé ?</string>
     <string name="home_wifi_off_hint">Activez-le pour vous connecter</string>
+    <string name="touch_send_rate">Fréquence d\'envoi tactile</string>
+    <string name="touch_send_rate_help">À quelle fréquence le mouvement de votre doigt est envoyé au téléphone. La fréquence de la dalle envoie chaque échantillon tel que l\'écran tactile le rapporte : c\'est la plus réactive, mais le défilement peut saccader lorsque cette fréquence ne correspond pas aux 60 images par seconde de l\'image. L\'interpolation à 120 Hz et 60 Hz envoie des positions régulièrement espacées calculées entre les échantillons, ce qui rend le défilement plus fluide avec environ 13 ms de retard en plus par rapport au doigt.</string>
+    <string name="touch_send_rate_panel">Fréquence de la dalle</string>
+    <string name="touch_send_rate_resampled">Interpolé %1$d Hz</string>
     <string name="debug_root_only_summary">Lorsque root est accordé, exécuter toutes les commandes shell via root et jamais via ADB.</string>
     <string name="debug_root_only_description">Lorsque root est accordé, ADB n’est utilisé nulle part. Sans root, ADB sert de solution de repli. L’activer demande root, ce qui est aussi la manière de l’accorder tant qu’ADB est disponible. Si root a été refusé et que votre gestionnaire root s’en souvient, la demande ne revient pas tant que vous ne la modifiez pas là-bas.</string>
 </resources>

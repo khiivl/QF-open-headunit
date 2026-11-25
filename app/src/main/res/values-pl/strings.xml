@@ -1920,6 +1920,10 @@
     <string name="home_hotspot_not_found">Brak połączenia z WiFi. Czy hotspot telefonu jest włączony?</string>
     <string name="home_wifi_hotspot_hint">Czy hotspot telefonu jest włączony?</string>
     <string name="home_wifi_off_hint">Włącz je, aby się połączyć</string>
+    <string name="touch_send_rate">Częstotliwość wysyłania dotyku</string>
+    <string name="touch_send_rate_help">Jak często ruch palca jest wysyłany do telefonu. Częstotliwość panelu wysyła każdą próbkę tak, jak zgłasza ją ekran dotykowy: jest najszybsza, ale przewijanie może szarpać, gdy ta częstotliwość nie pasuje do 60 klatek na sekundę obrazu. Interpolowane 120 Hz i 60 Hz wysyłają równomiernie rozłożone pozycje obliczone między próbkami, co daje płynniejsze przewijanie i opóźnienie za palcem większe o około 13 ms.</string>
+    <string name="touch_send_rate_panel">Częstotliwość panelu</string>
+    <string name="touch_send_rate_resampled">Interpolowane %1$d Hz</string>
     <string name="debug_root_only_summary">Gdy przyznano root, wykonuj wszystkie polecenia powłoki przez root i nigdy przez ADB.</string>
     <string name="debug_root_only_description">Gdy przyznano root, ADB nie jest używane nigdzie. Bez root rozwiązaniem zapasowym jest ADB. Włączenie prosi o root, co jest też sposobem na jego przyznanie, gdy ADB jest dostępne. Jeśli root odrzucono, a menedżer root to zapamiętał, prośba nie wróci, dopóki nie zmienisz tego tam.</string>
 </resources>

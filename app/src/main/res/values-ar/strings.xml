@@ -1916,6 +1916,10 @@
     <string name="home_hotspot_not_found">لا توجد شبكة WiFi متصلة. هل نقطة اتصال الهاتف مفعّلة؟</string>
     <string name="home_wifi_hotspot_hint">هل نقطة اتصال الهاتف مفعّلة؟</string>
     <string name="home_wifi_off_hint">شغّله للاتصال</string>
+    <string name="touch_send_rate">معدل إرسال اللمس</string>
+    <string name="touch_send_rate_help">مدى تكرار إرسال حركة إصبعك إلى الهاتف. يرسل معدل اللوحة كل عينة كما تُبلغ عنها شاشة اللمس: وهو الأسرع، لكن التمرير قد يتقطع عندما لا يتوافق هذا المعدل مع 60 إطارًا في الثانية للصورة. يرسل المعدل المُستكمَل داخليًا 120 Hz و60 Hz مواضع متباعدة بانتظام محسوبة بين العينات، مما يجعل التمرير أكثر سلاسة ويتأخر عن الإصبع بنحو 13 ms إضافية.</string>
+    <string name="touch_send_rate_panel">معدل اللوحة</string>
+    <string name="touch_send_rate_resampled">مُستكمَل داخليًا %1$d Hz</string>
     <string name="debug_root_only_summary">عند منح root، تشغيل كل أوامر الصدفة عبر root وليس عبر ADB أبدًا.</string>
     <string name="debug_root_only_description">عند منح root، لا يُستخدم ADB في أي مكان. ومن دون root، يُستخدم ADB كبديل احتياطي. يؤدي تفعيل هذا الخيار إلى طلب root، وهي أيضًا طريقة منحه أثناء توفر ADB. إذا رُفض root وكان مدير root يتذكر ذلك، فلن يعود الطلب حتى تغيّره هناك.</string>
 </resources>

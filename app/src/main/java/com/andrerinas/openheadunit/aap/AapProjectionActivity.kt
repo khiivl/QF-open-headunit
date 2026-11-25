@@ -2805,15 +2805,69 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         hudMirroring = settings.hudMirroring
     )
 
+    // Unless Settings.touchSendRate says panel rate, moves go to the phone on a steady grid: see TouchMoveResampler.
+    private val moveResampler = com.andrerinas.openheadunit.input.TouchMoveResampler()
+    private var resampleGeometry: RemoteGeometry? = null
+    private var resampleGridAt = 0.0
+    private var resampling = false
+    private var resamplePeriodMs = 0.0
+    private var touchRate = 0 // Settings.touchSendRate, read at each press: it is too costly to look up per sample.
+
+    private val resampleTick = object : Runnable {
+        override fun run() {
+            val g = resampleGeometry ?: run { resampling = false; return }
+            moveResampler.tick(resampleGridAt)?.let { emitMove(it, g) }
+            if (moveResampler.isSettled()) {
+                resampling = false
+                return
+            }
+            // Grid times stay one period apart however late the handler runs; missed ones are skipped.
+            val now = SystemClock.elapsedRealtime().toDouble()
+            do {
+                resampleGridAt += resamplePeriodMs
+            } while (resampleGridAt <= now)
+            gestureHandler.postDelayed(this, Math.round(resampleGridAt - now))
+        }
+    }
+
     private fun sendRemote(sends: List<RemoteTouchPolicy.Send>, g: RemoteGeometry, ts: Long) {
         for (send in sends) {
-            val pointerData = send.pointers.map { p ->
-                val corrected = mapRemote(g, p.x, p.y)
-                Triple(p.id, corrected.x, corrected.y)
+            if (send.action == RemoteTouchPolicy.Action.DOWN) touchRate = settings.touchSendRate
+            if (send.action == RemoteTouchPolicy.Action.MOVE && touchRate > 0) {
+                resamplePeriodMs = 1000.0 / touchRate
+                resampleGeometry = g
+                moveResampler.add(ts, send.pointers)
+                if (!resampling) {
+                    resampling = true
+                    resampleGridAt = SystemClock.elapsedRealtime().toDouble()
+                    gestureHandler.post(resampleTick)
+                }
+                continue
             }
+            // A press or a lift goes at once, after any position still waiting for its grid time.
+            stopResampling()
+            moveResampler.flush()?.let { emitMove(it, g) }
             if (AppLog.LOG_VERBOSE) AppLog.v("[UI_DEBUG] ${RemoteTouchPolicy.describe(send)}")
-            commManager.send(TouchEvent(ts, TouchEvent.pointerAction(send.action), send.actionIndex, pointerData))
+            emitRemote(send, g, ts)
+            moveResampler.anchor(ts, send.pointers)
         }
+    }
+
+    private fun stopResampling() {
+        gestureHandler.removeCallbacks(resampleTick)
+        resampling = false
+    }
+
+    private fun emitMove(move: com.andrerinas.openheadunit.input.TouchMoveResampler.Move, g: RemoteGeometry) {
+        emitRemote(RemoteTouchPolicy.Send(RemoteTouchPolicy.Action.MOVE, 0, move.pointers), g, move.at)
+    }
+
+    private fun emitRemote(send: RemoteTouchPolicy.Send, g: RemoteGeometry, ts: Long) {
+        val pointerData = send.pointers.map { p ->
+            val corrected = mapRemote(g, p.x, p.y)
+            Triple(p.id, corrected.x, corrected.y)
+        }
+        commManager.send(TouchEvent(ts, TouchEvent.pointerAction(send.action), send.actionIndex, pointerData))
     }
 
     private fun sendTouchEvent(event: MotionEvent) {
@@ -3012,6 +3066,7 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
     }
 
     override fun onDestroy() {
+        stopResampling()
         clearTwoFingerTracking()
         // TextureView/GLES destruction can arrive after this activity removes its callback.
         // Stop our target now, while it is still valid, without touching a replacement owner.

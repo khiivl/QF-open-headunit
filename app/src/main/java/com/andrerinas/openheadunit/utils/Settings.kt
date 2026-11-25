@@ -1351,6 +1351,13 @@ class Settings(private val context: Context) {
             ?: if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty()) "H.265" else "Auto"
         set(value) { prefs.edit().putString("video-codec", value).apply() }
 
+    // How often finger moves are sent to the phone: 0 is every sample as the panel reports it, otherwise resampled to
+    // that many a second. A QF panel reports about 95, which a 60 fps map shows as judder, so those units start at 120.
+    var touchSendRate: Int
+        get() = if (prefs.contains("touch-send-rate")) prefs.getInt("touch-send-rate", 0)
+            else if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty()) 120 else 0
+        set(value) { prefs.edit().putInt("touch-send-rate", value).apply() }
+
     var fpsLimit: Int
         get() = prefs.getInt("fps-limit", 60)
         set(value) { prefs.edit().putInt("fps-limit", value).apply() }

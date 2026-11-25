@@ -1909,6 +1909,10 @@
     <string name="home_hotspot_not_found">연결된 Wi-Fi가 없습니다. 휴대폰 핫스팟이 켜져 있나요?</string>
     <string name="home_wifi_hotspot_hint">휴대폰 핫스팟이 켜져 있나요?</string>
     <string name="home_wifi_off_hint">연결하려면 켜세요</string>
+    <string name="touch_send_rate">터치 전송 빈도</string>
+    <string name="touch_send_rate_help">손가락 움직임을 휴대폰으로 보내는 빈도입니다. 패널 빈도는 터치스크린이 보고하는 모든 샘플을 그대로 보내므로 가장 빠르지만, 그 빈도가 화면의 초당 60프레임과 맞지 않으면 스크롤이 끊길 수 있습니다. 보간된 120 Hz와 60 Hz는 샘플 사이에서 계산된 일정한 간격의 위치를 보내므로 스크롤이 더 부드럽고 손가락보다 약 13 ms 더 뒤따라옵니다.</string>
+    <string name="touch_send_rate_panel">패널 빈도</string>
+    <string name="touch_send_rate_resampled">보간 %1$d Hz</string>
     <string name="debug_root_only_summary">root가 허용된 경우 모든 셸 명령을 root로 실행하며 ADB는 사용하지 않습니다.</string>
     <string name="debug_root_only_description">root가 허용된 경우 ADB는 어디에서도 사용되지 않습니다. root가 없으면 ADB가 대체 수단으로 사용됩니다. 켜면 root를 요청하며, ADB를 쓸 수 있는 상태에서 root를 허용하는 방법이기도 합니다. root가 거부되었고 root 관리자가 이를 기억하면, 그곳에서 바꾸기 전까지 요청이 다시 나타나지 않습니다.</string>
 </resources>

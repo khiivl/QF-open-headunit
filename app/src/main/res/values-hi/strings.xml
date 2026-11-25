@@ -1961,6 +1961,10 @@
     <string name="home_hotspot_not_found">कोई वाई-फ़ाई नहीं जुड़ा। क्या फ़ोन का हॉटस्पॉट चालू है?</string>
     <string name="home_wifi_hotspot_hint">क्या फ़ोन का हॉटस्पॉट चालू है?</string>
     <string name="home_wifi_off_hint">कनेक्ट करने के लिए इसे चालू करें</string>
+    <string name="touch_send_rate">टच भेजने की दर</string>
+    <string name="touch_send_rate_help">आपकी उँगली की गति फ़ोन को कितनी बार भेजी जाती है। पैनल दर हर सैंपल को वैसे ही भेजती है जैसे टचस्क्रीन उसे रिपोर्ट करती है: यह सबसे तेज़ है, लेकिन जब यह दर तस्वीर के 60 फ़्रेम प्रति सेकंड के साथ मेल नहीं खाती तो स्क्रॉलिंग अटक सकती है। इंटरपोलेट की गई 120 Hz और 60 Hz दरें सैंपल के बीच गणना की गई समान अंतराल की स्थितियाँ भेजती हैं, जिससे स्क्रॉलिंग ज़्यादा सहज होती है और उँगली से लगभग 13 ms अधिक पीछे रहती है।</string>
+    <string name="touch_send_rate_panel">पैनल दर</string>
+    <string name="touch_send_rate_resampled">इंटरपोलेटेड %1$d Hz</string>
     <string name="debug_root_only_summary">root मिलने पर सभी शेल कमांड root से चलाएँ, ADB से कभी नहीं।</string>
     <string name="debug_root_only_description">root मिलने पर ADB का कहीं भी उपयोग नहीं होता। root के बिना, ADB बैकअप विकल्प है। इसे चालू करने पर root माँगा जाता है, जो ADB उपलब्ध होने पर root देने का भी तरीका है। यदि root अस्वीकार किया गया था और आपका root मैनेजर उसे याद रखता है, तो आपके वहाँ बदलने तक अनुरोध वापस नहीं आएगा।</string>
 </resources>

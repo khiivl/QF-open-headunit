@@ -1913,6 +1913,10 @@
     <string name="home_hotspot_not_found">未连接 WLAN。手机热点已开启吗？</string>
     <string name="home_wifi_hotspot_hint">手机热点已开启吗？</string>
     <string name="home_wifi_off_hint">开启后即可连接</string>
+    <string name="touch_send_rate">触控发送速率</string>
+    <string name="touch_send_rate_help">手指移动发送给手机的频率。面板速率会按触摸屏上报的频率发送每一次采样：响应最快，但当该速率与画面每秒 60 帧不匹配时，滚动可能会抖动。插值 120 Hz 和 60 Hz 会发送在各次采样之间计算出的等间隔位置，滚动更流畅，但跟随手指的延迟会多出约 13 ms。</string>
+    <string name="touch_send_rate_panel">面板速率</string>
+    <string name="touch_send_rate_resampled">插值 %1$d Hz</string>
     <string name="debug_root_only_summary">已授予 root 时，所有 shell 命令都通过 root 执行，绝不通过 ADB。</string>
     <string name="debug_root_only_description">已授予 root 时，任何地方都不会使用 ADB。没有 root 时，ADB 作为后备方案。开启时会请求 root，这也是在 ADB 可用时授予 root 的方式。如果 root 被拒绝且您的 root 管理器记住了这一点，则在您于该处更改之前不会再次提示。</string>
 </resources>

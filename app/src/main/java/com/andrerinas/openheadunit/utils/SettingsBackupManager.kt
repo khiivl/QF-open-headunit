@@ -173,6 +173,7 @@ object SettingsBackupManager {
         "debug-usb-read-fault" to ValueType.BOOLEAN,
         "debug-video-low-latency" to ValueType.BOOLEAN,
         "debug-root-only" to ValueType.BOOLEAN,
+        "touch-send-rate" to ValueType.INT,
         "debug-video-feed-hold-ms" to ValueType.INT,
         "debug-force-memory-profile" to ValueType.STRING,
         "view-mode" to ValueType.INT,

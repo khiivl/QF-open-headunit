@@ -1910,6 +1910,10 @@
     <string name="home_hotspot_not_found">WiFi’ye bağlanılamadı. Telefonun erişim noktası açık mı?</string>
     <string name="home_wifi_hotspot_hint">Telefonun erişim noktası açık mı?</string>
     <string name="home_wifi_off_hint">Bağlanmak için açın</string>
+    <string name="touch_send_rate">Dokunma gönderme hızı</string>
+    <string name="touch_send_rate_help">Parmağınızın hareketinin telefona ne sıklıkla gönderildiği. Panel hızı, dokunmatik ekranın bildirdiği her örneği gönderir: en hızlısıdır, ancak bu hız görüntünün saniyedeki 60 karesiyle uyuşmadığında kaydırma titreyebilir. Ara değerlemeli 120 Hz ve 60 Hz örnekler arasında hesaplanan eşit aralıklı konumlar gönderir; bu da daha akıcı kaydırır ve parmağı yaklaşık 13 ms daha geriden takip eder.</string>
+    <string name="touch_send_rate_panel">Panel hızı</string>
+    <string name="touch_send_rate_resampled">Ara değerlemeli %1$d Hz</string>
     <string name="debug_root_only_summary">Root verildiğinde tüm kabuk komutlarını root ile çalıştır, hiçbir zaman ADB ile değil.</string>
     <string name="debug_root_only_description">Root verildiğinde ADB hiçbir yerde kullanılmaz. Root yoksa yedek olarak ADB kullanılır. Açmak root ister; bu, ADB kullanılabilirken root vermenin de yoludur. Root reddedildiyse ve root yöneticiniz bunu hatırlıyorsa, istek siz orada değiştirene kadar geri gelmez.</string>
 </resources>

@@ -1919,6 +1919,10 @@
     <string name="home_hotspot_not_found">Geen wifi verbonden. Staat de hotspot van de telefoon aan?</string>
     <string name="home_wifi_hotspot_hint">Staat de hotspot van de telefoon aan?</string>
     <string name="home_wifi_off_hint">Zet het aan om te verbinden</string>
+    <string name="touch_send_rate">Aanraak-zendfrequentie</string>
+    <string name="touch_send_rate_help">Hoe vaak de beweging van je vinger naar de telefoon wordt gestuurd. Paneelsnelheid stuurt elk meetpunt precies zoals het aanraakscherm het meldt: dit is het snelst, maar scrollen kan haperen als die frequentie niet past bij de 60 beelden per seconde van het schermbeeld. Geïnterpoleerde 120 Hz en 60 Hz sturen gelijkmatig verdeelde posities die tussen de meetpunten zijn berekend, wat vloeiender scrolt en ongeveer 13 ms meer achter de vinger aanloopt.</string>
+    <string name="touch_send_rate_panel">Paneelsnelheid</string>
+    <string name="touch_send_rate_resampled">Geïnterpoleerd %1$d Hz</string>
     <string name="debug_root_only_summary">Als root is verleend, voer alle shell-opdrachten uit via root en nooit via ADB.</string>
     <string name="debug_root_only_description">Als root is verleend, wordt ADB nergens gebruikt. Zonder root is ADB de terugvaloptie. Inschakelen vraagt om root, wat ook de manier is om root te verlenen terwijl ADB beschikbaar is. Als root is geweigerd en uw rootbeheerder dat onthoudt, komt het verzoek pas terug als u het daar wijzigt.</string>
 </resources>

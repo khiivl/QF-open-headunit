@@ -1917,6 +1917,10 @@
     <string name="home_hotspot_not_found">Nessun WiFi connesso. L’hotspot del telefono è attivo?</string>
     <string name="home_wifi_hotspot_hint">L’hotspot del telefono è attivo?</string>
     <string name="home_wifi_off_hint">Accendilo per connetterti</string>
+    <string name="touch_send_rate">Frequenza invio tocco</string>
+    <string name="touch_send_rate_help">Quanto spesso il movimento del dito viene inviato al telefono. La frequenza del pannello invia ogni campione così come lo rileva il touchscreen: è la più rapida, ma lo scorrimento può andare a scatti quando questa frequenza non si allinea ai 60 fotogrammi al secondo dell\'immagine. Le modalità interpolate a 120 Hz e 60 Hz inviano posizioni distribuite in modo uniforme calcolate tra i campioni, rendendo lo scorrimento più fluido con un ritardo rispetto al dito maggiore di circa 13 ms.</string>
+    <string name="touch_send_rate_panel">Frequenza del pannello</string>
+    <string name="touch_send_rate_resampled">Interpolata %1$d Hz</string>
     <string name="debug_root_only_summary">Con root concesso, esegui tutti i comandi shell tramite root e mai tramite ADB.</string>
     <string name="debug_root_only_description">Con root concesso, ADB non viene usato da nessuna parte. Senza root, ADB è il ripiego. Attivarlo richiede root, che è anche il modo per concederlo mentre ADB è disponibile. Se root è stato negato e il gestore root lo ricorda, la richiesta non torna finché non lo cambi lì.</string>
 </resources>

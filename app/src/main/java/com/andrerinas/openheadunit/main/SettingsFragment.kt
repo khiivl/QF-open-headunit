@@ -199,6 +199,7 @@ class SettingsFragment : Fragment() {
     private var pendingForceSoftware by pending::forceSoftware
     private var pendingSoftwareVideoDecoder by pending::softwareVideoDecoder
     private var pendingVideoCodec by pending::videoCodec
+    private var pendingTouchSendRate by pending::touchSendRate
     private var pendingFpsLimit by pending::fpsLimit
     private var pendingBluetoothAddress by pending::bluetoothAddress
     private var pendingBluetoothAnnounceSkip by pending::bluetoothAnnounceSkip
@@ -656,6 +657,7 @@ class SettingsFragment : Fragment() {
         pendingForceSoftware?.let { if (it != settings.forceSoftwareDecoding) settings.forceSoftwareDecoding = it }
         pendingSoftwareVideoDecoder?.let { if (it != settings.softwareVideoDecoder) settings.softwareVideoDecoder = it }
         pendingVideoCodec?.let { if (it != settings.videoCodec) settings.videoCodec = it }
+        pendingTouchSendRate?.let { if (it != settings.touchSendRate) settings.touchSendRate = it }
         pendingFpsLimit?.let { if (it != settings.fpsLimit) settings.fpsLimit = it }
         pendingBluetoothAddress?.let { if (it != settings.bluetoothAddress) settings.bluetoothAddress = it }
         pendingBluetoothAnnounceSkip?.let {
@@ -2380,6 +2382,31 @@ class SettingsFragment : Fragment() {
 
         // --- Input Settings ---
         items.add(SettingItem.CategoryHeader("input", R.string.category_input))
+
+        // Advanced only (not in the Basic list): how often finger moves are sent to the phone.
+        val touchRates = intArrayOf(0, 120, 60)
+        val touchRateNames = touchRates.map {
+            if (it == 0) getString(R.string.touch_send_rate_panel) else getString(R.string.touch_send_rate_resampled, it)
+        }.toTypedArray()
+        val touchRate = pendingTouchSendRate ?: settings.touchSendRate
+        items.add(SettingItem.SettingEntry(
+            stableId = "touchSendRate",
+            nameResId = R.string.touch_send_rate,
+            helpResId = R.string.touch_send_rate_help,
+            value = touchRateNames[touchRates.indexOf(touchRate).coerceAtLeast(0)],
+            searchKeywords = "touch rate hz resample judder smooth scroll",
+            onClick = { _ ->
+                MaterialAlertDialogBuilder(requireContext(), R.style.DarkAlertDialog)
+                    .setTitle(R.string.touch_send_rate)
+                    .setSingleChoiceItems(touchRateNames, touchRates.indexOf(touchRate)) { dialog, which ->
+                        pendingTouchSendRate = touchRates[which]
+                        checkChanges()
+                        dialog.dismiss()
+                        updateSettingsList()
+                    }
+                    .show()
+            }
+        ))
 
         items.add(SettingItem.SettingEntry(
             stableId = "keymap",
