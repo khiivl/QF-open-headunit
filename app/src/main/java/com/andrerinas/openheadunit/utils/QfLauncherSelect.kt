@@ -29,7 +29,8 @@ object QfLauncherSelect {
     private const val SETTLE_GAP_MS = 300L
 
     /** The launcher the unit currently has chosen, or empty when it keeps none (not a unit with this setting). */
-    fun current(): String = readProperty(PROPERTY)
+    // CoD OS: the launcher of the unit is the ROM's to choose, not this app's: nothing is read, so nothing is ever set.
+    fun current(): String = if (com.andrerinas.openheadunit.BuildConfig.CODOS) "" else readProperty(PROPERTY)
 
     /** Whether this unit has the launcher setting at all: its property is set, so CarSettings has a launcher to replace. */
     fun isSupported(): Boolean = current().isNotEmpty()

@@ -1613,6 +1613,13 @@ class MainActivity : BaseActivity() {
 
     fun checkSetupFlow() {
         val appSettings = Settings(this)
+        // CoD OS: no welcome wizard. Its system step hides the Z-Link app and its launcher step makes this app the unit's launcher; on this ROM
+        // the projection switch owns the first and the ROM owns the second (contract section 10), so the setup counts as done.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS &&
+            appSettings.onboardingVersion < OnboardingActivity.CURRENT_ONBOARDING_VERSION
+        ) {
+            appSettings.onboardingVersion = OnboardingActivity.CURRENT_ONBOARDING_VERSION
+        }
         // A zLink unit gets the welcome wizard too, cut down to what applies to it (see OnboardingActivity): an
         // install that already finished it, or was marked done by an earlier version, keeps its stored version.
         // Show the intelligent onboarding wizard once whenever the stored version is
