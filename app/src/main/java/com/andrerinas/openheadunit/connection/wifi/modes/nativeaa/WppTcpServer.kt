@@ -358,7 +358,7 @@ class WppTcpServer(
             // owner sees. A served dial cannot do it: a rejection that works stops the dialling.
             callbacks.noteDialRefused()
         } else {
-            AppLog.i("WppTcpServer: this dial reached the group's live address, so the rejection leaves nothing to forget")
+            AppLog.i("WppTcpServer: this dial reached our live address, so the rejection leaves nothing to forget")
         }
         if (!rejects) {
             AppLog.w(

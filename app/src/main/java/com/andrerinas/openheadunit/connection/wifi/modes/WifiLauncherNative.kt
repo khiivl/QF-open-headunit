@@ -276,6 +276,10 @@ class WifiLauncherNative : WifiLauncher {
         val advertised = settings.softApAdvertisedEndpoint
         val moved = SoftApEndpointStabilityPolicy.movedSinceAdvertised(advertised, ssid, psk, bssid, ip) ?: return
         settings.softApAdvertisedEndpoint = null
+        if (SoftApEndpointStabilityPolicy.sameButForBssid(advertised, ssid, psk, ip)) {
+            AppLog.i("NativeAA: only the access point's BSSID differs from the advertised WPP endpoint ($moved); not reported.")
+            return
+        }
         AppLog.w(
             "NativeAA: the WPP endpoint advertised on the access point at ${advertised?.ip} no longer " +
                 "matches ($moved); a phone holding it needs this head unit forgotten in Android Auto."

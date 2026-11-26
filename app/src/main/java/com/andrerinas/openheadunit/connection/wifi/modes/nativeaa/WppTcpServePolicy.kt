@@ -41,15 +41,16 @@ object WppTcpServePolicy {
         decision is WppEndpointDecision.Withhold && !decision.ourOwnState
 
     /**
-     * Whether a refused dial raises the stale-endpoint record. A dial that reached the group came to
-     * its live address, so while the group is only unproven a rejection leaves nothing to forget.
+     * Whether a refused dial raises the stale-endpoint record. A dial that reached us came to our live
+     * address, so a rejection leaves nothing to forget while a WiFi Direct group is only unproven, and
+     * on an access point at all: there the phone joined and dialled, and at most the BSSID differs.
      */
     fun raisesStaleEndpointRecord(
         strategy: NativeStrategy,
         identity: GroupIdentityStability,
         rejected: Boolean,
     ): Boolean =
-        !(rejected && strategy == NativeStrategy.WIFI_DIRECT && identity == GroupIdentityStability.UNPROVEN)
+        !(rejected && (strategy == NativeStrategy.HOTSPOT || identity == GroupIdentityStability.UNPROVEN))
 
     /** Why a dial is refused, written to be logged as-is. */
     fun refusalReason(decision: WppEndpointDecision): String = when (decision) {

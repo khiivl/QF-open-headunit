@@ -86,6 +86,16 @@ class SoftApEndpointStabilityPolicyTest {
     }
 
     @Test
+    fun `a new BSSID alone is told apart from a moved access point`() {
+        val ad = SoftApEndpointStabilityPolicy.advertisement("K706", psk, "56:A1:4C:D3:A0:F2", "192.168.43.1")
+        assertTrue(SoftApEndpointStabilityPolicy.sameButForBssid(ad, "K706", psk, "192.168.43.1"))
+        assertFalse(SoftApEndpointStabilityPolicy.sameButForBssid(ad, "K707", psk, "192.168.43.1"))
+        assertFalse(SoftApEndpointStabilityPolicy.sameButForBssid(ad, "K706", "other-pass-9", "192.168.43.1"))
+        assertFalse(SoftApEndpointStabilityPolicy.sameButForBssid(ad, "K706", psk, "192.168.30.2"))
+        assertFalse(SoftApEndpointStabilityPolicy.sameButForBssid(null, "K706", psk, "192.168.43.1"))
+    }
+
+    @Test
     fun `nothing advertised means nothing owed`() {
         assertNull(SoftApEndpointStabilityPolicy.movedSinceAdvertised(null, "x", psk, "56:A1:4C:D3:A0:F2", "192.168.4.159"))
         assertNull(SoftApEndpointStabilityPolicy.advertisement("AndroidAP_7935", psk, "56:A1:4C:D3:A0:F2", ""))

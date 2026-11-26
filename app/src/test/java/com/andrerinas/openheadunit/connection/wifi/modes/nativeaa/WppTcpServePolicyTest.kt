@@ -133,7 +133,15 @@ class WppTcpServePolicyTest {
     }
 
     @Test
-    fun `a moved group, an access point or an unsent rejection still raises the record`() {
+    fun `a rejected dial to an access point leaves nothing to forget`() {
+        for (identity in listOf(GroupIdentityStability.CHANGED, GroupIdentityStability.UNPROVEN)) {
+            assertFalse(WppTcpServePolicy.raisesStaleEndpointRecord(
+                NativeStrategy.HOTSPOT, identity, rejected = true))
+        }
+    }
+
+    @Test
+    fun `a moved group or an unsent rejection still raises the record`() {
         assertTrue(WppTcpServePolicy.raisesStaleEndpointRecord(
             NativeStrategy.WIFI_DIRECT, GroupIdentityStability.CHANGED, rejected = true))
         assertTrue(WppTcpServePolicy.raisesStaleEndpointRecord(
@@ -141,6 +149,6 @@ class WppTcpServePolicyTest {
         assertTrue(WppTcpServePolicy.raisesStaleEndpointRecord(
             NativeStrategy.WIFI_DIRECT, GroupIdentityStability.UNPROVEN, rejected = false))
         assertTrue(WppTcpServePolicy.raisesStaleEndpointRecord(
-            NativeStrategy.HOTSPOT, GroupIdentityStability.UNPROVEN, rejected = true))
+            NativeStrategy.HOTSPOT, GroupIdentityStability.CHANGED, rejected = false))
     }
 }

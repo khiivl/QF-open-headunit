@@ -124,6 +124,13 @@ object SoftApEndpointStabilityPolicy {
         return moved.takeIf { it.isNotEmpty() }?.joinToString(", ")
     }
 
+    /**
+     * Whether the access point still has the name, password and address an endpoint went out on, so at most its BSSID
+     * differs. A hotspot that picks a new BSSID at each boot does that every time, and it is not reported.
+     */
+    fun sameButForBssid(advertised: SoftApAdvertisedEndpoint?, ssid: String, passphrase: String, ip: String): Boolean =
+        sameNetwork(advertised, ssid, passphrase) && advertised?.ip == ip
+
     /** The move of a group's IP under the network an endpoint went out on, or null if it did not move. */
     fun groupAddressMoved(advertised: SoftApAdvertisedEndpoint?, ssid: String, passphrase: String, ip: String): String? {
         if (advertised == null || !sameNetwork(advertised, ssid, passphrase) || advertised.ip == ip) return null
