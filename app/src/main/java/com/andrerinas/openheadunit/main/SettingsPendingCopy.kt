@@ -29,6 +29,7 @@ class SettingsPendingCopy {
     var staticP2pBSSID: String? = null
     var fullscreenMode: Settings.FullscreenMode? = null
     var viewMode: Settings.ViewMode? = null
+    var pacedRelease: Boolean? = null
     var forceSoftware: Boolean? = null
     var softwareVideoDecoder: Settings.SoftwareVideoDecoder? = null
     var videoCodec: String? = null
@@ -133,6 +134,7 @@ class SettingsPendingCopy {
         staticP2pBSSID = settings.staticP2pBSSID
         fullscreenMode = settings.fullscreenMode
         viewMode = settings.viewMode
+        pacedRelease = settings.debugPacedRelease
         forceSoftware = settings.forceSoftwareDecoding
         softwareVideoDecoder = settings.softwareVideoDecoder
         videoCodec = settings.videoCodec
@@ -238,6 +240,7 @@ class SettingsPendingCopy {
         staticP2pBSSID != settings.staticP2pBSSID ||
         fullscreenMode != settings.fullscreenMode ||
         viewMode != settings.viewMode ||
+        pacedRelease != settings.debugPacedRelease ||
         forceSoftware != settings.forceSoftwareDecoding ||
         softwareVideoDecoder != settings.softwareVideoDecoder ||
         videoCodec != settings.videoCodec ||

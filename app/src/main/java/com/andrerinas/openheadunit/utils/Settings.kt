@@ -1358,6 +1358,21 @@ class Settings(private val context: Context) {
             else if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty()) 120 else 0
         set(value) { prefs.edit().putInt("touch-send-rate", value).apply() }
 
+    // Keep the Hardware Composer on (see HardwareComposer). Off by default: the unit's own choice is left alone.
+    var hardwareComposer: Boolean
+        get() = prefs.getBoolean("hardware-composer", false)
+        set(value) { prefs.edit().putBoolean("hardware-composer", value).apply() }
+
+    // Keep the touch panel at its fastest report rate (see TouchPanelOverride). Off by default.
+    var touchPanelOverride: Boolean
+        get() = prefs.getBoolean("touch-panel-override", false)
+        set(value) { prefs.edit().putBoolean("touch-panel-override", value).apply() }
+
+    // The panel's own refresh byte, remembered before overriding it.
+    var touchPanelStockRefresh: Int
+        get() = prefs.getInt("touch-panel-stock-refresh", TouchPanelOverride.STOCK_REFRESH)
+        set(value) { prefs.edit().putInt("touch-panel-stock-refresh", value).apply() }
+
     var fpsLimit: Int
         get() = prefs.getInt("fps-limit", 60)
         set(value) { prefs.edit().putInt("fps-limit", value).apply() }

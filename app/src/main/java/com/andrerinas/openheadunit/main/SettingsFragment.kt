@@ -196,6 +196,73 @@ class SettingsFragment : Fragment() {
     private var pendingStaticP2pBSSID by pending::staticP2pBSSID
     private var pendingFullscreenMode by pending::fullscreenMode
     private var pendingViewMode by pending::viewMode
+    private var trialDialog: androidx.appcompat.app.AlertDialog? = null
+
+    /**
+     * Turns something risky on for a trial, as a desktop does with a new screen mode: it goes off again unless Keep is
+     * pressed in time, so a screen or touch panel it leaves unusable puts itself right. Only Keep stores the setting.
+     * [start] says whether it took effect.
+     */
+    private fun runTrial(title: Int, start: suspend () -> Boolean, keep: () -> Unit, revert: () -> Unit) {
+        var kept = false
+        var timer: android.os.CountDownTimer? = null
+        val seconds = com.andrerinas.openheadunit.utils.HardwareComposer.TRIAL_SECONDS
+        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.DarkAlertDialog)
+            .setTitle(title)
+            .setMessage(getString(R.string.hardware_composer_trial_message, seconds))
+            .setPositiveButton(R.string.hardware_composer_keep) { _, _ ->
+                kept = true
+                keep()
+            }
+            .setNegativeButton(R.string.hardware_composer_turn_off, null)
+            .create()
+        // Every way out but Keep ends here: the button, Back, a tap outside, the countdown, leaving the screen.
+        dialog.setOnDismissListener {
+            timer?.cancel()
+            trialDialog = null
+            if (!kept) revert()
+            if (isAdded) updateSettingsList()
+        }
+        trialDialog = dialog
+        dialog.show()
+        viewLifecycleOwner.lifecycleScope.launch {
+            if (!start() && dialog.isShowing) {
+                dialog.dismiss()
+                android.widget.Toast.makeText(requireContext(), R.string.trial_failed, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+        timer = object : android.os.CountDownTimer(seconds * 1000L, 1000L) {
+            override fun onTick(millisLeft: Long) {
+                if (isAdded) dialog.setMessage(
+                    getString(R.string.hardware_composer_trial_message, ((millisLeft + 999) / 1000).toInt()))
+            }
+
+            override fun onFinish() = dialog.dismiss()
+        }.start()
+    }
+
+    private fun tryHardwareComposer() {
+        val app = requireContext().applicationContext
+        runTrial(R.string.hardware_composer_trial_title,
+            start = { com.andrerinas.openheadunit.utils.HardwareComposer.apply(app, true); true },
+            keep = { settings.hardwareComposer = true },
+            revert = { com.andrerinas.openheadunit.utils.HardwareComposer.apply(app, false) })
+    }
+
+    private fun tryTouchPanelOverride() {
+        val app = requireContext().applicationContext
+        runTrial(R.string.touch_override_trial_title,
+            start = { com.andrerinas.openheadunit.utils.TouchPanelOverride.set(app, true) },
+            keep = { settings.touchPanelOverride = true },
+            revert = { com.andrerinas.openheadunit.utils.TouchPanelOverride.apply(app, false) })
+    }
+
+    override fun onStop() {
+        trialDialog?.dismiss()
+        super.onStop()
+    }
+
+    private var pendingPacedRelease by pending::pacedRelease
     private var pendingForceSoftware by pending::forceSoftware
     private var pendingSoftwareVideoDecoder by pending::softwareVideoDecoder
     private var pendingVideoCodec by pending::videoCodec
@@ -654,6 +721,7 @@ class SettingsFragment : Fragment() {
         pendingFullscreenMode?.let { if (it != settings.fullscreenMode) settings.fullscreenMode = it }
         val oldViewMode = settings.viewMode
         pendingViewMode?.let { if (it != settings.viewMode) settings.viewMode = it }
+        pendingPacedRelease?.let { if (it != settings.debugPacedRelease) settings.debugPacedRelease = it }
         pendingForceSoftware?.let { if (it != settings.forceSoftwareDecoding) settings.forceSoftwareDecoding = it }
         pendingSoftwareVideoDecoder?.let { if (it != settings.softwareVideoDecoder) settings.softwareVideoDecoder = it }
         pendingVideoCodec?.let { if (it != settings.videoCodec) settings.videoCodec = it }
@@ -1639,6 +1707,25 @@ class SettingsFragment : Fragment() {
         // --- Graphic Settings ---
         items.add(SettingItem.CategoryHeader("graphic", R.string.category_graphic))
 
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "hardwareComposer",
+            nameResId = R.string.hardware_composer,
+            descriptionResId = R.string.hardware_composer_summary,
+            helpResId = R.string.hardware_composer_help,
+            isChecked = settings.hardwareComposer,
+            searchKeywords = "hardware composer hwc compositor overlay gpu",
+            // Takes effect at once, not on Save: turning it on is a trial that has to be confirmed.
+            onCheckedChanged = { isChecked ->
+                if (isChecked) {
+                    tryHardwareComposer()
+                } else {
+                    settings.hardwareComposer = false
+                    com.andrerinas.openheadunit.utils.HardwareComposer.apply(requireContext(), false)
+                    updateSettingsList()
+                }
+            }
+        ))
+
         items.add(SettingItem.SettingEntry(
             stableId = "resolution",
             nameResId = R.string.resolution,
@@ -1793,18 +1880,24 @@ class SettingsFragment : Fragment() {
             helpResId = R.string.view_mode_help,
             searchKeywords = kw(R.string.surface_view, R.string.texture_view, R.string.gles_view),
             value = when (pendingViewMode) {
-                Settings.ViewMode.SURFACE -> getString(R.string.surface_view)
+                Settings.ViewMode.SURFACE -> getString(
+                    if (pendingPacedRelease == true) R.string.paced_surface_view else R.string.surface_view)
                 Settings.ViewMode.TEXTURE -> getString(R.string.texture_view)
                 Settings.ViewMode.GLES -> getString(R.string.gles_view)
                 else -> getString(R.string.surface_view)
             },
             onClick = { _ ->
-                val viewModes = arrayOf(getString(R.string.surface_view), getString(R.string.texture_view), getString(R.string.gles_view))
-                val currentIdx = pendingViewMode?.value ?: settings.viewMode.value
+                val viewModes = arrayOf(getString(R.string.surface_view), getString(R.string.texture_view),
+                    getString(R.string.gles_view), getString(R.string.paced_surface_view))
+                // The fourth choice is SurfaceView with its frames paced to the display.
+                val mode = pendingViewMode ?: settings.viewMode
+                val currentIdx = if (mode == Settings.ViewMode.SURFACE && pendingPacedRelease == true) 3 else mode.value
                 MaterialAlertDialogBuilder(requireContext(), R.style.DarkAlertDialog)
                     .setTitle(R.string.change_view_mode)
                     .setSingleChoiceItems(viewModes, currentIdx) { dialog, which ->
-                        Settings.ViewMode.fromInt(which)?.let { pendingViewMode = it }
+                        pendingPacedRelease = which == 3
+                        if (which == 3) pendingViewMode = Settings.ViewMode.SURFACE
+                        else Settings.ViewMode.fromInt(which)?.let { pendingViewMode = it }
                         checkChanges()
                         dialog.dismiss()
                         updateSettingsList()
@@ -2383,10 +2476,34 @@ class SettingsFragment : Fragment() {
         // --- Input Settings ---
         items.add(SettingItem.CategoryHeader("input", R.string.category_input))
 
+        items.add(SettingItem.ToggleSettingEntry(
+            stableId = "touchPanelOverride",
+            nameResId = R.string.touch_override,
+            descriptionResId = R.string.touch_override_summary,
+            helpResId = R.string.touch_override_help,
+            isChecked = settings.touchPanelOverride,
+            searchKeywords = "touch driver override panel rate hz goodix",
+            // Takes effect at once, not on Save: turning it on is a trial that has to be confirmed.
+            onCheckedChanged = { isChecked ->
+                if (isChecked) {
+                    tryTouchPanelOverride()
+                } else {
+                    settings.touchPanelOverride = false
+                    com.andrerinas.openheadunit.utils.TouchPanelOverride.apply(requireContext(), false)
+                    updateSettingsList()
+                }
+            }
+        ))
+
         // Advanced only (not in the Basic list): how often finger moves are sent to the phone.
-        val touchRates = intArrayOf(0, 120, 60)
+        val touchRates = intArrayOf(0, 960, 480, 120, 60)
         val touchRateNames = touchRates.map {
-            if (it == 0) getString(R.string.touch_send_rate_panel) else getString(R.string.touch_send_rate_resampled, it)
+            when (it) {
+                0 -> getString(R.string.touch_send_rate_panel)
+                960 -> getString(R.string.touch_send_rate_insane, it)
+                480 -> getString(R.string.touch_send_rate_turbo, it)
+                else -> getString(R.string.touch_send_rate_resampled, it)
+            }
         }.toTypedArray()
         val touchRate = pendingTouchSendRate ?: settings.touchSendRate
         items.add(SettingItem.SettingEntry(

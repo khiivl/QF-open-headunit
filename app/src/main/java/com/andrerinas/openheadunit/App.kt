@@ -49,6 +49,22 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         // CoD OS: this process knows of no session; drops an earlier process's value and clears on a crash (contract section 10).
         com.andrerinas.openheadunit.connection.ProjectionSessionPublisher.start(this)
         registerActivityLifecycleCallbacks(this)
+        // The unit starts with the Hardware Composer off; put it back on if the user chose that.
+        try {
+            if (com.andrerinas.openheadunit.utils.Settings(this).hardwareComposer) {
+                com.andrerinas.openheadunit.utils.HardwareComposer.apply(this, true, delayMs = 15_000L)
+            }
+        } catch (e: Exception) {
+            com.andrerinas.openheadunit.utils.AppLog.w("HardwareComposer: not applied at start: ${e.message}")
+        }
+        // The touch panel comes up at its own rate after a reboot; raise it again if the user chose that.
+        try {
+            if (com.andrerinas.openheadunit.utils.Settings(this).touchPanelOverride) {
+                com.andrerinas.openheadunit.utils.TouchPanelOverride.apply(this, true, delayMs = 15_000L)
+            }
+        } catch (e: Exception) {
+            com.andrerinas.openheadunit.utils.AppLog.w("TouchPanelOverride: not applied at start: ${e.message}")
+        }
         // The root-only debug switch lives in settings and is read by the shell code from this copy.
         try {
             val shellSettings = com.andrerinas.openheadunit.utils.Settings(this)

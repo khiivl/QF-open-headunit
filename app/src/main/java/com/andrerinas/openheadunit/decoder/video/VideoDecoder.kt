@@ -1858,10 +1858,8 @@ class VideoDecoder(
 
             running = true
             clearFrameQueue()
-            // PARKED EXPERIMENT: paced SurfaceView release (VsyncPacer / VsyncClock, Settings.debugPacedRelease). It matched
-            // GLES for smoothness on the QF units without being measurably faster, so GLES is the default and this stays off.
-            // Uncomment to bring it back; everything else it needs is still in place and inert while `pacer` is null.
-            // startPacingIfWanted()
+            // The "Paced SurfaceView" renderer choice (VsyncPacer / VsyncClock); does nothing for any other renderer.
+            startPacingIfWanted()
             val newOutputThread = Thread {
                 android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DISPLAY)
                 LegacyOptimizer.setHighPriority()
