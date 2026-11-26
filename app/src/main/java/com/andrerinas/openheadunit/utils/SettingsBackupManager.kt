@@ -173,6 +173,7 @@ object SettingsBackupManager {
         "debug-usb-read-fault" to ValueType.BOOLEAN,
         "debug-video-low-latency" to ValueType.BOOLEAN,
         "debug-root-only" to ValueType.BOOLEAN,
+        "carplay-touch-smoothing" to ValueType.BOOLEAN,
         "touch-panel-override" to ValueType.BOOLEAN,
         "touch-panel-stock-refresh" to ValueType.INT,
         "hardware-composer" to ValueType.BOOLEAN,

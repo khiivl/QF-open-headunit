@@ -1917,6 +1917,10 @@
     <string name="touch_send_rate_help">Cât de des este trimisă mișcarea degetului către telefon. Rata panoului trimite fiecare eșantion așa cum îl raportează ecranul tactil: este cea mai rapidă, dar derularea poate sacada atunci când această rată nu se potrivește cu cele 60 de cadre pe secundă ale imaginii. Valorile interpolate de 120 Hz și 60 Hz trimit poziții egal distanțate calculate între eșantioane, ceea ce face derularea mai fluidă și rămâne în urma degetului cu aproximativ 13 ms în plus.</string>
     <string name="touch_send_rate_panel">Rata panoului</string>
     <string name="touch_send_rate_resampled">Interpolat %1$d Hz</string>
+    <string name="hardware_composer_summary">Compune imaginea cu hardware-ul de afișare în locul GPU.</string>
+    <string name="hardware_composer_help">Unitățile QF pornesc cu Hardware Composer oprit. Cu această opțiune pornită, Open Headunit îl pornește, și din nou după fiecare pornire, astfel încât videoul să poată folosi o suprapunere de afișare. Dacă vedeți pâlpâire, culori greșite sau ecran negru, opriți opțiunea sau reporniți. Necesită root sau ADB.</string>
+    <string name="touch_override_summary">Face ca panoul tactil să raporteze mai rapid (aproximativ 175 Hz în loc de 95).</string>
+    <string name="touch_override_help">Modifică o setare în controlerul tactil Goodix prin driverul acestuia, și din nou după fiecare pornire. Întârzierea de interpolare urmărește singură rata mai rapidă. Dacă atingerea funcționează eronat, opriți această opțiune sau reporniți. Necesită root, sau un ADB care rulează ca root.</string>
     <string name="debug_root_only_summary">Cu root acordat, rulează toate comenzile shell prin root și niciodată prin ADB.</string>
     <string name="debug_root_only_description">Cu root acordat, ADB nu este folosit nicăieri. Fără root, ADB este soluția de rezervă. Activarea cere root, ceea ce este și modul de a-l acorda cât timp ADB este disponibil. Dacă root a fost refuzat și managerul root îl reține, cererea nu revine până nu schimbați acolo.</string>
 </resources>

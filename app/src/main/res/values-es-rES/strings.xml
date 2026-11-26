@@ -1933,6 +1933,10 @@
     <string name="touch_send_rate_help">Con qué frecuencia se envía el movimiento de tu dedo al teléfono. La frecuencia del panel envía cada muestra tal como la notifica la pantalla táctil: es la más rápida, pero el desplazamiento puede dar tirones cuando esa frecuencia no encaja con los 60 fotogramas por segundo de la imagen. Los 120 Hz y 60 Hz interpolados envían posiciones espaciadas de forma uniforme calculadas entre las muestras, lo que desplaza con más fluidez y va unos 13 ms más por detrás del dedo.</string>
     <string name="touch_send_rate_panel">Frecuencia del panel</string>
     <string name="touch_send_rate_resampled">Interpolado %1$d Hz</string>
+    <string name="hardware_composer_summary">Componer la imagen con el hardware de pantalla en lugar de la GPU.</string>
+    <string name="hardware_composer_help">Las unidades QF arrancan con Hardware Composer desactivado. Con esto activado, Open Headunit lo activa, y de nuevo tras cada inicio, para que el vídeo pueda usar una superposición de pantalla. Si ves parpadeos, colores incorrectos o una pantalla en negro, desactívalo o reinicia. Requiere root o ADB.</string>
+    <string name="touch_override_summary">Hacer que el panel táctil informe más rápido (unos 175 Hz en lugar de 95).</string>
+    <string name="touch_override_help">Cambia un ajuste en el controlador táctil Goodix mediante su driver, y de nuevo tras cada inicio. El retardo de interpolación se adapta por sí solo a la frecuencia más rápida. Si el táctil falla, desactiva esto o reinicia. Requiere root, o un ADB que se ejecute como root.</string>
     <string name="debug_root_only_summary">Con root concedido, ejecutar todos los comandos de shell mediante root y nunca mediante ADB.</string>
     <string name="debug_root_only_description">Con root concedido, ADB no se usa en ninguna parte. Sin root, ADB es la alternativa. Al activarlo se solicita root, que también es la forma de concederlo mientras ADB está disponible. Si se denegó root y su gestor de root lo recuerda, la solicitud no vuelve hasta que lo cambie allí.</string>
 </resources>

@@ -1919,6 +1919,10 @@
     <string name="touch_send_rate_help">Milyen gyakran kerül elküldésre az ujja mozgása a telefonra. A panel gyakorisága minden mintát úgy küld el, ahogy az érintőképernyő jelenti: ez a leggyorsabb, de a görgetés akadozhat, ha ez az ütem nem illeszkedik a kép másodpercenkénti 60 képkockájához. Az interpolált 120 Hz és 60 Hz a minták között kiszámított, egyenletesen elosztott pozíciókat küld, így a görgetés simább, és körülbelül 13 ms-mal jobban lemarad az ujjától.</string>
     <string name="touch_send_rate_panel">Panel gyakorisága</string>
     <string name="touch_send_rate_resampled">Interpolált %1$d Hz</string>
+    <string name="hardware_composer_summary">A kép összeállítása a kijelző hardverével a GPU helyett.</string>
+    <string name="hardware_composer_help">A QF egységek kikapcsolt Hardware Composer mellett indulnak. Ha ez be van kapcsolva, az Open Headunit bekapcsolja, és minden indítás után újra, hogy a videó használhassa a kijelző-átfedést. Ha villódzást, hibás színeket vagy fekete képernyőt lát, kapcsolja ki vagy indítsa újra. Ehhez root vagy ADB szükséges.</string>
+    <string name="touch_override_summary">Az érintőpanel gyorsabb jelentése (95 helyett körülbelül 175 Hz).</string>
+    <string name="touch_override_help">Egy beállítást módosít a Goodix érintésvezérlőben annak illesztőprogramján keresztül, és minden indítás után újra. Az interpolációs késleltetés magától követi a gyorsabb ütemet. Ha az érintés rendellenesen működik, kapcsolja ki vagy indítsa újra. Ehhez root, vagy rootként futó ADB szükséges.</string>
     <string name="debug_root_only_summary">Engedélyezett root esetén minden shell-parancs futtatása rooton keresztül, és soha nem ADB-n keresztül.</string>
     <string name="debug_root_only_description">Engedélyezett root esetén az ADB sehol nincs használatban. Root nélkül az ADB a tartalék megoldás. A bekapcsolás rootot kér, ami egyben a root megadásának módja is, amíg az ADB elérhető. Ha a root megtagadásra került, és a root-kezelő ezt megjegyzi, a kérés addig nem tér vissza, amíg ott meg nem változtatja.</string>
 </resources>

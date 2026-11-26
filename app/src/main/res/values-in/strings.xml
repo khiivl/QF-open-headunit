@@ -1966,6 +1966,10 @@
     <string name="touch_send_rate_help">Seberapa sering gerakan jari Anda dikirim ke ponsel. Frekuensi panel mengirimkan setiap sampel sesuai yang dilaporkan layar sentuh: paling cepat, tetapi pengguliran dapat tersendat jika frekuensi tersebut tidak cocok dengan 60 frame per detik pada gambar. 120 Hz dan 60 Hz terinterpolasi mengirim posisi berjarak merata yang dihitung di antara sampel, sehingga guliran lebih mulus dan tertinggal sekitar 13 ms lebih lama dari jari.</string>
     <string name="touch_send_rate_panel">Frekuensi panel</string>
     <string name="touch_send_rate_resampled">Interpolasi %1$d Hz</string>
+    <string name="hardware_composer_summary">Susun gambar menggunakan perangkat keras layar alih-alih GPU.</string>
+    <string name="hardware_composer_help">Unit QF mulai dengan Hardware Composer nonaktif. Jika opsi ini aktif, Open Headunit menyalakannya, dan menyalakannya lagi setiap kali mulai, agar video dapat memakai overlay tampilan. Jika terlihat kedipan, warna salah, atau layar hitam, matikan opsi ini atau mulai ulang perangkat. Memerlukan root atau ADB.</string>
+    <string name="touch_override_summary">Buat panel sentuh melapor lebih cepat (sekitar 175 Hz alih-alih 95).</string>
+    <string name="touch_override_help">Mengubah satu setelan pada pengontrol sentuh Goodix melalui drivernya, dan menerapkannya lagi setiap kali mulai. Jeda interpolasi mengikuti laju yang lebih cepat dengan sendirinya. Jika sentuhan bermasalah, matikan opsi ini atau mulai ulang perangkat. Memerlukan root, atau ADB yang berjalan sebagai root.</string>
     <string name="debug_root_only_summary">Saat root diberikan, jalankan semua perintah shell lewat root dan tidak pernah lewat ADB.</string>
     <string name="debug_root_only_description">Saat root diberikan, ADB tidak digunakan di mana pun. Tanpa root, ADB menjadi cadangan. Mengaktifkannya akan meminta root, yang juga merupakan cara memberikan root selagi ADB tersedia. Jika root ditolak dan pengelola root Anda mengingatnya, permintaan tidak akan muncul lagi sampai Anda mengubahnya di sana.</string>
 </resources>

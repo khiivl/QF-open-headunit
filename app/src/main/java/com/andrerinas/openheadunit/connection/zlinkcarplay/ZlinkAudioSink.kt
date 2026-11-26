@@ -9,7 +9,8 @@ import java.util.concurrent.TimeUnit
 
 /** Plays the zLink PCM feed on its own thread so a blocking write never stalls video. */
 class ZlinkAudioSink {
-    private val queue = ArrayBlockingQueue<ZlinkWire.AudioChunk>(64)
+    // A long queue lets a backlog stay as lag for the rest of the session, so it is kept short.
+    private val queue = ArrayBlockingQueue<ZlinkWire.AudioChunk>(12)
     @Volatile private var running = true
     private var track: AudioTrack? = null
     private var rate = 0
@@ -37,7 +38,7 @@ class ZlinkAudioSink {
         track?.release()
         val mask = if (c.channels == 1) AudioFormat.CHANNEL_OUT_MONO else AudioFormat.CHANNEL_OUT_STEREO
         val min = AudioTrack.getMinBufferSize(c.sampleRate, mask, AudioFormat.ENCODING_PCM_16BIT)
-        track = AudioTrack(AudioManager.STREAM_MUSIC, c.sampleRate, mask, AudioFormat.ENCODING_PCM_16BIT, min * 4, AudioTrack.MODE_STREAM)
+        track = AudioTrack(AudioManager.STREAM_MUSIC, c.sampleRate, mask, AudioFormat.ENCODING_PCM_16BIT, min * 2, AudioTrack.MODE_STREAM)
             .also { it.play() }
         rate = c.sampleRate; channels = c.channels
         AppLog.i("zlink audio: track ${rate}Hz ${channels}ch")

@@ -1923,6 +1923,10 @@
     <string name="touch_send_rate_help">Hoe vaak de beweging van je vinger naar de telefoon wordt gestuurd. Paneelsnelheid stuurt elk meetpunt precies zoals het aanraakscherm het meldt: dit is het snelst, maar scrollen kan haperen als die frequentie niet past bij de 60 beelden per seconde van het schermbeeld. Geïnterpoleerde 120 Hz en 60 Hz sturen gelijkmatig verdeelde posities die tussen de meetpunten zijn berekend, wat vloeiender scrolt en ongeveer 13 ms meer achter de vinger aanloopt.</string>
     <string name="touch_send_rate_panel">Paneelsnelheid</string>
     <string name="touch_send_rate_resampled">Geïnterpoleerd %1$d Hz</string>
+    <string name="hardware_composer_summary">Stel het beeld samen met schermhardware in plaats van de GPU.</string>
+    <string name="hardware_composer_help">QF-units starten met de Hardware Composer uitgeschakeld. Als dit aan staat, zet Open Headunit deze aan, en na elke start opnieuw, zodat de video een schermoverlay kan gebruiken. Zie je flikkering, verkeerde kleuren of een zwart scherm, zet dit dan uit of start opnieuw op. Vereist root of ADB.</string>
+    <string name="touch_override_summary">Laat het aanraakpaneel sneller rapporteren (ongeveer 175 Hz in plaats van 95).</string>
+    <string name="touch_override_help">Past via het stuurprogramma één instelling in de Goodix-aanraakcontroller aan, en na elke start opnieuw. De interpolatievertraging volgt de hogere snelheid vanzelf. Als aanraking zich vreemd gedraagt, zet dit dan uit of start opnieuw op. Vereist root, of een ADB die als root draait.</string>
     <string name="debug_root_only_summary">Als root is verleend, voer alle shell-opdrachten uit via root en nooit via ADB.</string>
     <string name="debug_root_only_description">Als root is verleend, wordt ADB nergens gebruikt. Zonder root is ADB de terugvaloptie. Inschakelen vraagt om root, wat ook de manier is om root te verlenen terwijl ADB beschikbaar is. Als root is geweigerd en uw rootbeheerder dat onthoudt, komt het verzoek pas terug als u het daar wijzigt.</string>
 </resources>

@@ -186,6 +186,17 @@ class ZlinkCarPlayActivity : BaseActivity() {
                             runOnUiThread { hideConnectingWhenShown() }
                         }
                     }
+                    ZlinkWire.CH_CTRL_FROM_DAEMON -> if (frame.type == ZlinkWire.TYPE_REQUEST_BACKGROUND) {
+                        runOnUiThread {
+                            if (isResumed) {
+                                // The tile shows a broken link: it ends the session, as the exit dialog's own item does.
+                                AppLog.i("zlink carplay: car-maker tile tapped, disconnecting")
+                                ZlinkHub.endSession(ZlinkHub.EndReason.USER)
+                                moveToBackground()
+                                finish()
+                            }
+                        }
+                    }
                     ZlinkWire.CH_REPLAY_END -> {
                         ZlinkHub.videoSink?.markLive()
                     }
@@ -377,23 +388,53 @@ class ZlinkCarPlayActivity : BaseActivity() {
 
     override fun onDestroy() {
         activeInstance.compareAndSet(this, null)
+        touchSender.stop()
         detach()
         super.onDestroy()
     }
 
+    private val touchSender = com.andrerinas.openheadunit.input.PacedTouchSender { p, down ->
+        ZlinkHub.injectTouch(p.x.toInt(), p.y.toInt(), down)
+    }
+
+    /** The one finger CarPlay is told about, or -1 when none is down. */
+    private var touchPointer = -1
+
     /** The picture fills the view, so a touch maps linearly onto the 1024x608 video plane. */
     private fun forwardTouch(viewW: Int, viewH: Int, e: MotionEvent) {
         if (viewW <= 0 || viewH <= 0) return
-        val x = (e.x * videoW / viewW).toInt().coerceIn(0, videoW - 1)
-        val y = (e.y * videoH / viewH).toInt().coerceIn(0, videoH - 1)
+        fun at(index: Int) = com.andrerinas.openheadunit.input.RemoteTouchPolicy.Pointer(
+            0,
+            (e.getX(index) * videoW / viewW).coerceIn(0f, videoW - 1f),
+            (e.getY(index) * videoH / viewH).coerceIn(0f, videoH - 1f)
+        )
+        if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+            // Each sample as the panel reports it, not once per display refresh, as for Android Auto.
+            window.decorView.requestUnbufferedDispatch(e)
+            touchPointer = e.getPointerId(0)
+            touchSender.press(e.eventTime, at(0), CARPLAY_TOUCH_HZ, Settings(this).carPlayTouchSmoothing)
+            return
+        }
+        // Only the first finger counts. Once it lifts, others still down are ignored until a new press.
+        val index = e.findPointerIndex(touchPointer)
+        if (index < 0) return
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> ZlinkHub.injectTouch(x, y, true)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ZlinkHub.injectTouch(x, y, false)
+            MotionEvent.ACTION_MOVE -> touchSender.move(e.eventTime, at(index))
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                touchSender.release(e.eventTime, at(index))
+                touchPointer = -1
+            }
+            MotionEvent.ACTION_POINTER_UP -> if (e.actionIndex == index) {
+                touchSender.release(e.eventTime, at(index))
+                touchPointer = -1
+            }
         }
     }
 
     companion object {
         const val BACK_KEY_PULSE_MS = 60L
+        // CarPlay works touches off at about this pace: more than that queue up, and a swipe plays out in slow motion.
+        private const val CARPLAY_TOUCH_HZ = 60
         private const val SETTLED_MS = 1500L   // the longest to wait after the first frame for one with real content
 
         /** True while the CarPlay screen is in front; read by [ZlinkService] before it raises the screen. */

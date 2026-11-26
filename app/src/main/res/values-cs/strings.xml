@@ -1919,6 +1919,10 @@
     <string name="touch_send_rate_help">Jak často se pohyb vašeho prstu odesílá do telefonu. Frekvence panelu odesílá každý vzorek tak, jak ho dotyková obrazovka hlásí: je to nejrychlejší, ale posouvání může cukat, když tato frekvence nesedí se 60 snímky za sekundu obrazu. Interpolovaných 120 Hz a 60 Hz odesílá rovnoměrně rozložené polohy vypočítané mezi vzorky, takže posouvání je plynulejší a za prstem zaostává zhruba o 13 ms víc.</string>
     <string name="touch_send_rate_panel">Frekvence panelu</string>
     <string name="touch_send_rate_resampled">Interpolováno %1$d Hz</string>
+    <string name="hardware_composer_summary">Skládat obraz pomocí zobrazovacího hardwaru místo GPU.</string>
+    <string name="hardware_composer_help">Jednotky QF se spouštějí s vypnutým Hardware Composer. Když je tato volba zapnutá, Open Headunit jej zapne a znovu po každém spuštění, aby video mohlo používat překryvnou vrstvu zobrazení. Pokud uvidíte blikání, špatné barvy nebo černou obrazovku, vypněte ji nebo restartujte zařízení. Vyžaduje root nebo ADB.</string>
+    <string name="touch_override_summary">Zrychlit hlášení dotykového panelu (asi 175 Hz místo 95).</string>
+    <string name="touch_override_help">Změní jedno nastavení v dotykovém řadiči Goodix prostřednictvím jeho ovladače, a to znovu po každém spuštění. Zpoždění interpolace se rychlejší frekvenci přizpůsobí samo. Pokud se dotyk chová chybně, volbu vypněte nebo zařízení restartujte. Vyžaduje root nebo ADB běžící jako root.</string>
     <string name="debug_root_only_summary">Pokud je root udělen, spouštět všechny příkazy shellu přes root a nikdy přes ADB.</string>
     <string name="debug_root_only_description">Pokud je root udělen, ADB se nikde nepoužívá. Bez root je záložní možností ADB. Zapnutí požádá o root, což je také způsob, jak root udělit, i když je ADB dostupné. Pokud byl root zamítnut a správce root to pamatuje, výzva se znovu neobjeví, dokud to tam nezměníte.</string>
 </resources>

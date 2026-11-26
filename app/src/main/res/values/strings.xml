@@ -608,17 +608,18 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="touch_send_rate_insane" translatable="false">Insane %1$d Hz</string>
     <string name="paced_surface_view" translatable="false">Paced SurfaceView</string>
     <string name="hardware_composer" translatable="false">Hardware Composer</string>
-    <string name="hardware_composer_summary" translatable="false">Compose the picture with display hardware instead of the GPU.</string>
-    <string name="hardware_composer_help" translatable="false">QF units start with the Hardware Composer off. With this on, Open Headunit turns it on, and again after each start, so the video can use a display overlay. If you see flicker, wrong colours or a black screen, turn it off or reboot. Needs root or ADB.</string>
+    <string name="hardware_composer_summary">Compose the picture with display hardware instead of the GPU.</string>
+    <string name="hardware_composer_help">QF units start with the Hardware Composer off. With this on, Open Headunit turns it on, and again after each start, so the video can use a display overlay. If you see flicker, wrong colours or a black screen, turn it off or reboot. Needs root or ADB.</string>
     <string name="hardware_composer_trial_title" translatable="false">Keep the Hardware Composer on?</string>
     <string name="hardware_composer_trial_message" translatable="false">It turns off by itself in %1$d s unless you keep it.</string>
     <string name="hardware_composer_keep" translatable="false">Keep</string>
     <string name="hardware_composer_turn_off" translatable="false">Turn off</string>
     <string name="touch_override" translatable="false">Touch driver override</string>
-    <string name="touch_override_summary" translatable="false">Make the touch panel report faster (about 175 Hz instead of 95).</string>
-    <string name="touch_override_help" translatable="false">Changes one setting in the Goodix touch controller through its driver, and again after each start. The interpolation delay follows the faster rate by itself. If touch misbehaves, turn this off or reboot. Needs root, or an ADB that runs as root.</string>
+    <string name="touch_override_summary">Make the touch panel report faster (about 175 Hz instead of 95).</string>
+    <string name="touch_override_help">Changes one setting in the Goodix touch controller through its driver, and again after each start. The interpolation delay follows the faster rate by itself. If touch misbehaves, turn this off or reboot. Needs root, or an ADB that runs as root.</string>
     <string name="touch_override_trial_title" translatable="false">Keep the faster touch rate?</string>
     <string name="trial_failed" translatable="false">That could not be turned on on this unit.</string>
+    <string name="carplay_touch_smoothing" translatable="false">CarPlay touch smoothing</string>
     <string name="touch_send_rate_panel">Panel rate</string>
     <string name="touch_send_rate_resampled">Interpolated %1$d Hz</string>
     <string name="debug_root_only">Root only</string>

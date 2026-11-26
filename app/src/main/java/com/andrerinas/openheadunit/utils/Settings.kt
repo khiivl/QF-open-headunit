@@ -1373,6 +1373,11 @@ class Settings(private val context: Context) {
         get() = prefs.getInt("touch-panel-stock-refresh", TouchPanelOverride.STOCK_REFRESH)
         set(value) { prefs.edit().putInt("touch-panel-stock-refresh", value).apply() }
 
+    // CarPlay touch: interpolate between samples (even, a little later) or send the newest one. Off by default.
+    var carPlayTouchSmoothing: Boolean
+        get() = prefs.getBoolean("carplay-touch-smoothing", false)
+        set(value) { prefs.edit().putBoolean("carplay-touch-smoothing", value).apply() }
+
     var fpsLimit: Int
         get() = prefs.getInt("fps-limit", 60)
         set(value) { prefs.edit().putInt("fps-limit", value).apply() }

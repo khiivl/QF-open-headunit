@@ -1921,6 +1921,10 @@
     <string name="touch_send_rate_help">指の動きをスマートフォンへ送信する頻度です。パネルレートはタッチスクリーンが報告したすべてのサンプルをそのまま送信するため最も高速ですが、そのレートが映像の毎秒 60 フレームと合わないとスクロールがカクつくことがあります。補間された 120 Hz と 60 Hz はサンプル間で計算された等間隔の位置を送信するため、スクロールがより滑らかになり、指への追従は約 13 ms 遅れます。</string>
     <string name="touch_send_rate_panel">パネルレート</string>
     <string name="touch_send_rate_resampled">補間 %1$d Hz</string>
+    <string name="hardware_composer_summary">GPU ではなくディスプレイハードウェアで画面を合成します。</string>
+    <string name="hardware_composer_help">QF ユニットは Hardware Composer がオフの状態で起動します。これをオンにすると、Open Headunit が起動時および毎回開始後にオンにし、映像でディスプレイオーバーレイを使えるようにします。ちらつき、色の異常、または黒い画面が表示される場合は、オフにするか再起動してください。root または ADB が必要です。</string>
+    <string name="touch_override_summary">タッチパネルの報告をより高速にします（95 ではなく約 175 Hz）。</string>
+    <string name="touch_override_help">Goodix タッチコントローラーのドライバー経由で設定を 1 つ変更し、毎回開始後に再適用します。補間の遅延は高速なレートに自動で追従します。タッチの動作がおかしくなった場合は、これをオフにするか再起動してください。root、または root として動作する ADB が必要です。</string>
     <string name="debug_root_only_summary">root が許可されている場合、すべてのシェルコマンドを root 経由で実行し、ADB は使いません。</string>
     <string name="debug_root_only_description">root が許可されている場合、ADB はどこでも使われません。root がない場合は ADB がフォールバックになります。オンにすると root を要求し、ADB が使える状態でも root を許可する方法になります。root が拒否され、root 管理アプリがそれを記憶している場合、そちらで変更するまで要求は再表示されません。</string>
 </resources>

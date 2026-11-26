@@ -1922,6 +1922,10 @@
     <string name="touch_send_rate_help">Wie oft die Bewegung deines Fingers an das Telefon gesendet wird. Die Panel-Rate sendet jeden Messwert so, wie ihn der Touchscreen meldet: am schnellsten, aber das Scrollen kann ruckeln, wenn diese Rate nicht zu den 60 Bildern pro Sekunde des Bildes passt. Interpolierte 120 Hz und 60 Hz senden gleichmäßig verteilte, zwischen den Messwerten berechnete Positionen, was flüssiger scrollt und dem Finger etwa 13 ms weiter hinterherhängt.</string>
     <string name="touch_send_rate_panel">Panel-Rate</string>
     <string name="touch_send_rate_resampled">Interpoliert %1$d Hz</string>
+    <string name="hardware_composer_summary">Bild mit der Display-Hardware statt mit der GPU zusammensetzen.</string>
+    <string name="hardware_composer_help">QF-Geräte starten mit deaktiviertem Hardware Composer. Ist dies aktiviert, schaltet Open Headunit ihn ein – und nach jedem Start erneut –, sodass das Video ein Display-Overlay nutzen kann. Wenn Flimmern, falsche Farben oder ein schwarzer Bildschirm auftreten, schalte es aus oder starte neu. Erfordert root oder ADB.</string>
+    <string name="touch_override_summary">Touch-Panel schneller melden lassen (etwa 175 Hz statt 95).</string>
+    <string name="touch_override_help">Ändert eine Einstellung im Goodix-Touch-Controller über dessen Treiber, und nach jedem Start erneut. Die Interpolationsverzögerung passt sich der schnelleren Rate von selbst an. Wenn der Touch spinnt, schalte dies aus oder starte neu. Erfordert root oder ein ADB, das als root läuft.</string>
     <string name="debug_root_only_summary">Wenn Root erteilt ist, alle Shell-Befehle über Root ausführen und nie über ADB.</string>
     <string name="debug_root_only_description">Wenn Root erteilt ist, wird ADB nirgends verwendet. Ohne Root dient ADB als Ausweichlösung. Das Einschalten fragt nach Root, was auch der Weg ist, Root zu erteilen, solange ADB verfügbar ist. Wurde Root abgelehnt und merkt sich Ihre Root-Verwaltung das, kommt die Abfrage erst wieder, wenn Sie es dort ändern.</string>
 </resources>

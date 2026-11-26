@@ -1924,6 +1924,10 @@
     <string name="touch_send_rate_help">Jak często ruch palca jest wysyłany do telefonu. Częstotliwość panelu wysyła każdą próbkę tak, jak zgłasza ją ekran dotykowy: jest najszybsza, ale przewijanie może szarpać, gdy ta częstotliwość nie pasuje do 60 klatek na sekundę obrazu. Interpolowane 120 Hz i 60 Hz wysyłają równomiernie rozłożone pozycje obliczone między próbkami, co daje płynniejsze przewijanie i opóźnienie za palcem większe o około 13 ms.</string>
     <string name="touch_send_rate_panel">Częstotliwość panelu</string>
     <string name="touch_send_rate_resampled">Interpolowane %1$d Hz</string>
+    <string name="hardware_composer_summary">Składaj obraz za pomocą sprzętu ekranu zamiast GPU.</string>
+    <string name="hardware_composer_help">Jednostki QF uruchamiają się z wyłączonym Hardware Composer. Gdy ta opcja jest włączona, Open Headunit włącza go, a następnie robi to ponownie po każdym uruchomieniu, aby wideo mogło korzystać z nakładki ekranowej. Jeśli zauważysz migotanie, błędne kolory lub czarny ekran, wyłącz tę opcję lub uruchom ponownie urządzenie. Wymaga root lub ADB.</string>
+    <string name="touch_override_summary">Przyspiesz raportowanie panelu dotykowego (około 175 Hz zamiast 95).</string>
+    <string name="touch_override_help">Zmienia jedno ustawienie w kontrolerze dotyku Goodix poprzez jego sterownik i ponawia zmianę po każdym uruchomieniu. Opóźnienie interpolacji samo dostosowuje się do szybszej częstotliwości. Jeśli dotyk działa nieprawidłowo, wyłącz tę opcję lub uruchom ponownie urządzenie. Wymaga root lub ADB działającego jako root.</string>
     <string name="debug_root_only_summary">Gdy przyznano root, wykonuj wszystkie polecenia powłoki przez root i nigdy przez ADB.</string>
     <string name="debug_root_only_description">Gdy przyznano root, ADB nie jest używane nigdzie. Bez root rozwiązaniem zapasowym jest ADB. Włączenie prosi o root, co jest też sposobem na jego przyznanie, gdy ADB jest dostępne. Jeśli root odrzucono, a menedżer root to zapamiętał, prośba nie wróci, dopóki nie zmienisz tego tam.</string>
 </resources>

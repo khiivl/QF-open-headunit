@@ -57,6 +57,11 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         } catch (e: Exception) {
             com.andrerinas.openheadunit.utils.AppLog.w("HardwareComposer: not applied at start: ${e.message}")
         }
+        // Our own picture on CarPlay's car-maker tile, mounted again after each reboot.
+        if (!com.andrerinas.openheadunit.BuildConfig.CODOS &&
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
+            com.andrerinas.openheadunit.connection.zlinkcarplay.CarPlayHomeIcon.apply(this)
+        }
         // The touch panel comes up at its own rate after a reboot; raise it again if the user chose that.
         try {
             if (com.andrerinas.openheadunit.utils.Settings(this).touchPanelOverride) {

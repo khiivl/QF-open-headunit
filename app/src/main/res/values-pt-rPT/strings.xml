@@ -1971,6 +1971,10 @@
     <string name="touch_send_rate_help">Com que frequência o movimento do seu dedo é enviado para o telemóvel. A taxa do painel envia cada amostra tal como o ecrã tátil a comunica: é a mais rápida, mas o deslocamento pode engasgar quando essa taxa não encaixa nas 60 imagens por segundo da imagem. Os 120 Hz e 60 Hz interpolados enviam posições espaçadas de forma uniforme calculadas entre as amostras, o que torna o deslocamento mais fluido e acompanha o dedo com mais cerca de 13 ms de atraso.</string>
     <string name="touch_send_rate_panel">Taxa do painel</string>
     <string name="touch_send_rate_resampled">Interpolado %1$d Hz</string>
+    <string name="hardware_composer_summary">Compor a imagem com o hardware de ecrã em vez da GPU.</string>
+    <string name="hardware_composer_help">As unidades QF iniciam com o Hardware Composer desativado. Com isto ativado, o Open Headunit ativa-o, e novamente após cada início, para que o vídeo possa usar uma sobreposição de ecrã. Se vir cintilação, cores erradas ou um ecrã preto, desative ou reinicie. Requer root ou ADB.</string>
+    <string name="touch_override_summary">Fazer o ecrã tátil reportar mais depressa (cerca de 175 Hz em vez de 95).</string>
+    <string name="touch_override_help">Altera uma definição no controlador tátil Goodix através do respetivo controlador, e novamente após cada início. O atraso de interpolação acompanha a taxa mais rápida por si só. Se o toque se comportar mal, desative isto ou reinicie. Requer root, ou um ADB que corra como root.</string>
     <string name="debug_root_only_summary">Com root concedido, executar todos os comandos de shell por root e nunca por ADB.</string>
     <string name="debug_root_only_description">Com root concedido, o ADB não é usado em lado nenhum. Sem root, o ADB é a alternativa. Ativar pede root, que também é a forma de o conceder enquanto o ADB está disponível. Se o root foi negado e o seu gestor de root se lembra disso, o pedido não volta até alterar lá.</string>
 </resources>

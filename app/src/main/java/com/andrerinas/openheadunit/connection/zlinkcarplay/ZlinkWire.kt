@@ -19,6 +19,9 @@ object ZlinkWire {
     const val TYPE_VIDEO = 0x302
     const val TYPE_AUDIO = 0x202
     const val TYPE_TOUCH = 0x111
+
+    /** Daemon to app: the phone asks for the head unit's own screen (the car-maker tile on the CarPlay home screen). */
+    const val TYPE_REQUEST_BACKGROUND = 0x501
     const val TYPE_KEY = 0x113
     const val TYPE_FORCE_KEYFRAME = 0xd0b
 

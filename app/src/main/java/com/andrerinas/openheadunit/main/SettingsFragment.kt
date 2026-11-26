@@ -196,6 +196,7 @@ class SettingsFragment : Fragment() {
     private var pendingStaticP2pBSSID by pending::staticP2pBSSID
     private var pendingFullscreenMode by pending::fullscreenMode
     private var pendingViewMode by pending::viewMode
+    private var pendingCarPlayTouchSmoothing by pending::carPlayTouchSmoothing
     private var trialDialog: androidx.appcompat.app.AlertDialog? = null
 
     /**
@@ -721,6 +722,7 @@ class SettingsFragment : Fragment() {
         pendingFullscreenMode?.let { if (it != settings.fullscreenMode) settings.fullscreenMode = it }
         val oldViewMode = settings.viewMode
         pendingViewMode?.let { if (it != settings.viewMode) settings.viewMode = it }
+        pendingCarPlayTouchSmoothing?.let { if (it != settings.carPlayTouchSmoothing) settings.carPlayTouchSmoothing = it }
         pendingPacedRelease?.let { if (it != settings.debugPacedRelease) settings.debugPacedRelease = it }
         pendingForceSoftware?.let { if (it != settings.forceSoftwareDecoding) settings.forceSoftwareDecoding = it }
         pendingSoftwareVideoDecoder?.let { if (it != settings.softwareVideoDecoder) settings.softwareVideoDecoder = it }
@@ -2492,6 +2494,19 @@ class SettingsFragment : Fragment() {
                     com.andrerinas.openheadunit.utils.TouchPanelOverride.apply(requireContext(), false)
                     updateSettingsList()
                 }
+            }
+        ))
+
+        items.add(SettingItem.SettingEntry(
+            stableId = "carPlayTouchSmoothing",
+            nameResId = R.string.carplay_touch_smoothing,
+            value = getString(
+                if (pendingCarPlayTouchSmoothing ?: settings.carPlayTouchSmoothing) R.string.enabled else R.string.disabled),
+            searchKeywords = "carplay touch smoothing interpolation scroll",
+            onClick = { _ ->
+                pendingCarPlayTouchSmoothing = !(pendingCarPlayTouchSmoothing ?: settings.carPlayTouchSmoothing)
+                checkChanges()
+                updateSettingsList()
             }
         ))
 

@@ -1921,6 +1921,10 @@
     <string name="touch_send_rate_help">Tần suất chuyển động ngón tay của bạn được gửi tới điện thoại. Tần suất tấm nền gửi mọi mẫu mà màn hình cảm ứng báo cáo: nhanh nhất, nhưng việc cuộn có thể bị giật khi tần suất đó không khớp với 60 khung hình mỗi giây của hình ảnh. Các mức nội suy 120 Hz và 60 Hz gửi các vị trí cách đều nhau được tính toán giữa các mẫu, giúp cuộn mượt mà hơn và trễ sau ngón tay thêm khoảng 13 ms.</string>
     <string name="touch_send_rate_panel">Tần suất tấm nền</string>
     <string name="touch_send_rate_resampled">Nội suy %1$d Hz</string>
+    <string name="hardware_composer_summary">Kết hợp hình ảnh bằng phần cứng màn hình thay vì GPU.</string>
+    <string name="hardware_composer_help">Thiết bị QF khởi động với Hardware Composer tắt. Khi bật tùy chọn này, Open Headunit sẽ bật nó lên và bật lại sau mỗi lần khởi chạy để video có thể dùng lớp phủ màn hình. Nếu thấy nhấp nháy, sai màu hoặc màn hình đen, hãy tắt đi hoặc khởi động lại. Cần có root hoặc ADB.</string>
+    <string name="touch_override_summary">Làm cho tấm nền cảm ứng báo cáo nhanh hơn (khoảng 175 Hz thay vì 95).</string>
+    <string name="touch_override_help">Thay đổi một thiết lập trong bộ điều khiển cảm ứng Goodix thông qua trình điều khiển của nó và áp dụng lại sau mỗi lần khởi chạy. Độ trễ nội suy sẽ tự động theo tần suất nhanh hơn. Nếu cảm ứng hoạt động bất thường, hãy tắt tùy chọn này hoặc khởi động lại. Cần có root hoặc ADB chạy dưới quyền root.</string>
     <string name="debug_root_only_summary">Khi đã cấp root, chạy mọi lệnh shell qua root và không bao giờ qua ADB.</string>
     <string name="debug_root_only_description">Khi đã cấp root, ADB không được dùng ở bất kỳ đâu. Nếu không có root, ADB là phương án dự phòng. Bật sẽ yêu cầu root, đây cũng là cách cấp root khi ADB vẫn khả dụng. Nếu root đã bị từ chối và trình quản lý root ghi nhớ điều đó, yêu cầu sẽ không quay lại cho đến khi bạn đổi ở đó.</string>
 </resources>
