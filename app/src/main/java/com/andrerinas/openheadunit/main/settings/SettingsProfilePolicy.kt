@@ -76,6 +76,8 @@ object SettingsProfilePolicy {
         "rootOnlyDebug",
         // One place per function: the hardware composer is switched in CarSettings, not here.
         "hardwareComposer",
+        // Same for the touch panel report rate: one writer, the system trial.
+        "touchPanelOverride",
     )
 
     /** Settings that only mean something to CarPlay (zLink's own screens). */

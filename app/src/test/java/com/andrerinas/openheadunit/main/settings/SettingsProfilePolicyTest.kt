@@ -88,6 +88,7 @@ class SettingsProfilePolicyTest {
         assertTrue("autoConnectSettings" in hidden)
         assertTrue("rootOnlyDebug" in hidden)
         assertTrue("hardwareComposer" in hidden)
+        assertTrue("touchPanelOverride" in hidden)
     }
 
     @Test fun otherBuildsKeepTheChoiceOfConnectionTypes() {
