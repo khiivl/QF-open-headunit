@@ -1,6 +1,6 @@
 id=openheadunit_codos
 name=Open Headunit (CoD OS, system app)
-version=v4.1.0-beta1-QF6-codos
-versionCode=129
+version=v4.1.0-beta1-QF6-codos.2
+versionCode=1292
 author=Community of Devs / Open Headunit contributors
 description=Placeholder build of Open Headunit as a system app (android.uid.system, no root), signed with the CoD platform key. Installs to /system/priv-app/OpenHeadunit. AGPL-3.0, no licence check.
