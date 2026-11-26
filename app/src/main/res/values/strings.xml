@@ -604,6 +604,7 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="onb_system_adb_note">If root is not granted, ADB has to be enabled at all times: most of what Open Headunit does on this unit runs through one or the other. Turn this off to use ADB only, and Open Headunit will never ask for root.</string>
     <string name="touch_send_rate">Touch send rate</string>
     <string name="touch_send_rate_help">How often the movement of your finger is sent to the phone. Panel rate sends every sample as the touchscreen reports it: the quickest, but scrolling can judder when that rate does not fit the 60 frames a second of the picture. Interpolated 120 Hz and 60 Hz send evenly spaced positions calculated between the samples, which scrolls more smoothly and trails the finger by about 13 ms more.</string>
+    <string name="touch_send_rate_faster" translatable="false">Faster %1$d Hz</string>
     <string name="touch_send_rate_turbo" translatable="false">Turbo %1$d Hz</string>
     <string name="touch_send_rate_insane" translatable="false">Insane %1$d Hz</string>
     <string name="paced_surface_view" translatable="false">Paced SurfaceView</string>

@@ -2511,12 +2511,13 @@ class SettingsFragment : Fragment() {
         ))
 
         // Advanced only (not in the Basic list): how often finger moves are sent to the phone.
-        val touchRates = intArrayOf(0, 960, 480, 120, 60)
+        val touchRates = intArrayOf(0, 960, 480, 240, 120, 60)
         val touchRateNames = touchRates.map {
             when (it) {
                 0 -> getString(R.string.touch_send_rate_panel)
                 960 -> getString(R.string.touch_send_rate_insane, it)
                 480 -> getString(R.string.touch_send_rate_turbo, it)
+                240 -> getString(R.string.touch_send_rate_faster, it)
                 else -> getString(R.string.touch_send_rate_resampled, it)
             }
         }.toTypedArray()
