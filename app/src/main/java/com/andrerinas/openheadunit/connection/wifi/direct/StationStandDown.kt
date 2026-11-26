@@ -258,6 +258,11 @@ object StationStandDown {
      * @return true when the unit was asked to leave, so the caller can give it [VERIFY_DELAY_MS].
      */
     fun standDown(context: Context): Boolean {
+        // CoD OS: the Wi-Fi client is the system's; this app never disconnects it.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) {
+            AppLog.i("StationStandDown: CoD OS keeps the Wi-Fi client to the system; not standing down.")
+            return false
+        }
         val settings = try {
             App.provide(context).settings
         } catch (e: Exception) {

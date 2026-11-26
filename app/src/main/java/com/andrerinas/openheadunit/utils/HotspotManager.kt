@@ -108,6 +108,11 @@ object HotspotManager {
      * An access point read down within [RESTART_HOLD_CONFIRM_MS] of coming up is asked for once more.
      */
     fun restart(context: Context): Boolean {
+        // CoD OS: the access point is the system's; there is nothing of ours to take down, so nothing is done and the caller is told it is fine.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) {
+            AppLog.i("HotspotManager: CoD OS keeps the access point to the system; not restarting it.")
+            return true
+        }
         AppLog.i("HotspotManager: Restarting the hotspot so any joined client is put off it.")
         setHotspotEnabled(context, false)
         try {
@@ -160,6 +165,13 @@ object HotspotManager {
     }
 
     fun setHotspotEnabled(context: Context, enabled: Boolean): Boolean {
+        // CoD OS (head lead, owner 27.11: «OpenHeadunit і всі решта програми мають читати значення, виставлені системою»): the access point and the
+        // Wi-Fi client belong to the system and Z-Link. This app never switches the AP on, never takes one down (it raised none) and never turns
+        // the Wi-Fi client off. It only reports whether an AP is up.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) {
+            AppLog.i("HotspotManager: CoD OS keeps the access point and the Wi-Fi client to the system; not setting hotspot enabled=$enabled (an access point is up: ${isApUp(context)}).")
+            return if (enabled) isApUp(context) else false
+        }
         AppLog.i("HotspotManager: Setting hotspot enabled=$enabled (API ${Build.VERSION.SDK_INT}, canWriteSettings=${AppPermissions.isWriteSettingsGranted(context)})")
 
         // Disabling has no band to choose and nothing to confirm afterwards. It can land in the
@@ -407,6 +419,8 @@ object HotspotManager {
      * @return true when no access point is up by the time it returns.
      */
     fun disableAndAwaitDown(context: Context): Boolean {
+        // CoD OS: not ours to take down (see setHotspotEnabled).
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) return !isApUp(context)
         // Asked for unconditionally, as this caller always did: the request also cancels a start
         // that is in flight, which looking for an access point first would miss.
         setHotspotEnabled(context, false)

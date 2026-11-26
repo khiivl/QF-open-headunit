@@ -78,6 +78,8 @@ object SettingsProfilePolicy {
         "hardwareComposer",
         // Same for the touch panel report rate: one writer, the system trial.
         "touchPanelOverride",
+        // The access point is the system's on CoD OS: this app never switches it on (HotspotManager.setHotspotEnabled).
+        "autoEnableHotspot",
     )
 
     /** Settings that only mean something to CarPlay (zLink's own screens). */

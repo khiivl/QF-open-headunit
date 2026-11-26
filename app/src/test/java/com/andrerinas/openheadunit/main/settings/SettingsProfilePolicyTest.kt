@@ -89,6 +89,7 @@ class SettingsProfilePolicyTest {
         assertTrue("rootOnlyDebug" in hidden)
         assertTrue("hardwareComposer" in hidden)
         assertTrue("touchPanelOverride" in hidden)
+        assertTrue("autoEnableHotspot" in hidden)
     }
 
     @Test fun otherBuildsKeepTheChoiceOfConnectionTypes() {
