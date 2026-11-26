@@ -229,6 +229,19 @@ the reason for the guard `ProjectionSessionPolicy.mayAnnounce` (OHU sends nothin
 `rw.zlink.audiostream.*`), `system/config/NotKillAppsBeforeSleep.ini` and `FreezerIgnore.ini` (both list `com.zjinnova.zlink`; **OHU is in neither: for repair, design L6**).
 The flag `sys.qf.bt.aa.connect` itself occurs only in `QF_Bluetooth_Gongban3` and `QF_AiLit_Bridge` in this image.
 
+### 10.8 The access point and the Wi-Fi client are the system's (head lead, owner 27.11: «це має діяти на всю систему … OpenHeadunit і всі решта програми … мають читати значення, виставлені системою»)
+On 27.11 the unit raised its own hotspot (CarWifi_2290) with no phone connected and lost its Wi-Fi client and Ethernet. Cause (code read, QF6, no unit): OHU asked the system for the AP at every process start
+(`EarlyHotspot`) and from the Native Android Auto launcher (`SoftApCredentialsProvider`), both through `HotspotManager.setHotspotEnabled(true)`, which turned the Wi-Fi client off first. Rule in the `codos` build, from `4.1.0-beta1-QF6-codos.3`:
+- **OHU never switches the AP on, never takes one down, never turns the Wi-Fi client off or restarts it.** `HotspotManager.setHotspotEnabled`, `restart` and `disableAndAwaitDown` do nothing in `codos` (one log line) and only report whether an AP is up;
+  `EarlyHotspot.start` returns; `autoEnableHotspot` defaults to false and its row is hidden; `StationStandDown.standDown` and `WifiStackRecovery.restartWifi` do nothing. A source test (`CodosAccessPointGateTest`) fails when a merge moves one of these gates.
+- OHU still **reads** an AP that is up (`SoftApCredentialsProvider`: name and password for the native Android Auto handshake) and reports when there is none.
+- Until the request channel below exists, Android Auto over Wi-Fi in OHU depends on Z-Link's AP being up.
+
+| open row | what is needed | owner of the answer |
+|---|---|---|
+| R-AP | a request channel for a real phone session or an explicit user tap: OHU asks the system owner (the projection-switch reconciler / Z-Link) for the AP and reads the answer; no own writer, as with HWC (`HWC_CONTRACT.md`). Key, value, who writes, timeouts. No code in OHU before this exists. | head lead (system side), then OHU reads it |
+| R-ETH (closed 27.11) | the Ethernet drop was **not OHU**: head lead 📻 on 198, AX88179 usbnet `RX_MEMORY` under memory pressure. Nothing in OHU touches Ethernet. What OHU did do, 📻 WifiController record: 00:13:32 SoftAP CarWifi_2290 via tethering 20 s after boot with no phone, and 00:29:49 `CMD_WIFI_TOGGLED 0` from OHU (uid 1000) right after the owner had switched Wi-Fi on in SystemUI, which set `Settings.Global wifi_on` to 0 and overwrote the user's setting. `codos.3` calls neither `setWifiEnabled(false)` nor the AP start; the only `isWifiEnabled = true` left (`WifiDirectManager`, Wi-Fi Direct strategy) is unreachable on API 29+. | none |
+
 ## Ledger (each side ticks its own column, with proof)
 | item | Open Headunit (Volodymyr) | CoD OS (head lead / qf001 / repair / sound) |
 |---|---|---|
@@ -243,3 +256,4 @@ The flag `sys.qf.bt.aa.connect` itself occurs only in `QF_Bluetooth_Gongban3` an
 | §7 volume answer | | |
 | §9 image slot | | |
 | §10 session announced as Z-Link does (`com.zjinnova.zlink`) | | |
+| §10.8 AP and Wi-Fi client are the system's (OHU raises no AP) | `codos.3`: gates and test done, unit not run | open rows R-AP, R-ETH |
