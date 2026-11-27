@@ -381,11 +381,17 @@ class ZlinkCarPlayActivity : BaseActivity() {
         super.onDestroy()
     }
 
-    /** The picture fills the view, so a touch maps linearly onto the 1024x608 video plane. */
+    /**
+     * The picture fills the view, so a touch maps linearly onto the video plane. The plane is the size of the session's
+     * video (from its SPS, kept in [ZlinkVideoSink.cachedWidth]/[ZlinkVideoSink.cachedHeight]); 1024x608 only until the
+     * first SPS. A 1280x720 session (carOS K706) otherwise got every touch scaled by 0.8 towards the top left.
+     */
     private fun forwardTouch(viewW: Int, viewH: Int, e: MotionEvent) {
         if (viewW <= 0 || viewH <= 0) return
-        val x = (e.x * videoW / viewW).toInt().coerceIn(0, videoW - 1)
-        val y = (e.y * videoH / viewH).toInt().coerceIn(0, videoH - 1)
+        val planeW = ZlinkVideoSink.cachedWidth.takeIf { it > 0 } ?: videoW
+        val planeH = ZlinkVideoSink.cachedHeight.takeIf { it > 0 } ?: videoH
+        val x = (e.x * planeW / viewW).toInt().coerceIn(0, planeW - 1)
+        val y = (e.y * planeH / viewH).toInt().coerceIn(0, planeH - 1)
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> ZlinkHub.injectTouch(x, y, true)
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ZlinkHub.injectTouch(x, y, false)
