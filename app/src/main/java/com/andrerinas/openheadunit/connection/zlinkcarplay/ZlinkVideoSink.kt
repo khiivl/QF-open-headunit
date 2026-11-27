@@ -154,24 +154,40 @@ class ZlinkVideoSink(initialSurface: Surface? = null) {
         return MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
     }
 
-    private fun startCodec(s: ByteArray, p: ByteArray) {
+    private fun buildFormat(s: ByteArray, p: ByteArray, lowLatency: Boolean): MediaFormat {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
         format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 1 shl 20)
         format.setByteBuffer("csd-0", java.nio.ByteBuffer.wrap(START_CODE + s))
         format.setByteBuffer("csd-1", java.nio.ByteBuffer.wrap(START_CODE + p))
         // Realtime interactive decoding flags
         try { format.setInteger(MediaFormat.KEY_PRIORITY, 0) } catch (_: Exception) {}
-        try { format.setInteger("low-latency", 1) } catch (_: Exception) {}
+        if (lowLatency) try { format.setInteger("low-latency", 1) } catch (_: Exception) {}
         try { format.setInteger(MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE.toInt()) } catch (_: Exception) {}
-        val c = createDecoder()
+        return format
+    }
+
+    private fun startCodec(s: ByteArray, p: ByteArray) {
+        var c = createDecoder()
         val b = bridge ?: ZlinkSurfaceBridge(width, height, { shouldRender() }, { renderedCount++ }).also {
             bridge = it
             it.setOutput(pendingSurface)
         }
-        c.configure(format, b.inputSurface, null, 0)
+        var lowLatency = true
+        try {
+            c.configure(buildFormat(s, p, true), b.inputSurface, null, 0)
+        } catch (e: Exception) {
+            // From Android 11 on, ACodec fails the whole configure when an OMX decoder cannot take the low-latency key
+            // (OMX.sprd.h264.decoder on carOS, Android 16: "decoder can not set low-latency to 1"); Android 10 ignored it.
+            // Same decoder again, without the key.
+            AppLog.w("zlink video: configure of ${c.name} with low-latency failed (${e.message}), retrying without it")
+            try { c.release() } catch (_: Exception) {}
+            c = createDecoder()
+            c.configure(buildFormat(s, p, false), b.inputSurface, null, 0)
+            lowLatency = false
+        }
         c.start()
         codec = c
-        AppLog.i("zlink video: decoder ${c.name} started ${width}x$height (isHardware=${!forceSoftware}) with low-latency flags")
+        AppLog.i("zlink video: decoder ${c.name} started ${width}x$height (isHardware=${!forceSoftware}, lowLatency=$lowLatency)")
         outputThread = Thread({
             try {
                 android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY)
