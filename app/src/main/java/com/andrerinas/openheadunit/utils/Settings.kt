@@ -1209,7 +1209,9 @@ class Settings(private val context: Context) {
      * [com.andrerinas.openheadunit.decoder.video.DecoderConfigLadder].
      */
     var debugVideoLowLatency: Boolean
-        get() = prefs.getBoolean("debug-video-low-latency", false)
+        // On by default on a QF unit; a decoder that rejects the key is configured again without it.
+        get() = prefs.getBoolean("debug-video-low-latency",
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty())
         set(value) { prefs.edit().putBoolean("debug-video-low-latency", value).apply() }
 
     /**
@@ -1358,10 +1360,28 @@ class Settings(private val context: Context) {
             else if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(context).isNotEmpty()) 120 else 0
         set(value) { prefs.edit().putInt("touch-send-rate", value).apply() }
 
+    /** Puts the send rate back to this unit's default. */
+    fun resetTouchSendRate() = prefs.edit().remove("touch-send-rate").apply()
+
     // Keep the Hardware Composer on (see HardwareComposer). Off by default: the unit's own choice is left alone.
     var hardwareComposer: Boolean
         get() = prefs.getBoolean("hardware-composer", false)
         set(value) { prefs.edit().putBoolean("hardware-composer", value).apply() }
+
+    // Fade between apps on the whole unit (see AppFadeOverlay). Off by default: it adds a system overlay.
+    var appFade: Boolean
+        get() = prefs.getBoolean("app-fade", false)
+        set(value) { prefs.edit().putBoolean("app-fade", value).apply() }
+
+    /** The transition animation scale the fade replaced; empty when it holds none. */
+    var appFadePreviousScale: String
+        get() = prefs.getString("app-fade-previous-scale", "") ?: ""
+        set(value) { prefs.edit().putString("app-fade-previous-scale", value).apply() }
+
+    // No Home and Back buttons on the unit's status bar (see StatusBarButtons). Off by default: it adds a system overlay.
+    var hideStatusBarButtons: Boolean
+        get() = prefs.getBoolean("hide-status-bar-buttons", false)
+        set(value) { prefs.edit().putBoolean("hide-status-bar-buttons", value).apply() }
 
     // Keep the touch panel at its fastest report rate (see TouchPanelOverride). Off by default.
     var touchPanelOverride: Boolean
@@ -1373,9 +1393,9 @@ class Settings(private val context: Context) {
         get() = prefs.getInt("touch-panel-stock-refresh", TouchPanelOverride.STOCK_REFRESH)
         set(value) { prefs.edit().putInt("touch-panel-stock-refresh", value).apply() }
 
-    // CarPlay touch: interpolate between samples (even, a little later) or send the newest one. Off by default.
+    // CarPlay touch: interpolate between samples (even, a little later) or send the newest one. On by default.
     var carPlayTouchSmoothing: Boolean
-        get() = prefs.getBoolean("carplay-touch-smoothing", false)
+        get() = prefs.getBoolean("carplay-touch-smoothing", true)
         set(value) { prefs.edit().putBoolean("carplay-touch-smoothing", value).apply() }
 
     var fpsLimit: Int
@@ -2664,7 +2684,14 @@ class Settings(private val context: Context) {
         NONE(0),
         IMMERSIVE(1),
         STATUS_ONLY(2),
-        IMMERSIVE_WITH_NOTCH(3);
+        IMMERSIVE_WITH_NOTCH(3),
+        /** The status bar on the home screen; every other screen, the projection included, is [IMMERSIVE]. */
+        STATUS_ON_HOME(4),
+        /** What the home screen itself uses under [STATUS_ON_HOME]. Never chosen or stored. */
+        HOME_STATUS_BAR(5);
+
+        /** The mode the home screen is shown in when this one is chosen. */
+        fun onHome(): FullscreenMode = if (this == STATUS_ON_HOME) HOME_STATUS_BAR else this
 
         companion object {
             private val map = values().associateBy(FullscreenMode::value)

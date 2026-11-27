@@ -57,6 +57,9 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         } catch (e: Exception) {
             com.andrerinas.openheadunit.utils.AppLog.w("HardwareComposer: not applied at start: ${e.message}")
         }
+        // The app fade, switched on again after a restart if the user chose it.
+        com.andrerinas.openheadunit.utils.AppFadeOverlay.applyAtStart(this, delayMs = 15_000L)
+        com.andrerinas.openheadunit.utils.StatusBarButtons.applyAtStart(this, delayMs = 17_000L)
         // Our own picture on CarPlay's car-maker tile, mounted again after each reboot.
         if (!com.andrerinas.openheadunit.BuildConfig.CODOS &&
             com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
@@ -84,48 +87,19 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
                 .mustSwitchTo(settings.projectionAvailability, settings.projectionMode)
                 ?.let { settings.projectionMode = it }
         }
+        // A Cancel from before this process started still holds CarPlay back.
+        if (com.andrerinas.openheadunit.connection.UserCancelHold.isHeld(this)) {
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.holdOffUntilConnect()
+        }
         com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkService.sync(this)
         // Listens for the car coming back on for the life of the process, since ACC off stops the service that did.
         com.andrerinas.openheadunit.app.AccOnReceiver.register(this)
+        // Brings the projection back after the unit's camera view.
+        com.andrerinas.openheadunit.app.CameraReturn.register(this)
         // Connects a phone plugged into the cable even when the Android Auto service is not running.
         com.andrerinas.openheadunit.app.UsbAttachReceiver.register(this)
         com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.EarlyHotspot.start(this)
-        // The rows that could change these are hidden on a zLink unit (except the choice of Wi-Fi and USB cable), so the values are pinned to the ones that work:
-        // Native Android Auto, over zLink's hotspot (WiFi Direct shares the radio with it and drops CarPlay).
-        run {
-            val settings = com.andrerinas.openheadunit.utils.Settings(this)
-            if (com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {
-                // A standing 'Bluetooth could not send anything' banner from earlier goes too.
-                com.andrerinas.openheadunit.utils.ConnectionIssues.clear(this, com.andrerinas.openheadunit.utils.ConnectionIssue.BLUETOOTH_SENT_NO_DATA)
-                if (settings.wifiConnectionMode != com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode.NATIVE) {
-                    settings.wifiConnectionMode = com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode.NATIVE
-                }
-                // 5 GHz only (setting value 1), the one band that carries Android Auto video well.
-                if (settings.hotspotBand != 1) settings.hotspotBand = 1
-                // Wi-Fi stays chosen (it carries Android Auto and CarPlay). A phone on a USB cable is the user's to add;
-                // Self Mode does not exist on this unit. Empty means "all", which is left alone.
-                val wifi = com.andrerinas.openheadunit.utils.Settings.ConnectionMode.WIFI
-                val usb = com.andrerinas.openheadunit.utils.Settings.ConnectionMode.USB
-                val chosen = settings.connectionModes
-                if (chosen.isNotEmpty()) {
-                    val pinned = (chosen - com.andrerinas.openheadunit.utils.Settings.ConnectionMode.SELF) + wifi
-                    if (pinned != chosen) settings.connectionModes = pinned
-                }
-                // With a USB cable chosen, a phone on it connects by itself: when it is plugged in, when the home is
-                // opened, and after the car starts (the ACC-on wake checks the cable when auto-start on USB is on). Set
-                // once; the rows stay the user's to turn off.
-                if (com.andrerinas.openheadunit.utils.Settings.ConnectionMode.USB in settings.connectionModes) {
-                    if (!settings.hasStoredAutoStartOnUsb()) {
-                        settings.autoStartOnUsb = true
-                        com.andrerinas.openheadunit.utils.Settings.syncAutoStartOnUsbToDeviceStorage(this, true)
-                    }
-                    if (!settings.hasStoredAutoConnectSingleUsbDevice()) settings.autoConnectSingleUsbDevice = true
-                }
-                if (settings.nativeApStrategy != com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.HOTSPOT) {
-                    settings.nativeApStrategy = com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy.HOTSPOT
-                }
-            }
-        }
+        com.andrerinas.openheadunit.utils.QfUnitSetup.pin(this)
         // zLink's hotspot is the network Android Auto and CarPlay run on, and it only carries them well on 5 GHz: make sure
         // it is, a little after start so the adb bridge it goes through is up.
         // CoD OS: the hotspot's band is the system's; OHU does not rewrite the unit's hotspot configuration at every start (owner, 24.11).
@@ -292,8 +266,12 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
             FloatingButtonManager.onAppForegroundChanged(this, isForeground = true)
         }
     }
-    override fun onActivityResumed(activity: Activity) {}
-    override fun onActivityPaused(activity: Activity) {}
+    override fun onActivityResumed(activity: Activity) {
+        com.andrerinas.openheadunit.app.CameraReturn.onActivityResumed(activity)
+    }
+    override fun onActivityPaused(activity: Activity) {
+        com.andrerinas.openheadunit.app.CameraReturn.onActivityPaused(activity)
+    }
     override fun onActivityStopped(activity: Activity) {
         startedActivityCount--
         if (startedActivityCount <= 0) {

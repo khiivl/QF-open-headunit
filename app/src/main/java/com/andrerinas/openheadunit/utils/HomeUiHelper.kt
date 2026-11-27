@@ -36,6 +36,7 @@ import androidx.annotation.ColorRes
 import androidx.annotation.IdRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.doOnNextLayout
+import com.andrerinas.openheadunit.BuildConfig
 import com.andrerinas.openheadunit.R
 import com.andrerinas.openheadunit.connection.ConnectionStage
 import com.andrerinas.openheadunit.main.BarFitPolicy
@@ -64,8 +65,7 @@ object HomeUiHelper {
     private const val SHINE_SWEEP_MS = 1_600L
     /** How far past the end the light travels, as a share of a pass: the rest between sweeps. */
     private const val SHINE_REST = 0.35f
-    private const val SHINE_ALPHA_ON_DAY = 0xA6
-    private const val SHINE_ALPHA_AT_NIGHT = 0x8C
+    private const val SHINE_ALPHA = 0x8C
     private const val TILE_SHINE_ALPHA = 0x59
     /** The band's width as a share of the tile it crosses. */
     private const val TILE_SHINE_BAND = 0.7f
@@ -73,6 +73,8 @@ object HomeUiHelper {
     private const val EXTREME_CUSTOM_COLOR_DIM = 0.8f
     // Where black text starts to contrast better than white: (L + 0.05) / 0.05 = 1.05 / (L + 0.05).
     private const val DARK_TEXT_LUMINANCE = 0.179
+    // By day white stays on a filled button up to where it drops under 3:1, the least for large bold text.
+    private const val DAY_WHITE_TEXT_LUMINANCE = 0.3
     private const val NEAR_BLACK = 0xFF14100C.toInt()
     /** Shown in place of the speed while the GPS has nothing current to say. */
     private const val UNKNOWN_SPEED = "--"
@@ -91,6 +93,7 @@ object HomeUiHelper {
     )
 
     private val scaledTiles = listOf(
+        R.id.projection_button, R.id.carplay_button, R.id.bluetooth_button,
         R.id.usb_button, R.id.wifi_button, R.id.self_mode_button, R.id.settings_button, R.id.exit_button,
         R.id.sidebar_apps_button,
         // The scroll view keeps the tiles' width, so it scales with them.
@@ -102,6 +105,7 @@ object HomeUiHelper {
      * the icon like the others, so it stays readable at the smallest scale too.
      */
     private val fittedTiles = listOf(
+        R.id.projection_button, R.id.carplay_button, R.id.bluetooth_button,
         R.id.usb_button, R.id.wifi_button, R.id.self_mode_button, R.id.settings_button, R.id.exit_button,
         R.id.sidebar_apps_button,
         R.id.home_bar_scroll
@@ -190,15 +194,14 @@ object HomeUiHelper {
         @ColorInt val countdownRing: Int,
         val surfaceOpacityPercent: Int = HomeSurfaceOpacityPolicy.DEFAULT
     ) {
-        val isDark: Boolean get() = mode != Mode.DAY
-
         /** A button fill or border made as see-through as the panels; text and icons stay opaque. */
         fun fill(@ColorInt color: Int): Int = HomeSurfaceOpacityPolicy.apply(color, surfaceOpacityPercent)
 
         /** The fill a press or a focus shows below Android 5, where there is no ripple. */
         fun pressedFill(@ColorInt color: Int): Int = HomeSurfaceOpacityPolicy.pressed(color, surfaceOpacityPercent)
         val ripple: Int get() = when (mode) {
-            Mode.DAY, Mode.DARK -> RIPPLE_COLOR_ON_DARK
+            Mode.DAY -> RIPPLE_COLOR
+            Mode.DARK -> RIPPLE_COLOR_ON_DARK
             Mode.EXTREME_DARK -> RIPPLE_COLOR_EXTREME
         }
     }
@@ -247,6 +250,10 @@ object HomeUiHelper {
             paintTile(it, tileBackground(context, palette), palette.textMuted, palette.textMuted)
         }
         rootView.findViewById<ViewGroup>(R.id.sidebar_apps_button)?.let {
+            paintTile(it, tileBackground(context, palette), palette.text, palette.text)
+        }
+        // The tile that switches between the two projections. CoD OS paints its own pair, see applyProtocolTile.
+        if (!BuildConfig.CODOS) rootView.findViewById<ViewGroup>(R.id.projection_button)?.let {
             paintTile(it, tileBackground(context, palette), palette.text, palette.text)
         }
         rootView.findViewById<ViewGroup>(R.id.apps_button)?.let {
@@ -385,7 +392,7 @@ object HomeUiHelper {
             val color = connectionColor(settings, connection, palette)
             when (state) {
                 TileState.ACTIVE -> {
-                    val onColor = readableOn(color)
+                    val onColor = textOn(color, palette)
                     paintTile(tile, pressable(color, radius, palette), onColor, onColor)
                 }
                 TileState.CONNECTING -> {
@@ -416,7 +423,7 @@ object HomeUiHelper {
     fun applyProtocolTile(context: Context, tile: ViewGroup, selected: Boolean, palette: Palette, @ColorInt color: Int) {
         if (selected) {
             val radius = context.resources.getDimension(R.dimen.home_tile_radius)
-            val onColor = readableOn(color)
+            val onColor = textOn(color, palette)
             paintTile(tile, pressable(color, radius, palette), onColor, onColor)
         } else {
             paintTile(tile, tileBackground(context, palette), palette.text, palette.text)
@@ -480,8 +487,11 @@ object HomeUiHelper {
             ?: rootView.findViewById<View>(R.id.sidebar_apps_button)?.takeIf { it.visibility == View.VISIBLE }
         val available = scroll.height - tiles.paddingTop - tiles.paddingBottom +
             (exit?.let { it.height + gapPx } ?: 0)
-        val fixedPx = gapPx * (visible.size - 1) + (if (exit != null) gapPx else 0)
-        val basePx = visible.sumOf { baseHeight(it) } + (exit?.let { baseHeight(it) } ?: 0)
+        // Sized for a set number of tiles, however many there are, so they look the same on every setup: fewer
+        // leave room under them and more scroll.
+        val one = visible.firstOrNull() ?: exit ?: return
+        val fixedPx = gapPx * (BarFitPolicy.SLOTS - 1)
+        val basePx = baseHeight(one) * BarFitPolicy.SLOTS
         val tileScale = BarFitPolicy.tileScale(available, basePx, fixedPx, scalePercent)
 
         // Applying the same size again would request another layout on every pass.
@@ -513,7 +523,8 @@ object HomeUiHelper {
                 (0 until group.childCount).map { group.getChildAt(it) }.filterIsInstance<WordFitTextView>().firstOrNull()
             } ?: return@maxOfOrNull tilePx
             val name = label.getTag(R.id.home_tile_name) as? CharSequence ?: label.text
-            val connection = tile.id != R.id.settings_button && tile.id != R.id.exit_button && tile.id != R.id.sidebar_apps_button
+            val connection = tile.id != R.id.settings_button && tile.id != R.id.exit_button &&
+                tile.id != R.id.sidebar_apps_button && tile.id != R.id.bluetooth_button
             val texts = if (connection) listOf(name) + states else listOf(name)
             label.tileWidthForWholeWords(texts, tilePx, maxPx)
         } ?: tilePx
@@ -612,8 +623,12 @@ object HomeUiHelper {
         }
         icon?.setImageResource(iconRes(decision.primary, isCarPlay))
         val cancel = rootView.findViewById<TextView>(R.id.home_primary_cancel)
-        // The status pill's X lived here before: it stops the bring-up, listening included.
-        cancel?.visibility = if ((reconnecting || stage != null) && wrongPhoneHint == null) View.VISIBLE else View.GONE
+        // The status pill's X lived here before: it stops the bring-up, listening included. With a session up the same
+        // place ends it.
+        val sessionUp = decision.status == Status.ACTIVE_SESSION
+        cancel?.visibility =
+            if (sessionUp || ((reconnecting || stage != null) && wrongPhoneHint == null)) View.VISIBLE else View.GONE
+        cancel?.text = context.getString(if (sessionUp) R.string.home_disconnect else R.string.cancel)
         rootView.findViewById<TextView>(R.id.home_countdown)?.apply {
             visibility = if (reconnecting) View.VISIBLE else View.GONE
             text = secondsLeft.toString()
@@ -642,29 +657,8 @@ object HomeUiHelper {
         val cancelRadius = resources.getDimension(R.dimen.home_secondary_cta_height) / 2f
         val iconTile = rootView.findViewById<View>(R.id.home_primary_icon_tile)
 
-        if (!palette.isDark) {
-            // Day: the whole card wears the connection's color, as see-through as the panels.
-            val shade = ColorUtils.darkenColor(color, 0.78f)
-            card.background = rounded(palette.fill(color), panelRadius)
-            iconTile?.background = rounded(palette.fill(shade), tileRadius)
-            icon?.clearColorFilter()
-            listOf(kicker, title, subtitle, detail).forEach { it?.setTextColor(Color.WHITE) }
-            action?.apply {
-                // White with a breath of the connection's color, so it belongs to the card.
-                background = pressable(blend(Color.WHITE, color, ACTION_TINT), ctaRadius, palette)
-                val labelColor = ColorUtils.darkenColor(color, 0.66f)
-                setTextColor(labelColor)
-                text = actionText(labelColor)
-            }
-            cancel?.apply {
-                background = pressable(shade, cancelRadius, palette)
-                setTextColor(Color.WHITE)
-            }
-            return
-        }
-
-        // Night: a neutral card, so the screen does not glow. The color stays on the kicker, the
-        // icon and the button, which is what the driver looks for.
+        // A neutral card by day and by night. The color stays on the kicker, the icon and the button, which is what
+        // the driver looks for.
         val strokePx = dp(context, 1)
         card.background = shape(palette.panel, panelRadius, palette.panelStroke, strokePx)
         iconTile?.background = rounded(withAlpha(color, ACCENT_WASH_ALPHA), tileRadius)
@@ -687,8 +681,8 @@ object HomeUiHelper {
                 text = actionText(color)
             } else {
                 background = pressable(color, ctaRadius, palette)
-                setTextColor(readableOn(color))
-                text = actionText(readableOn(color))
+                setTextColor(textOn(color, palette))
+                text = actionText(textOn(color, palette))
             }
         }
         cancel?.apply {
@@ -801,23 +795,12 @@ object HomeUiHelper {
 
         val color = connectionColor(settings, decision.primary, palette)
         val radius = context.resources.getDimension(R.dimen.home_cta_height) / 2f
-        val textColor: Int
-        val mutedColor: Int
-        if (!palette.isDark) {
-            textColor = Color.WHITE
-            mutedColor = withAlpha(Color.WHITE, 0xCC)
-            band?.setTextColor(Color.WHITE)
-            band?.background = rounded(withAlpha(Color.WHITE, 0x24), radius)
-        } else {
-            textColor = palette.text
-            mutedColor = palette.textMuted
-            // The connection's color washes the chip; the label stays the readable text color.
-            band?.setTextColor(palette.text)
-            band?.background = rounded(withAlpha(color, BAND_WASH_ALPHA_DARK), radius)
-        }
-        name?.setTextColor(textColor)
-        meta?.setTextColor(mutedColor)
-        bars?.setColorFilter(mutedColor, PorterDuff.Mode.SRC_IN)
+        // The connection's color washes the chip; the label stays the readable text color.
+        band?.setTextColor(palette.text)
+        band?.background = rounded(withAlpha(color, BAND_WASH_ALPHA), radius)
+        name?.setTextColor(palette.text)
+        meta?.setTextColor(palette.textMuted)
+        bars?.setColorFilter(palette.textMuted, PorterDuff.Mode.SRC_IN)
     }
 
     /**
@@ -914,8 +897,7 @@ object HomeUiHelper {
         (rootView.findViewById<View>(R.id.home_primary_actions)?.parent as? View)?.width ?: 0
 
     private const val SCAN_SPIN_MS = 900L
-    private const val ACTION_TINT = 0.07f
-    private const val BAND_WASH_ALPHA_DARK = 0x59
+    private const val BAND_WASH_ALPHA = 0x59
 
     /** What the main button leads with: the link for a connect, the arrow back to a session. */
     internal fun actionIconRes(decision: Decision, usbAsWireless: Boolean = false, isCarPlay: Boolean = false): Int = when {
@@ -967,16 +949,6 @@ object HomeUiHelper {
             icon.draw(canvas)
             canvas.restore()
         }
-    }
-
-    /** [from] moved [amount] (0..1) of the way to [to], channel by channel. */
-    private fun blend(@ColorInt from: Int, @ColorInt to: Int, amount: Float): Int {
-        fun ch(shift: Int): Int {
-            val a = (from shr shift) and 0xFF
-            val b = (to shr shift) and 0xFF
-            return (a + (b - a) * amount).toInt().coerceIn(0, 255)
-        }
-        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
     }
 
     private val WIFI_BARS = intArrayOf(
@@ -1163,12 +1135,9 @@ object HomeUiHelper {
         val track = rootView.findViewById<View>(R.id.home_primary_progress) ?: return
         val fill = rootView.findViewById<View>(R.id.home_primary_progress_fill) ?: return
         val radius = dp(context, 3).toFloat()
-        // Day cards wear the connection's color, so the bar is white on it; night cards are neutral.
-        val fillColor = if (palette.isDark) color else Color.WHITE
-        track.background = rounded(withAlpha(fillColor, PROGRESS_TRACK_ALPHA), radius)
-        fill.background = rounded(fillColor, radius)
-        // White would vanish on the day card's white bar, so there the light is the card's color.
-        val shine = if (palette.isDark) withAlpha(Color.WHITE, SHINE_ALPHA_AT_NIGHT) else withAlpha(color, SHINE_ALPHA_ON_DAY)
+        track.background = rounded(withAlpha(color, PROGRESS_TRACK_ALPHA), radius)
+        fill.background = rounded(color, radius)
+        val shine = withAlpha(Color.WHITE, SHINE_ALPHA)
         rootView.findViewById<View>(R.id.home_primary_progress_shine)?.background = GradientDrawable(
             GradientDrawable.Orientation.LEFT_RIGHT,
             intArrayOf(Color.TRANSPARENT, shine, Color.TRANSPARENT)
@@ -1410,6 +1379,13 @@ object HomeUiHelper {
     }
 
     private fun withAlpha(color: Int, alpha: Int) = (color and 0x00FFFFFF) or (alpha shl 24)
+
+    /** The label color on a button or tile filled with [background]: Material's white by day, unless that is too faint. */
+    private fun textOn(background: Int, palette: Palette): Int {
+        if (palette.mode != Mode.DAY) return readableOn(background)
+        val luminance = androidx.core.graphics.ColorUtils.calculateLuminance(background)
+        return if (luminance <= DAY_WHITE_TEXT_LUMINANCE) Color.WHITE else NEAR_BLACK
+    }
 
     /** Near-black or white, whichever reads better on [background]. */
     fun readableOn(background: Int): Int {

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import com.andrerinas.openheadunit.aap.AapService
 import com.andrerinas.openheadunit.app.AccPowerState
+import com.andrerinas.openheadunit.connection.UserCancelHold
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.Settings
 import java.io.Closeable
@@ -36,7 +37,9 @@ class ZlinkPowerReceiver : BroadcastReceiver(), Closeable {
                 AppLog.i("zlink power: on triggered by $action")
                 AccPowerState.noteWake()
                 val ctx = appContext
-                if (ctx == null || Settings(ctx).autoReconnectOnAccOn) {
+                if (ctx != null && UserCancelHold.isHeld(ctx)) {
+                    AppLog.i("zlink power: the user cancelled the connection, staying disconnected")
+                } else if (ctx == null || Settings(ctx).autoReconnectOnAccOn) {
                     ZlinkHub.resumeOffer()
                 } else {
                     AppLog.i("zlink power: auto reconnect on ACC on is off, staying disconnected")

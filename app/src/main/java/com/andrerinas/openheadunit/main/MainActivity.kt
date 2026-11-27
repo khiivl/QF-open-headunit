@@ -155,9 +155,6 @@ class MainActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         requestedOrientation = Settings(this).screenOrientation.androidOrientation
-        // The home screen always wears the dark look: the light variant is not kept up with it. Set before
-        // super.onCreate, so the window is built dark and nothing has to be recreated.
-        delegate.localNightMode = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
         super.onCreate(savedInstanceState)
 
         applyTurnScreenOn(intent)
@@ -176,6 +173,8 @@ class MainActivity : BaseActivity() {
         }
 
         setTheme(R.style.AppTheme)
+        // The splash's full screen window is over; from here the screen mode decides about the status bar.
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
         val mainSettings = Settings(this)
         val isNightActive = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         val isExtremeDark = mainSettings.appTheme == Settings.AppTheme.EXTREME_DARK ||
@@ -220,6 +219,8 @@ class MainActivity : BaseActivity() {
                 ContextCompat.getColor(this, R.color.extreme_dark_background)
             )
         }
+        // Applied again now that the screen has its own theme.
+        forgetAppliedBackground()
         applyCustomHomeBackground()
 
         val appSettings = Settings(this)
@@ -292,10 +293,15 @@ class MainActivity : BaseActivity() {
             findViewById<View>(R.id.splash_overlay)?.visibility = View.GONE
         }
 
+        // A splash that was taken away above leaves the home on show.
+        setFullscreen()
+
         // Runtime permissions are requested by the setup wizard's permissions step on fresh
         // installs; for users who already finished onboarding we request them from checkSetupFlow().
         viewModel.register()
         handleLaunchIntent(intent)
+        // A rebuilt activity carries the intent it was first opened with, which was answered then.
+        if (savedInstanceState == null) answerProjectionRequest(intent)
         setupWifiDirectInfo()
 
         ContextCompat.registerReceiver(
@@ -425,6 +431,7 @@ class MainActivity : BaseActivity() {
                 App.provide(this).settings.projectionMode)) {
             com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkConnectProgress.cancel()
             com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.holdOffUntilConnect()
+            com.andrerinas.openheadunit.connection.UserCancelHold.set(this)
             return
         }
         // Read before the disconnect below, which drops the connection the service would ask.
@@ -833,6 +840,7 @@ class MainActivity : BaseActivity() {
         // Once the auto-connect overlay is up there is no point keeping the
         // launch splash around — they would just stack the same dark background.
         findViewById<View>(R.id.splash_overlay)?.visibility = View.GONE
+        setFullscreen()
 
         setupAutoConnectMedia()
     }
@@ -1055,6 +1063,9 @@ class MainActivity : BaseActivity() {
             if (delayMs > 0) {
                 delay(delayMs)
             }
+            // Before the fade, so the home has its final place while it comes into view.
+            splashLeaving = true
+            setFullscreen()
             overlay.animate()
                 .alpha(0f)
                 .setDuration(300)
@@ -1069,6 +1080,7 @@ class MainActivity : BaseActivity() {
         val overlay = findViewById<View>(R.id.splash_overlay) ?: return
         overlay.animate().cancel()
         overlay.visibility = View.GONE
+        setFullscreen()
     }
 
     private fun setupWifiDirectInfo() {
@@ -1121,6 +1133,39 @@ class MainActivity : BaseActivity() {
         }
         applyTurnScreenOn(intent)
         handleLaunchIntent(intent)
+        answerProjectionRequest(intent)
+    }
+
+    /**
+     * Opening the app from outside, by its icon, the unit's NAV key or a navigation request, asks for the projection:
+     * the running one comes to the front, and with none running the home connects as its main button would.
+     */
+    private fun answerProjectionRequest(intent: Intent?) {
+        if (intent == null || !ProjectionLaunchPolicy.asksForProjection(
+                action = intent.action,
+                isHome = intent.hasCategory(Intent.CATEGORY_HOME) ||
+                    intent.component?.className?.endsWith("CarLauncherAlias") == true,
+                hasLaunchSource = intent.hasExtra(EXTRA_LAUNCH_SOURCE),
+                fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+            )
+        ) return
+        val appSettings = App.provide(this).settings
+        if (appSettings.onboardingVersion < OnboardingActivity.CURRENT_ONBOARDING_VERSION) return
+        val connected = App.provide(this).commManager.isConnected
+        AppLog.i("MainActivity: opened from outside (action=${intent.action}, categories=${intent.categories}, " +
+            "flags=0x${Integer.toHexString(intent.flags)}, component=${intent.component?.shortClassName}, " +
+            "Android Auto connected=$connected)")
+        if (connected) {
+            bringProjectionToFront()
+            return
+        }
+        // Some of the unit's own ways home start the app like this, so it cannot count as asking again.
+        if (com.andrerinas.openheadunit.connection.UserCancelHold.isHeld(this)) {
+            AppLog.i("MainActivity: the user cancelled the connection, not connecting until they press Connect")
+            return
+        }
+        returnToHomeRoot()
+        viewModel.connectRequested.value = true
     }
 
     /**
@@ -1308,22 +1353,33 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    /** Set once the splash starts to fade, from when the home under it is on show. */
+    private var splashLeaving = false
+
+    private fun splashCovers(): Boolean =
+        !splashLeaving && findViewById<View>(R.id.splash_overlay)?.visibility == View.VISIBLE
+
     private fun setFullscreen() {
         val root = findViewById<View>(R.id.root)
         val appSettings = Settings(this)
-        SystemUI.apply(window, root, appSettings.fullscreenMode)
-        SystemUI.keepLegacyBarsHidden(window, appSettings.fullscreenMode)
+        val mode = appSettings.fullscreenMode
+        // The home's own bars are for the home: the splash over it keeps them all hidden.
+        val shown = if (splashCovers()) mode else mode.onHome()
+        // The home may stand in for the projection's window only while both wear the same bars: its size, measured with a
+        // status bar the projection does not have, would otherwise size the picture.
+        SystemUI.apply(window, root, shown, notesCanvas = mode.onHome() == mode)
+        SystemUI.keepLegacyBarsHidden(window, shown)
     }
 
     override fun onResume() {
         super.onResume()
+        com.andrerinas.openheadunit.utils.AppFadeOverlay.fadeHome(this)
         SettingsActivity.onMainScreenResumed()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
         window.peekDecorView()?.let { v ->
             imm?.hideSoftInputFromWindow(v.windowToken, 0)
         }
         setFullscreen()
-        applyCustomHomeBackground()
 
         checkSetupFlow()
         checkShellAccess()
@@ -1576,6 +1632,11 @@ class MainActivity : BaseActivity() {
     }
 
     override fun onPause() {
+        // With a phone connected or connecting, what comes next may be the projection, which fades in over this picture.
+        val connection = App.provide(this).commManager.connectionState.value
+        if (connection !is CommManager.ConnectionState.Disconnected) {
+            com.andrerinas.openheadunit.aap.ProjectionEntryCover.capture(window)
+        }
         super.onPause()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) setTurnScreenOn(false)
         if (isOrientationReceiverRegistered) {

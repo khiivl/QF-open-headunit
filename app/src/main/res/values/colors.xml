@@ -28,8 +28,12 @@
     <color name="adaptive_text_color">#DE000000</color>
 
     <color name="extreme_dark_background">#000000</color>
-    <color name="splash_background">@color/color_projection_blue</color>
-    <color name="splash_text_white">#FFFFFF</color>
+    <!-- The flat page color, day and night (values-night): that of wDSP Pro's Classic look. The home screen's window
+         draws the picture behind it, see drawable/bg. -->
+    <color name="app_background">#EAEAE9</color>
+    <color name="splash_background">@color/app_background</color>
+    <!-- "OPEN" on the splash: white at night, dark on the pale day background. -->
+    <color name="splash_text_white">#212121</color>
     <color name="splash_text_revived">#214876</color>
 
     <!-- Custom Menu Colors -->
@@ -51,14 +55,14 @@
          Selections use the secondary container, a muted slate blue, as Material does. The
          settings screen reads them through the settings* theme attributes (see attrs.xml), so
          extreme dark can swap them. -->
-    <color name="md_surface">#F9F9FF</color>
-    <color name="md_surface_container">#EDEDF4</color>
-    <color name="md_surface_container_highest">#E2E2E9</color>
-    <color name="md_surface_container_high">#E7E8EE</color>
+    <color name="md_surface">@color/app_background</color>
+    <color name="md_surface_container">#F8F8F7</color>
+    <color name="md_surface_container_highest">#DEDEDD</color>
+    <color name="md_surface_container_high">#F2F2F1</color>
     <color name="md_on_surface">#191C20</color>
     <color name="md_on_surface_variant">#44474E</color>
     <color name="md_outline">#74777F</color>
-    <color name="md_outline_variant">#C4C6D0</color>
+    <color name="md_outline_variant">#C8C8C6</color>
     <color name="md_primary">#415F91</color>
     <color name="md_on_primary">#FFFFFF</color>
     <color name="md_secondary_container">#DAE2F9</color>
@@ -73,25 +77,27 @@
     <color name="md_extreme_primary">#7C95BA</color>
     <color name="md_extreme_secondary_container">#14171C</color>
 
-    <!-- Home screen: flat panels, so the zones read apart without elevation on old units.
+    <!-- Home screen: flat panels, so the zones read apart without elevation on old units. Material's tonal cards on
+         app_background: panels a step from it and tiles a step further, neutral in both looks.
          Day colors here, dark ones in values-night. Extreme dark is a theme rather than a
          resource qualifier, so its colors are the home_extreme_* set and HomeUiHelper picks them. -->
-    <color name="home_panel">#1A1F27</color>
+    <color name="home_ripple">#1F000000</color>
+    <color name="home_panel">#F6F6F5</color>
     <color name="home_panel_stroke">#00000000</color>
-    <color name="home_tile">#232934</color>
-    <color name="home_tile_pressed">#323A47</color>
-    <color name="home_tile_stroke">#00000000</color>
-    <color name="home_slot_stroke">#39414D</color>
-    <color name="home_text">#FFFFFF</color>
-    <color name="home_text_muted">#FFFFFF</color>
-    <color name="home_apps_tile">#0F766E</color>
-    <color name="home_apps_tile_pressed">#0B5A54</color>
-    <color name="home_apps_icon">#FFFFFF</color>
+    <color name="home_tile">#FFFFFF</color>
+    <color name="home_tile_pressed">#E3E3E2</color>
+    <color name="home_tile_stroke">#14000000</color>
+    <color name="home_slot_stroke">#BDBDBB</color>
+    <color name="home_text">#1C1C1E</color>
+    <color name="home_text_muted">#5F5F63</color>
+    <color name="home_apps_tile">#FFFFFF</color>
+    <color name="home_apps_tile_pressed">#E3E3E2</color>
+    <color name="home_apps_icon">#028889</color>
     <color name="home_usb">#B9530F</color>
     <color name="home_wifi">#009688</color>
     <color name="home_self">#1F5FAE</color>
-    <color name="home_monochrome">#3A3F47</color>
-    <color name="home_countdown_ring">#99FFFFFF</color>
+    <color name="home_monochrome">#5F5F63</color>
+    <color name="home_countdown_ring">#661C1C1E</color>
 
     <color name="home_extreme_panel">#000000</color>
     <color name="home_extreme_panel_stroke">#161616</color>
@@ -116,5 +122,9 @@
     <color name="home_hint_body">#39414D</color>
     <color name="home_hint_button">#415F91</color>
     <color name="home_hint_button_focused">#5F7FB5</color>
+    <!-- The app's toasts (Toaster): the card of wDSP Pro's Classic look. Night ones in values-night. -->
+    <color name="toaster_background">#F2FFFFFF</color>
+    <color name="toaster_stroke">#D7DDE1</color>
+    <color name="toaster_text">#212121</color>
     <color name="carplay_window_background">#12161C</color>
 </resources>

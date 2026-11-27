@@ -363,6 +363,17 @@ class HomeFragment : Fragment() {
 
         mainViewModel.usbDevices.observe(viewLifecycleOwner) { renderHome() }
         mainViewModel.homePressed.observe(viewLifecycleOwner) { showFirstPage(animate = isResumed) }
+        mainViewModel.connectRequested.observe(viewLifecycleOwner) { requested ->
+            if (requested != true) return@observe
+            mainViewModel.connectRequested.value = false
+            // Posted, so the screen has resumed and the button's state is current when it is pressed.
+            view.post {
+                if (!isAdded || this.view == null) return@post
+                renderHome()
+                AppLog.i("HomeFragment: the app was opened to connect, pressing the connect button (${decision?.primary}, ${decision?.status})")
+                onPrimaryActionClicked()
+            }
+        }
 
         val appSettings = App.provide(requireContext()).settings
 
@@ -379,6 +390,10 @@ class HomeFragment : Fragment() {
             val delaySec = appSettings.autoConnectDelaySeconds
             if (com.andrerinas.openheadunit.app.AccPowerState.isOff) {
                 AppLog.i("HomeFragment: the car is off, no auto-connect")
+                return@launch
+            }
+            if (com.andrerinas.openheadunit.connection.UserCancelHold.isHeld(requireContext())) {
+                AppLog.i("HomeFragment: the user cancelled the connection, no auto-connect")
                 return@launch
             }
             if (isAutoConnectEnabled && delaySec > 0 && !forceSelfModeLaunch && !commManager.isConnected) {
@@ -757,6 +772,10 @@ class HomeFragment : Fragment() {
             homeWifiStatus?.cancelWait()
             return
         }
+        if (decision?.status == HomePrimaryPolicy.Status.ACTIVE_SESSION) {
+            disconnectSession()
+            return
+        }
         // During the countdown Cancel only ends the countdown, even when the pill was hidden for it
         // (HomePrimaryPolicy.homeTellsBringUp): the card then shows the listening step with its own
         // Cancel, which is the one that stops the bring-up.
@@ -765,6 +784,24 @@ class HomeFragment : Fragment() {
         } else {
             (activity as? MainActivity)?.cancelBringUp("home Cancel")
         }
+    }
+
+    /** Ends the running session, Android Auto or CarPlay, and holds it off until the user connects again. */
+    private fun disconnectSession() {
+        val ctx = context ?: return
+        if (com.andrerinas.openheadunit.connection.zlinkcarplay.ProjectionModePolicy.carPlayEnabled(
+                App.provide(ctx).settings.projectionMode)) {
+            AppLog.i("HomeFragment: Disconnect pressed for CarPlay")
+            com.andrerinas.openheadunit.connection.UserCancelHold.set(ctx)
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.endSession(
+                com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkHub.EndReason.USER)
+            return
+        }
+        AppLog.i("HomeFragment: Disconnect pressed for Android Auto")
+        ContextCompat.startForegroundService(ctx, Intent(ctx, AapService::class.java).apply {
+            action = AapService.ACTION_DISCONNECT
+            putExtra(AapService.EXTRA_STAY_OFF, true)
+        })
     }
 
     /**
@@ -2937,6 +2974,8 @@ class HomeFragment : Fragment() {
     private fun checkNativeDriverSelectionOnStartup(): Boolean {
         if (!isAdded) return false
         hasCheckedNativeDriverSelection = true
+        // Every answer this check can reach connects a phone, which a Cancel rules out until the user asks.
+        if (com.andrerinas.openheadunit.connection.UserCancelHold.isHeld(requireContext())) return false
         if (ExternalBtTransportPolicy.usesExternalModule(NativeAaHandshakeManager.transportRoute(requireContext()))) {
             return false
         }

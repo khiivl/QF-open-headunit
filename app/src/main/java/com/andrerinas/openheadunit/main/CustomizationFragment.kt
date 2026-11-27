@@ -664,7 +664,8 @@ class CustomizationFragment : Fragment() {
                 (isNightActive && (settings.useExtremeDarkMode || nightMode == Settings.BackgroundNightMode.PURE_BLACK))
         }
         Glide.with(this).clear(target)
-        target.colorFilter = if (!pureBlack && isNightActive && nightMode == Settings.BackgroundNightMode.DIM) {
+        val dimmable = hasImage || settings.useGradientBackground
+        target.colorFilter = if (dimmable && !pureBlack && isNightActive && nightMode == Settings.BackgroundNightMode.DIM) {
             PorterDuffColorFilter(Color.argb(135, 0, 0, 0), PorterDuff.Mode.SRC_ATOP)
         } else {
             null

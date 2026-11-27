@@ -1456,11 +1456,72 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
     override fun onStart() {
         super.onStart()
         watchdogHandler.removeCallbacks(releaseDecoderAfterCoverRunnable)
+        showEntryCover()
+    }
+
+    /** Laid over the whole screen on the way in, until the video is up. */
+    private var entryCover: ImageView? = null
+
+    /**
+     * Covers the wait for the first video frame with the screen just left, or with black when there is no picture of it
+     * and the video has run before, and fades that cover away once a frame is drawn. Without video yet and without a
+     * picture, the loading screen is what to show.
+     */
+    private fun showEntryCover() {
+        if (entryCover != null || App.isPiPActive) return
+        val picture = ProjectionEntryCover.take()
+        if (picture == null && videoDecoder.lastFrameRenderedMs == 0L) return
+        val cover = ImageView(this)
+        cover.scaleType = ImageView.ScaleType.FIT_XY
+        if (picture != null) cover.setImageBitmap(picture) else cover.setBackgroundColor(Color.BLACK)
+        // Touches stop here: the phone must not get ones aimed at a picture of another screen.
+        cover.isClickable = true
+        addContentView(cover, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        entryCover = cover
+        // The video's surface comes up only once the cover is on screen. Brought up with the window, its black backdrop
+        // showed alone for a few frames before the window's first picture did: a black flash.
+        val video = if (::projectionView.isInitialized) projectionView as View else null
+        video?.visibility = View.INVISIBLE
+        cover.postDelayed({ video?.visibility = View.VISIBLE }, ENTRY_COVER_SURFACE_DELAY_MS)
+        val shownAt = SystemClock.elapsedRealtime()
+        cover.postOnAnimation(object : Runnable {
+            override fun run() {
+                if (entryCover !== cover) return
+                // A frame from after both the cover and the surface now in use: one the viewer would see.
+                val drawn = isSurfaceSet &&
+                    videoDecoder.lastFrameRenderedMs > maxOf(shownAt, lastSurfaceSetMs)
+                val waited = SystemClock.elapsedRealtime() - shownAt
+                if (drawn || waited >= ENTRY_COVER_MAX_MS) {
+                    AppLog.i("AapProjectionActivity: lifting the entry cover after ${waited}ms, video drawn=$drawn")
+                    cover.animate().alpha(0f)
+                        // A moment for the frame to reach the screen through the renderer.
+                        .setStartDelay(if (drawn) ENTRY_COVER_SETTLE_MS else 0L)
+                        .setDuration(ENTRY_COVER_FADE_MS)
+                        .withEndAction { removeEntryCover() }
+                        .start()
+                } else {
+                    cover.postOnAnimation(this)
+                }
+            }
+        })
+    }
+
+    private fun removeEntryCover() {
+        val cover = entryCover ?: return
+        entryCover = null
+        if (::projectionView.isInitialized) (projectionView as View).visibility = View.VISIBLE
+        cover.animate().cancel()
+        (cover.parent as? ViewGroup)?.removeView(cover)
+        touchOverlayView?.requestFocus()
     }
 
     override fun onStop() {
         super.onStop()
         AppLog.i("AapProjectionActivity: onStop")
+        removeEntryCover()
         if (!DecoderCoverPolicy.shouldReleaseOnCover(App.isPiPActive, isChangingConfigurations)) return
         watchdogHandler.removeCallbacks(releaseDecoderAfterCoverRunnable)
         watchdogHandler.postDelayed(releaseDecoderAfterCoverRunnable, DecoderCoverPolicy.KEEP_DECODER_MS)
@@ -3132,6 +3193,12 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         const val EXTRA_EXPECT_SESSION = "expect_session"
         const val EXTRA_TURN_SCREEN_ON = "turn_screen_on"
         @Volatile var isForeground = false
+
+        /** The longest the entry cover stays without a video frame. */
+        private const val ENTRY_COVER_MAX_MS = 3_000L
+        private const val ENTRY_COVER_SETTLE_MS = 50L
+        private const val ENTRY_COVER_SURFACE_DELAY_MS = 120L
+        private const val ENTRY_COVER_FADE_MS = 350L
 
         /**
          * Optional one-shot override for the loading-screen status text. Set by

@@ -4,10 +4,12 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.LruCache
@@ -104,7 +106,10 @@ class AppDrawerFragment : DialogFragment() {
         fun launchPackage(context: Context, packageName: String): Boolean {
             return try {
                 val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return false
-                context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                context.startActivity(
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    com.andrerinas.openheadunit.utils.AppFadeOverlay.launchOptions(context)
+                )
                 true
             } catch (e: Exception) {
                 AppLog.e(TAG, "Launch failed for $packageName", e)
@@ -205,6 +210,28 @@ class AppDrawerFragment : DialogFragment() {
     private var adapter: AppDrawerAdapter? = null
     private var tabGroup: MaterialButtonToggleGroup? = null
     private var emptyView: TextView? = null
+
+    /** Set while the system's uninstall question is up, so the list is read again on the way back. */
+    private var awaitingUninstall = false
+
+    override fun onResume() {
+        super.onResume()
+        if (!awaitingUninstall) return
+        awaitingUninstall = false
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            invalidateCache()
+            val apps = try {
+                queryInstalledApps(appContext)
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Failed to query launcher apps", e)
+                return@launch
+            }
+            withContext(Dispatchers.Main) {
+                if (isAdded) showItems(apps)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -426,6 +453,12 @@ class AppDrawerFragment : DialogFragment() {
                 }
                 true
             }
+            if (canDelete(item)) {
+                menu.add(R.string.drawer_delete_app).setOnMenuItemClickListener {
+                    deleteApp(item)
+                    true
+                }
+            }
             // Only in launcher mode: that is when this drawer is the unit's app list, so the
             // user has no other place to get rid of a stuck app.
             if (App.provide(requireContext()).settings.enableCarLauncher) {
@@ -435,6 +468,31 @@ class AppDrawerFragment : DialogFragment() {
                 }
             }
             show()
+        }
+    }
+
+    /** An app the user installed. A shortcut is not one, and the unit's own apps cannot be removed. */
+    private fun canDelete(item: AppDrawerItem): Boolean {
+        if (item.shortcutId != null) return false
+        return try {
+            val flags = requireContext().packageManager.getApplicationInfo(item.packageName, 0).flags
+            flags and ApplicationInfo.FLAG_SYSTEM == 0
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    /** Hands the removal to the system, which asks the user to confirm it. */
+    private fun deleteApp(item: AppDrawerItem) {
+        try {
+            awaitingUninstall = true
+            startActivity(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", item.packageName, null)))
+        } catch (e: Exception) {
+            awaitingUninstall = false
+            AppLog.w(TAG, "No uninstall screen for ${item.packageName}", e)
+            ToastUtils.showToast(
+                requireContext(), getString(R.string.drawer_delete_app_failed, item.label), Toast.LENGTH_LONG, force = true
+            )
         }
     }
 
@@ -456,7 +514,7 @@ class AppDrawerFragment : DialogFragment() {
 
         var launched = false
         try {
-            startActivity(launchIntent)
+            startActivity(launchIntent, com.andrerinas.openheadunit.utils.AppFadeOverlay.launchOptions(requireContext()))
             launched = true
         } catch (e: Exception) {
             AppLog.w(TAG, "Direct launch failed for $comp, trying getLaunchIntentForPackage fallback", e)

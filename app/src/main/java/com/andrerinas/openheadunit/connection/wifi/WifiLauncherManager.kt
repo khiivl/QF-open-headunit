@@ -1,5 +1,6 @@
 package com.andrerinas.openheadunit.connection.wifi
 
+import com.andrerinas.openheadunit.connection.UserCancelHold
 import android.os.SystemClock
 import com.andrerinas.openheadunit.App
 import com.andrerinas.openheadunit.aap.AapService
@@ -53,10 +54,13 @@ open class WifiLauncherManager(val service: AapService) {
 
     /**
      * Whether the status pill's X is still holding the stack down. Set by [stopForUser], lifted
-     * only by a bring-up the user asks for, and dies with the service rather than persisting.
+     * only by a bring-up the user asks for, and kept until then or the next reboot, see [UserCancelHold].
      */
-    var cancelledByUser: Boolean = false
-        private set
+    var cancelledByUser: Boolean
+        get() = UserCancelHold.isHeld(service)
+        private set(value) {
+            if (value) UserCancelHold.set(service) else UserCancelHold.clear(service)
+        }
 
 
     val isActive: Boolean get() = active != null

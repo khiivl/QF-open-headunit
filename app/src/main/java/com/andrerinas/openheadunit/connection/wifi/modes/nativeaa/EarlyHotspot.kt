@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.os.PowerManager
 import com.andrerinas.openheadunit.app.AccPowerState
+import com.andrerinas.openheadunit.connection.UserCancelHold
 import com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.HotspotManager
@@ -33,6 +34,10 @@ object EarlyHotspot {
 
     fun start(context: Context) {
         val app = context.applicationContext
+        if (UserCancelHold.isHeld(app)) {
+            AppLog.i("EarlyHotspot: the user cancelled the connection, leaving the hotspot alone.")
+            return
+        }
         val settings = Settings(app)
         val zlinkUnit = ZlinkScreenPolicy.getInstalledPackages(app).isNotEmpty()
         val apEnabled = SoftApStateReader.read(app) == SoftApState.ENABLED

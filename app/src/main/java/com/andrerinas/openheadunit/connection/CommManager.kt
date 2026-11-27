@@ -1337,6 +1337,9 @@ class CommManager(
 
     private val keyStates = mutableMapOf<Int, KeyDebouncePolicy.KeyState>()
 
+    /** For [PlayPauseEchoPolicy]. */
+    @Volatile private var lastPlayPause: PlayPauseEchoPolicy.Press? = null
+
     /**
      * Sends a key press or release event to the phone with remapping and de-duplication.
      * This is the single entry point for all key events in the application.
@@ -1406,14 +1409,21 @@ class CommManager(
             }
         }
 
-        // 4. De-duplication: one press reaches us from several delivery paths at once.
+        // 4. De-duplication: one press reaches us from several delivery paths at once. Play and pause come first:
+        // a late or recoded second copy of one press would undo it.
+        val now = SystemClock.elapsedRealtime()
+        if (isPress && PlayPauseEchoPolicy.isEcho(lastPlayPause, logicalCode, source, now)) {
+            AppLog.i("CommManager: Dropping key $logicalCode (src=$source) - the same press already went out from ${lastPlayPause?.source}")
+            return
+        }
+
         val state = keyStates[logicalCode] ?: KeyDebouncePolicy.KeyState()
         val decision = KeyDebouncePolicy.decide(
             state = state,
             isPress = isPress,
             downTime = downTime,
             isMediaKey = isMedia,
-            now = SystemClock.elapsedRealtime()
+            now = now
         )
         keyStates[logicalCode] = decision.state
 
@@ -1425,6 +1435,10 @@ class CommManager(
         if (decision.releaseFirst) {
             AppLog.i("CommManager: Key $logicalCode was still held from an earlier press with no release - releasing it first")
             _transport?.send(logicalCode, false)
+        }
+
+        if (isPress && source != "auto-resume" && PlayPauseEchoPolicy.covers(logicalCode)) {
+            lastPlayPause = PlayPauseEchoPolicy.Press(logicalCode, source, now)
         }
 
         AppLog.i("CommManager: TX Key -> AA=$logicalCode (isPress=$isPress) src=$source")

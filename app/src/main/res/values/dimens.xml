@@ -89,4 +89,6 @@
     <!-- The network name, and the icon the main button leads with (the size of its label). -->
     <dimen name="home_wifi_name_text">13sp</dimen>
     <dimen name="home_cta_icon">15dp</dimen>
+    <!-- How far into the home's side column its cut edge fades. -->
+    <dimen name="home_bar_fading_edge">24dp</dimen>
 </resources>

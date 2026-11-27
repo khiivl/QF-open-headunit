@@ -261,7 +261,8 @@ class QuickSettingsFragment : DialogFragment() {
         getString(R.string.fullscreen_none),
         getString(R.string.fullscreen_immersive),
         getString(R.string.fullscreen_status_only),
-        getString(R.string.fullscreen_immersive_avoid_notch)
+        getString(R.string.fullscreen_immersive_avoid_notch),
+        getString(R.string.fullscreen_status_on_home)
     )
 
     private fun showOrientationDialog() {

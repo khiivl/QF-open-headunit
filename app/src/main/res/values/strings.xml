@@ -492,10 +492,11 @@ If nothing happens, start CarPlay on your iPhone.</string>
 
     <string name="start_in_fullscreen_mode">Screen mode</string>
     <string name="start_in_fullscreen_mode_description">Choose how system bars (status and navigation) should be handled.</string>
-    <string name="start_in_fullscreen_mode_help">Chooses how the system bars show over this app and the projection. Normal keeps all bars. Immersive hides all bars, and the picture can go under a notch. Hide status bar only keeps the navigation bar. Immersive (Avoid Notch) hides all bars and keeps the picture clear of the notch. The screen reloads at once to apply it.</string>
+    <string name="start_in_fullscreen_mode_help">Chooses how the system bars show over this app and the projection. Normal keeps all bars. Immersive hides all bars, and the picture can go under a notch. Hide status bar only keeps the navigation bar. Immersive (Avoid Notch) hides all bars and keeps the picture clear of the notch. Status bar on home screen only shows the status bar on the home screen and hides all bars elsewhere, the projection included. The screen reloads at once to apply it.</string>
     <string name="fullscreen_none">Normal (All bars visible)</string>
     <string name="fullscreen_immersive">Immersive (Overlay Notch)</string>
     <string name="fullscreen_status_only">Hide status bar only</string>
+    <string name="fullscreen_status_on_home">Status bar on home screen only</string>
     <string name="fullscreen_immersive_avoid_notch">Immersive (Avoid Notch)</string>
     <string name="fullscreen_immersive_avoid_notch_desc">Hides all bars and adds padding to prevent the projection from being covered by the Notch/Cutout.</string>
 
@@ -503,6 +504,7 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="projection_status">Projection Status: %s</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
+    <string name="home_disconnect">Disconnect</string>
     <string name="running">Running</string>
     <string name="not_running">Not Running</string>
     <string name="no_android_auto_device_connected">No Android Auto device connected. Please check the USB connection.</string>
@@ -608,6 +610,19 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="touch_send_rate_turbo" translatable="false">Turbo %1$d Hz</string>
     <string name="touch_send_rate_insane" translatable="false">Insane %1$d Hz</string>
     <string name="paced_surface_view" translatable="false">Paced SurfaceView</string>
+    <string name="status_bar_buttons">Hide Home and Back on the status bar</string>
+    <string name="status_bar_buttons_summary">Takes the two buttons off the unit\'s status bar.</string>
+    <string name="status_bar_buttons_help">Removes the Home and Back buttons from the status bar in every app, through a small system overlay installed as a Magisk module. Needs root. The first time, restart the unit to finish; after that it switches at once. Make sure the unit has another way Home, and another way back in apps that have none of their own.</string>
+    <string name="status_bar_buttons_restart">Restart the unit to finish hiding the buttons.</string>
+    <string name="status_bar_buttons_no_root">Hiding the buttons needs root.</string>
+    <string name="status_bar_buttons_failed">The status bar buttons could not be changed.</string>
+    <string name="app_fade">Fade between apps</string>
+    <string name="app_fade_summary">Fades apps in and out, on the whole unit.</string>
+    <string name="app_fade_help">Replaces the unit\'s app animations with fades, through a small system overlay installed as a Magisk module, and runs the transitions at normal speed. Needs root. Restart the unit after turning it on or off. Turning it off restores the previous speed.</string>
+    <string name="app_fade_restart">Restart the unit to finish turning on the app fade.</string>
+    <string name="app_fade_restart_off">Restart the unit to finish turning off the app fade.</string>
+    <string name="app_fade_no_root">The app fade needs root.</string>
+    <string name="app_fade_failed">The app fade could not be set up.</string>
     <string name="hardware_composer" translatable="false">Hardware Composer</string>
     <string name="hardware_composer_summary">Compose the picture with display hardware instead of the GPU.</string>
     <string name="hardware_composer_help">QF units start with the Hardware Composer off. With this on, Open Headunit turns it on, and again after each start, so the video can use a display overlay. If you see flicker, wrong colours or a black screen, turn it off or reboot. Needs root or ADB.</string>
@@ -1912,6 +1927,8 @@ If nothing happens, start CarPlay on your iPhone.</string>
     <string name="home_add_favorite">Add app</string>
     <string name="home_favorite_change">Change</string>
     <string name="home_add_to_favorites">Add to favorites</string>
+    <string name="drawer_delete_app">Delete app</string>
+    <string name="drawer_delete_app_failed">%1$s could not be deleted: this unit offers no uninstall screen.</string>
     <string name="drawer_kill_app">Kill app</string>
     <string name="drawer_kill_app_done">%1$s was stopped</string>
     <string name="drawer_kill_app_failed">%1$s could not be stopped. Root or the self-ADB connection is needed.</string>

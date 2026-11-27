@@ -2,6 +2,8 @@ package com.andrerinas.openheadunit.utils
 
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.res.Resources
+import android.content.res.Configuration
 import android.content.Intent
 import android.content.IntentFilter
 import android.database.ContentObserver
@@ -306,6 +308,17 @@ class AppThemeManager(
     companion object {
         val themeVersion = MutableLiveData<Int>()
         private var versionCounter = 0
+
+        /**
+         * The day or night a screen of this app should wear now, as a [Configuration.UI_MODE_NIGHT_MASK] value: the
+         * theme's choice, or else the unit's own. The unit's is read from the system's resources, because a screen's
+         * night override reaches the app's resources and stays there after the unit has turned.
+         */
+        fun nightNow(): Int = when (AppCompatDelegate.getDefaultNightMode()) {
+            AppCompatDelegate.MODE_NIGHT_YES -> Configuration.UI_MODE_NIGHT_YES
+            AppCompatDelegate.MODE_NIGHT_NO -> Configuration.UI_MODE_NIGHT_NO
+            else -> Resources.getSystem().configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        }
 
         private fun signalThemeChange() {
             versionCounter++

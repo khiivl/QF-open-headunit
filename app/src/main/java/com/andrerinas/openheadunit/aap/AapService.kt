@@ -1,5 +1,6 @@
 package com.andrerinas.openheadunit.aap
 
+import com.andrerinas.openheadunit.connection.UserCancelHold
 import com.andrerinas.openheadunit.connection.wifi.scan.WifiScanControl
 import com.andrerinas.openheadunit.connection.SettingsRestartRecovery
 import android.Manifest
@@ -3748,6 +3749,25 @@ class AapService : Service() {
         ConnectByNameGate.Refusal.NOT_PAIRED -> getString(R.string.automation_connect_not_paired)
     }
 
+    /**
+     * Ends the session for good. The hold goes on first, so that nothing watching the session end brings the connection
+     * back up; the wireless stack is stopped once the goodbye has gone out over it.
+     */
+    private fun disconnectAndStayOff() {
+        commManager.cancelPendingSettingsRestart()
+        wirelessRearmPendingForSettings = false
+        if (commManager.isUsbSession) usbLauncherManager.stopForUser()
+        UserCancelHold.set(this)
+        val cleanupTicket = wifiLauncherManager.cleanupTicket()
+        commManager.disconnect()
+        serviceScope.launch {
+            commManager.awaitDisconnectComplete()
+            if (!isDestroying && wifiLauncherManager.isCleanupCurrent(cleanupTicket)) {
+                wifiLauncherManager.stopForUser()
+            }
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             startForegroundWithCurrentTypes()
@@ -3902,6 +3922,9 @@ class AapService : Service() {
                     AppLog.i("AapService: the status pill's X stopped the USB attempt. USB stays " +
                         "down until the USB button asks for it.")
                     usbLauncherManager.stopForUser()
+                    // Cancel means no further attempts of either kind, so wireless is held as well.
+                    wirelessRearmPendingForSettings = false
+                    wifiLauncherManager.stopForUser()
                     commManager.disconnect()
                     ConnectionStageTracker.clear()
                     return START_STICKY
@@ -4225,7 +4248,7 @@ class AapService : Service() {
                 // and unlike the previous isConnected guard it also covers the
                 // Connecting state, so the UI cancel paths work before handshake
                 // completes.
-                commManager.disconnect()
+                if (intent.getBooleanExtra(EXTRA_STAY_OFF, false)) disconnectAndStayOff() else commManager.disconnect()
             }
             ACTION_CONNECT_SOCKET        -> {
                 // Caller already invoked commManager.connect(socket); the connectionState
@@ -4728,6 +4751,8 @@ class AapService : Service() {
         /** On [ACTION_CHECK_USB]: [USB_TRIGGER_PLUG_IN] when the attach screen handed a plug-in on. */
         const val EXTRA_USB_TRIGGER = "usb_trigger"
         const val USB_TRIGGER_PLUG_IN = "plug_in"
+        /** On [ACTION_DISCONNECT]: the user's own Disconnect, after which nothing connects until they ask. */
+        const val EXTRA_STAY_OFF = "stay_off"
         /** On [ACTION_CANCEL_WIRELESS]: the X was pressed on a USB attempt, read before it disconnected. */
         const val EXTRA_USB_ATTEMPT = "usb_attempt"
         /** On [ACTION_BT_AUTO_START]: the receiver did not raise the home screen over settings. */

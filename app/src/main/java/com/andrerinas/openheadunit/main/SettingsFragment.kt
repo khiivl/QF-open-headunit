@@ -229,7 +229,9 @@ class SettingsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             if (!start() && dialog.isShowing) {
                 dialog.dismiss()
-                android.widget.Toast.makeText(requireContext(), R.string.trial_failed, android.widget.Toast.LENGTH_LONG).show()
+                com.andrerinas.openheadunit.utils.ToastUtils.showToast(
+                    requireContext(), R.string.trial_failed, android.widget.Toast.LENGTH_LONG, force = true
+                )
             }
         }
         timer = object : android.os.CountDownTimer(seconds * 1000L, 1000L) {
@@ -240,6 +242,63 @@ class SettingsFragment : Fragment() {
 
             override fun onFinish() = dialog.dismiss()
         }.start()
+    }
+
+    private fun setAppFade(on: Boolean) {
+        val app = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val fade = com.andrerinas.openheadunit.utils.AppFadeOverlay
+            val result = if (on) fade.enable(app) else fade.disable(app)
+            val message = when (result) {
+                com.andrerinas.openheadunit.utils.AppFadeOverlay.Result.ON -> {
+                    settings.appFade = true
+                    null
+                }
+                com.andrerinas.openheadunit.utils.AppFadeOverlay.Result.RESTART_TO_FINISH_ON -> {
+                    settings.appFade = true
+                    R.string.app_fade_restart
+                }
+                com.andrerinas.openheadunit.utils.AppFadeOverlay.Result.OFF -> {
+                    settings.appFade = false
+                    null
+                }
+                com.andrerinas.openheadunit.utils.AppFadeOverlay.Result.RESTART_TO_FINISH_OFF -> {
+                    settings.appFade = false
+                    R.string.app_fade_restart_off
+                }
+                com.andrerinas.openheadunit.utils.AppFadeOverlay.Result.NO_ROOT -> R.string.app_fade_no_root
+                com.andrerinas.openheadunit.utils.AppFadeOverlay.Result.FAILED -> R.string.app_fade_failed
+            }
+            if (!isAdded) return@launch
+            message?.let { ToastUtils.showToast(app, it, Toast.LENGTH_LONG, force = true) }
+            updateSettingsList()
+        }
+    }
+
+    private fun setStatusBarButtonsHidden(hidden: Boolean) {
+        val app = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val buttons = com.andrerinas.openheadunit.utils.StatusBarButtons
+            val message = when (if (hidden) buttons.hide(app) else buttons.show(app)) {
+                com.andrerinas.openheadunit.utils.StatusBarButtons.Result.HIDDEN -> {
+                    settings.hideStatusBarButtons = true
+                    null
+                }
+                com.andrerinas.openheadunit.utils.StatusBarButtons.Result.RESTART_TO_FINISH -> {
+                    settings.hideStatusBarButtons = true
+                    R.string.status_bar_buttons_restart
+                }
+                com.andrerinas.openheadunit.utils.StatusBarButtons.Result.SHOWN -> {
+                    settings.hideStatusBarButtons = false
+                    null
+                }
+                com.andrerinas.openheadunit.utils.StatusBarButtons.Result.NO_ROOT -> R.string.status_bar_buttons_no_root
+                com.andrerinas.openheadunit.utils.StatusBarButtons.Result.FAILED -> R.string.status_bar_buttons_failed
+            }
+            if (!isAdded) return@launch
+            message?.let { ToastUtils.showToast(app, it, Toast.LENGTH_LONG, force = true) }
+            updateSettingsList()
+        }
     }
 
     private fun tryHardwareComposer() {
@@ -254,7 +313,13 @@ class SettingsFragment : Fragment() {
         val app = requireContext().applicationContext
         runTrial(R.string.touch_override_trial_title,
             start = { com.andrerinas.openheadunit.utils.TouchPanelOverride.set(app, true) },
-            keep = { settings.touchPanelOverride = true },
+            keep = {
+                settings.touchPanelOverride = true
+                // The faster panel is there to be used, so the send rate goes to Faster 240 Hz with it.
+                settings.touchSendRate = OVERRIDE_TOUCH_RATE
+                pendingTouchSendRate = OVERRIDE_TOUCH_RATE
+                updateSettingsList()
+            },
             revert = { com.andrerinas.openheadunit.utils.TouchPanelOverride.apply(app, false) })
     }
 
@@ -1728,6 +1793,31 @@ class SettingsFragment : Fragment() {
             }
         ))
 
+        if (!com.andrerinas.openheadunit.BuildConfig.CODOS &&
+            com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
+                .getInstalledPackages(requireContext()).isNotEmpty()) {
+            items.add(SettingItem.ToggleSettingEntry(
+                stableId = "appFade",
+                nameResId = R.string.app_fade,
+                descriptionResId = R.string.app_fade_summary,
+                helpResId = R.string.app_fade_help,
+                isChecked = settings.appFade,
+                searchKeywords = "app fade animation transition open close system",
+                // Takes effect at once, not on Save: it changes the system, not this app.
+                onCheckedChanged = { isChecked -> setAppFade(isChecked) }
+            ))
+            items.add(SettingItem.ToggleSettingEntry(
+                stableId = "hideStatusBarButtons",
+                nameResId = R.string.status_bar_buttons,
+                descriptionResId = R.string.status_bar_buttons_summary,
+                helpResId = R.string.status_bar_buttons_help,
+                isChecked = settings.hideStatusBarButtons,
+                searchKeywords = "status bar home back button hide navigation",
+                // Takes effect at once, not on Save: it changes the system, not this app.
+                onCheckedChanged = { isChecked -> setStatusBarButtonsHidden(isChecked) }
+            ))
+        }
+
         items.add(SettingItem.SettingEntry(
             stableId = "resolution",
             nameResId = R.string.resolution,
@@ -1780,6 +1870,7 @@ class SettingsFragment : Fragment() {
                 Settings.FullscreenMode.IMMERSIVE -> getString(R.string.fullscreen_immersive)
                 Settings.FullscreenMode.STATUS_ONLY -> getString(R.string.fullscreen_status_only)
                 Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH -> getString(R.string.fullscreen_immersive_avoid_notch)
+                Settings.FullscreenMode.STATUS_ON_HOME -> getString(R.string.fullscreen_status_on_home)
                 else -> getString(R.string.auto)
             },
             onClick = {
@@ -1787,7 +1878,8 @@ class SettingsFragment : Fragment() {
                     getString(R.string.fullscreen_none),
                     getString(R.string.fullscreen_immersive),
                     getString(R.string.fullscreen_status_only),
-                    getString(R.string.fullscreen_immersive_avoid_notch)
+                    getString(R.string.fullscreen_immersive_avoid_notch),
+                    getString(R.string.fullscreen_status_on_home)
                 )
                 MaterialAlertDialogBuilder(requireContext(), R.style.DarkAlertDialog)
                     .setTitle(R.string.start_in_fullscreen_mode)
@@ -2491,6 +2583,11 @@ class SettingsFragment : Fragment() {
                     tryTouchPanelOverride()
                 } else {
                     settings.touchPanelOverride = false
+                    // Back to the default rate, unless another one was chosen since the override set its own.
+                    if (settings.touchSendRate == OVERRIDE_TOUCH_RATE) {
+                        settings.resetTouchSendRate()
+                        pendingTouchSendRate = settings.touchSendRate
+                    }
                     com.andrerinas.openheadunit.utils.TouchPanelOverride.apply(requireContext(), false)
                     updateSettingsList()
                 }
@@ -2997,7 +3094,10 @@ class SettingsFragment : Fragment() {
                     .setTitle(R.string.reset_settings)
                     .setMessage(R.string.reset_settings_confirm)
                     .setPositiveButton(R.string.reset) { _, _ ->
+                        val appContext = requireContext().applicationContext
+                        val before = com.andrerinas.openheadunit.utils.QfUnitSetup.beforeReset(appContext)
                         settings.reset()
+                        com.andrerinas.openheadunit.utils.QfUnitSetup.afterReset(appContext, before)
 
                         // Proper App Restart
                         val intent = requireActivity().packageManager.getLaunchIntentForPackage(requireActivity().packageName)
@@ -5746,6 +5846,9 @@ class SettingsFragment : Fragment() {
 
     companion object {
         private val SAVE_ITEM_ID = 1001
+
+        /** The send rate that goes on with the touch driver override. */
+        private const val OVERRIDE_TOUCH_RATE = 240
 
         /**
          * The external-Bluetooth probe runs here rather than on the fragment's scope, and its

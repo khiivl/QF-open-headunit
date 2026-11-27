@@ -2,6 +2,7 @@ package com.andrerinas.openheadunit.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
 import android.os.Looper
@@ -80,8 +81,14 @@ object SystemUI {
 
         // Apply visibility using Compat API
         when (mode) {
-            Settings.FullscreenMode.IMMERSIVE, Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH -> {
+            Settings.FullscreenMode.IMMERSIVE, Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH,
+            Settings.FullscreenMode.STATUS_ON_HOME -> {
                 controllerCompat.hide(WindowInsetsCompat.Type.systemBars())
+                controllerCompat.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+            Settings.FullscreenMode.HOME_STATUS_BAR -> {
+                controllerCompat.show(WindowInsetsCompat.Type.statusBars())
+                controllerCompat.hide(WindowInsetsCompat.Type.navigationBars())
                 controllerCompat.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
             Settings.FullscreenMode.STATUS_ONLY -> {
@@ -100,7 +107,8 @@ object SystemUI {
             var flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             
             when (mode) {
-                Settings.FullscreenMode.IMMERSIVE, Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH -> {
+                Settings.FullscreenMode.IMMERSIVE, Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH,
+                Settings.FullscreenMode.STATUS_ON_HOME -> {
                     flags = flags or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or 
                             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
                             View.SYSTEM_UI_FLAG_FULLSCREEN or 
@@ -113,6 +121,16 @@ object SystemUI {
                         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
                         flags = flags or View.SYSTEM_UI_FLAG_LOW_PROFILE
                     }
+                }
+                Settings.FullscreenMode.HOME_STATUS_BAR -> {
+                    // Drawn under the status bar and padded clear of it by the insets, as the other modes are.
+                    flags = flags or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                        flags = flags or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    }
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
                 }
                 Settings.FullscreenMode.STATUS_ONLY -> {
                     flags = flags or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -133,11 +151,17 @@ object SystemUI {
         }
 
         // Visual Polish: Background colors and Light/Dark icon appearance
-        if (mode != Settings.FullscreenMode.IMMERSIVE && mode != Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH) {
+        if (mode != Settings.FullscreenMode.IMMERSIVE && mode != Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH &&
+            mode != Settings.FullscreenMode.STATUS_ON_HOME) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
                 if (Build.VERSION.SDK_INT < 35) {
-                    window.statusBarColor = Color.BLACK
+                    // Clear on the home screen, so its own background runs on under the bar.
+                    window.statusBarColor =
+                        if (mode == Settings.FullscreenMode.HOME_STATUS_BAR) Color.TRANSPARENT else Color.BLACK
+                    if (mode == Settings.FullscreenMode.HOME_STATUS_BAR && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        window.isStatusBarContrastEnforced = false
+                    }
                     if (mode == Settings.FullscreenMode.NONE || mode == Settings.FullscreenMode.STATUS_ONLY) {
                         window.navigationBarColor = Color.BLACK
                     }
@@ -148,9 +172,19 @@ object SystemUI {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
                 }
             }
-            controllerCompat.isAppearanceLightStatusBars = false
+            // Dark icons where the clear bar lies on the pale day background; every other bar is over something dark.
+            controllerCompat.isAppearanceLightStatusBars =
+                mode == Settings.FullscreenMode.HOME_STATUS_BAR && hasPaleBackground(window.context)
             controllerCompat.isAppearanceLightNavigationBars = false
         }
+    }
+
+    private fun hasPaleBackground(context: Context): Boolean {
+        val night = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        if (night == Configuration.UI_MODE_NIGHT_YES) return false
+        val settings = Settings(context)
+        return settings.homeBackgroundImagePath.isEmpty() && !settings.useGradientBackground &&
+            settings.appTheme != Settings.AppTheme.EXTREME_DARK
     }
 
     // Both gates matter: adding system padding while the OS still fits NONE would count it twice.
@@ -304,7 +338,8 @@ object SystemUI {
             val policy = policy()
             val cutout = if (Build.VERSION.SDK_INT >= 28) WindowInsetsCompat.Type.displayCutout() else 0
             val mask = when (policy.mode) {
-                Settings.FullscreenMode.IMMERSIVE -> 0
+                Settings.FullscreenMode.IMMERSIVE, Settings.FullscreenMode.STATUS_ON_HOME -> 0
+                Settings.FullscreenMode.HOME_STATUS_BAR -> WindowInsetsCompat.Type.statusBars() or cutout
                 Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH -> cutout
                 Settings.FullscreenMode.STATUS_ONLY -> WindowInsetsCompat.Type.navigationBars() or cutout
                 Settings.FullscreenMode.NONE -> WindowInsetsCompat.Type.systemBars() or cutout

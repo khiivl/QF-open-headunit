@@ -15,7 +15,7 @@ object ToastUtils {
     fun showToast(context: Context?, text: String, duration: Int = Toast.LENGTH_SHORT, force: Boolean = false) {
         if (context == null) return
         if (force || isToastEnabled(context)) {
-            Toast.makeText(context, text, duration).show()
+            Toaster.show(context, text, duration)
         }
     }
 
@@ -23,7 +23,7 @@ object ToastUtils {
     fun showToast(context: Context?, resId: Int, duration: Int = Toast.LENGTH_SHORT, force: Boolean = false) {
         if (context == null) return
         if (force || isToastEnabled(context)) {
-            Toast.makeText(context, resId, duration).show()
+            Toaster.show(context, context.getText(resId), duration)
         }
     }
 

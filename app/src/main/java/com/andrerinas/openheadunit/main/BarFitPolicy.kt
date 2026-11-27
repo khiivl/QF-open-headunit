@@ -8,6 +8,9 @@ package com.andrerinas.openheadunit.main
  */
 object BarFitPolicy {
 
+    /** The tiles the bar is sized for, the pinned one included. */
+    const val SLOTS = 5
+
     /** The tiles stop shrinking here: a car screen is used with a thumb, not with a cursor. */
     const val MIN_SCALE = 0.6f
 

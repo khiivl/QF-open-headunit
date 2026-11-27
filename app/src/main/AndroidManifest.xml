@@ -57,6 +57,8 @@
         android:name="com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE"
         android:protectionLevel="signature" />
 
+    <!-- To ask the system to remove an app from the app list; the system confirms it with the user. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
@@ -116,8 +118,14 @@
         android:supportsRtl="true"
         tools:ignore="GoogleAppIndexingWarning">
 
+        <!--
+            taskAffinity (here and on the CarPlay screen): the projection lives in a task of its own. In
+            the main screen's task, which is singleTask, every Home intent and every start of the app
+            cleared it from the top; this way it only goes behind and comes back as it was.
+        -->
         <activity
             android:name=".aap.AapProjectionActivity"
+            android:taskAffinity="${applicationId}.projection"
             android:allowEmbedded="true"
             android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:exported="true"
@@ -125,7 +133,7 @@
             android:launchMode="singleTask"
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
-            android:theme="@style/AppTheme">
+            android:theme="@style/AppTheme.Projection">
 
         </activity>
 
@@ -155,11 +163,11 @@
 
         <activity
             android:name=".main.MainActivity"
-            android:configChanges="keyboardHidden|uiMode"
+            android:configChanges="keyboard|keyboardHidden|uiMode|orientation|screenSize|screenLayout|smallestScreenSize|navigation"
             android:windowSoftInputMode="stateAlwaysHidden|adjustPan"
             android:exported="true"
             android:launchMode="singleTask"
-            android:theme="@style/SplashTheme">
+            android:theme="@style/SplashTheme.Fullscreen">
 
             <!-- Primary Launcher Filter -->
             <intent-filter>
@@ -246,6 +254,7 @@
         <!-- CarPlay picture from the zLink daemon via the local tee feed (tools/zlink-tee). -->
         <activity
             android:name=".connection.zlinkcarplay.ZlinkCarPlayActivity"
+            android:taskAffinity="${applicationId}.carplay"
             android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:exported="true"
             android:launchMode="singleTask"

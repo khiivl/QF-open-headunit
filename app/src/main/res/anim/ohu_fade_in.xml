@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The screen coming forward under the app fade. It gains early, so that little of what is behind shows through where
+     the screen it replaces fades out as well (ohu_fade_out). -->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromAlpha="0.0"
+    android:toAlpha="1.0"
+    android:duration="250"
+    android:interpolator="@android:interpolator/decelerate_quad" />

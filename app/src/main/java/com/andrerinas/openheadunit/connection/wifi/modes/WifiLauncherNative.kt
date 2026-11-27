@@ -210,7 +210,9 @@ class WifiLauncherNative : WifiLauncher {
         // drop. Left registered here it would treat this very teardown as the hotspot failing and
         // bring it back up as the service dies — leaving the access point running with nothing
         // left to serve it.
-        if (seq.handledAt(WifiLauncherStopSequence.BEFORE_HOTSPOT_DISABLE))
+        // A final stop ends it too, whether or not the earlier step was asked for: the status pill's Cancel asks only
+        // for the final one, and the watcher left running switched the hotspot back on behind the user.
+        if (seq.handledAt(WifiLauncherStopSequence.BEFORE_HOTSPOT_DISABLE) || seq.handledAt(WifiLauncherStopSequence.LAST))
             softApCredentialsProvider?.stop()
 
         if (seq.handledAt(WifiLauncherStopSequence.LAST)) {

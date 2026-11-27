@@ -18,7 +18,8 @@ object LegacyImmersivePolicy {
 
     fun applies(sdkInt: Int, mode: Settings.FullscreenMode): Boolean =
         sdkInt < API_KITKAT &&
-            (mode == Settings.FullscreenMode.IMMERSIVE || mode == Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH)
+            (mode == Settings.FullscreenMode.IMMERSIVE || mode == Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH ||
+                mode == Settings.FullscreenMode.STATUS_ON_HOME)
 
     /** True when the system has shown the navigation bar again (it clears the hide flag). */
     fun barsShown(systemUiVisibility: Int): Boolean = (systemUiVisibility and FLAG_HIDE_NAVIGATION) == 0

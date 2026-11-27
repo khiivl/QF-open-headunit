@@ -238,7 +238,8 @@ object HeadUnitScreenConfig {
 
         normalisation = requestedNormalisation
         val mode = windowMode ?: settings.fullscreenMode
-        val immersive = mode == Settings.FullscreenMode.IMMERSIVE || mode == Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH
+        val immersive = mode == Settings.FullscreenMode.IMMERSIVE || mode == Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH ||
+            mode == Settings.FullscreenMode.STATUS_ON_HOME
         val realW: Int
         val realH: Int
         val usableW: Int
@@ -259,7 +260,8 @@ object HeadUnitScreenConfig {
                 !(Build.VERSION.SDK_INT >= 35 && context.applicationInfo.targetSdkVersion >= 35)
             val cutout = android.view.WindowInsets.Type.displayCutout()
             val mask = when (mode) {
-                Settings.FullscreenMode.IMMERSIVE -> 0
+                Settings.FullscreenMode.IMMERSIVE, Settings.FullscreenMode.STATUS_ON_HOME -> 0
+                Settings.FullscreenMode.HOME_STATUS_BAR -> android.view.WindowInsets.Type.statusBars() or cutout
                 Settings.FullscreenMode.IMMERSIVE_WITH_NOTCH -> cutout
                 Settings.FullscreenMode.STATUS_ONLY -> android.view.WindowInsets.Type.navigationBars() or cutout
                 Settings.FullscreenMode.NONE -> android.view.WindowInsets.Type.systemBars() or cutout

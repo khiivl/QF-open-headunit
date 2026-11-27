@@ -495,6 +495,7 @@ object SettingsBackupManager {
 
     fun resetFromContext(context: Context, applyTheme: Boolean = true): ResetResult {
         val prefs = context.getSharedPreferences(Settings.PREFS_NAME, Context.MODE_PRIVATE)
+        val before = QfUnitSetup.beforeReset(context)
         val result = resetPreferencesToDefaults(prefs)
         val scanPrefs = context.getSharedPreferences("wifi-scan-option", Context.MODE_PRIVATE)
         val scanKeys = wifiScanBackupKeys.filterValues { scanPrefs.contains(it) }
@@ -503,6 +504,7 @@ object SettingsBackupManager {
             scanKeys.values.forEach { editor.remove(it) }
             if (!editor.commit()) throw IllegalStateException("Unable to reset Wi-Fi scan settings")
         }
+        QfUnitSetup.afterReset(context, before)
         syncImportedSettings(context, applyTheme)
         return ResetResult(result.resetKeys + scanKeys.size, result.changedKeys + scanKeys.keys)
     }

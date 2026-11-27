@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import com.andrerinas.openheadunit.R
 import com.andrerinas.openheadunit.utils.ActivityState
@@ -41,16 +42,24 @@ open class BaseActivity : AppCompatActivity() {
     private var currentHomeBackgroundImagePath: String? = null
     private var backgroundTarget: CustomTarget<Bitmap>? = null
 
+    /** What the window's background was last made from, so that it is not loaded and drawn again unchanged. */
+    private var appliedBackground: String? = null
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleHelper.wrapContext(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Said outright for each screen, before it is built: see AppThemeManager.nightNow.
+        val night = AppThemeManager.nightNow()
+        delegate.localNightMode =
+            if (night == Configuration.UI_MODE_NIGHT_YES) AppCompatDelegate.MODE_NIGHT_YES
+            else AppCompatDelegate.MODE_NIGHT_NO
         super.onCreate(savedInstanceState)
         val settings = Settings(this)
         currentLanguage = settings.appLanguage
         currentAppTheme = settings.appTheme
-        currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        currentNightMode = night
         currentUseGradientBackground = settings.useGradientBackground
         currentUseExtremeDarkMode = settings.useExtremeDarkMode
         currentHudMirroring = settings.hudMirroring
@@ -94,7 +103,7 @@ open class BaseActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val settings = Settings(this)
-        val actualNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val actualNightMode = AppThemeManager.nightNow()
         if (currentLanguage != settings.appLanguage ||
             currentAppTheme != settings.appTheme ||
             currentNightMode != actualNightMode ||
@@ -107,6 +116,12 @@ open class BaseActivity : AppCompatActivity() {
             applyHudMirroring()
             applyWindowBackground()
         }
+    }
+
+    /** For a screen that handles uiMode itself: rebuilt when the unit turns from day to night under it, or back. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (AppThemeManager.nightNow() != currentNightMode) recreate()
     }
 
     protected fun applyHudMirroring() {
@@ -126,6 +141,11 @@ open class BaseActivity : AppCompatActivity() {
         val path = settings.homeBackgroundImagePath
         val file = if (path.isNotEmpty()) File(path) else null
         val isNightActive = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+        val source = listOf(path, file?.lastModified(), isNightActive, settings.homeBackgroundNightMode,
+            settings.appTheme, settings.useExtremeDarkMode, settings.useGradientBackground).joinToString("|")
+        if (source == appliedBackground) return
+        appliedBackground = source
 
         if (file != null && file.exists() && file.length() > 0) {
             // When dark mode is active and user wants OLED pure black at night:
@@ -151,15 +171,23 @@ open class BaseActivity : AppCompatActivity() {
                             }
                         }
 
-                        override fun onLoadCleared(placeholder: Drawable?) {}
+                        override fun onLoadCleared(placeholder: Drawable?) {
+                            // The picture is gone, so the next ask has to load it again.
+                            appliedBackground = null
+                        }
                     })
             } catch (e: Exception) {
                 AppLog.e("Failed to load custom background: ${e.message}")
+                appliedBackground = null
                 resetWindowBackgroundToTheme()
             }
         } else {
             resetWindowBackgroundToTheme()
         }
+    }
+
+    protected fun forgetAppliedBackground() {
+        appliedBackground = null
     }
 
     protected fun resetWindowBackgroundToTheme() {
@@ -175,11 +203,8 @@ open class BaseActivity : AppCompatActivity() {
             }
             window.setBackgroundDrawable(drawable)
         } else {
-            val drawable = ContextCompat.getDrawable(this, R.drawable.bg)?.mutate()
-            if (isNightActive && settings.homeBackgroundNightMode == Settings.BackgroundNightMode.DIM) {
-                drawable?.colorFilter = PorterDuffColorFilter(Color.argb(135, 0, 0, 0), PorterDuff.Mode.SRC_ATOP)
-            }
-            window.setBackgroundDrawable(drawable)
+            // Never dimmed: the default background has its own picture for the night.
+            window.setBackgroundDrawable(ContextCompat.getDrawable(this, R.drawable.bg))
         }
     }
 }

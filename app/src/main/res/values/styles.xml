@@ -3,6 +3,30 @@
     <!-- The CarPlay screen: its window is the same dark colour as the connecting view, so opening it never flashes black. -->
     <style name="AppTheme.CarPlay" parent="AppTheme">
         <item name="android:windowBackground">@color/carplay_window_background</item>
+        <item name="android:statusBarColor">@color/carplay_window_background</item>
+        <item name="android:navigationBarColor">@color/carplay_window_background</item>
+    </style>
+
+    <!-- The Android Auto screen. The status bar shows for a moment on the way in, before it is hidden: it is clear, so
+         what is drawn under it (the screen being left) carries on to the top. The window behind is black. At the app's own
+         colors that moment was a blue flash, and with a black bar a black one. -->
+    <style name="AppTheme.Projection" parent="AppTheme">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <!-- The screen being left stays up until this one has drawn, and nothing slides or zooms on the way in: the fade
+             into the video is the activity's own. -->
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAnimationStyle">@style/Animation.Projection</item>
+    </style>
+
+    <!-- Nothing on the way into the projection screen; a fade on the way out of it, to the home screen or elsewhere. -->
+    <style name="Animation.Projection" parent="">
+        <item name="android:activityCloseExitAnimation">@anim/ohu_fade_out</item>
+        <item name="android:taskOpenExitAnimation">@anim/ohu_fade_out</item>
+        <item name="android:taskCloseExitAnimation">@anim/ohu_fade_out</item>
+        <item name="android:taskToFrontExitAnimation">@anim/ohu_fade_out</item>
+        <item name="android:taskToBackExitAnimation">@anim/ohu_fade_out</item>
     </style>
 
     <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
@@ -10,6 +34,8 @@
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowBackground">@drawable/bg</item>
+        <item name="android:colorBackground">@color/app_background</item>
+        <item name="colorSurface">@color/app_background</item>
         <item name="android:windowTranslucentNavigation">false</item>
         <item name="android:windowTranslucentStatus">false</item>
         <item name="colorPrimary">@color/brand_primary</item>

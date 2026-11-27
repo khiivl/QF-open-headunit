@@ -243,6 +243,8 @@ class ZlinkCarPlayActivity : BaseActivity() {
         isResumed = true
         container.requestFocus()
         SystemUI.apply(window, container, Settings.FullscreenMode.IMMERSIVE, notesCanvas = false)
+        // Being on the CarPlay screen is asking for CarPlay, which ends an earlier Cancel.
+        com.andrerinas.openheadunit.connection.UserCancelHold.clear(this)
         ZlinkHub.resumeOffer()
         ZlinkHub.requestKeyframe()
     }
