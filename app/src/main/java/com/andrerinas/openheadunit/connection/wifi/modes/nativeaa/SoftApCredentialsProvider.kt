@@ -131,6 +131,9 @@ class SoftApCredentialsProvider(
      */
     @Volatile private var reportedConfigUnreadable = false
 
+    /** The interface the "not on air" warning was last said for; it is said again only when that changes (the loop asks about once a second). */
+    @Volatile private var notOnAirReportedFor: String? = null
+
     private val apStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.getIntExtra(EXTRA_WIFI_AP_STATE, -1) != WIFI_AP_STATE_DISABLED) return
@@ -168,6 +171,7 @@ class SoftApCredentialsProvider(
         apDownAtMs = 0L
         seenWokeAtMs = AccPowerState.wokeAtMs
         reportedConfigUnreadable = false
+        notOnAirReportedFor = null
         lastNoApReportAtMs = 0L
         if (!isReceiverRegistered) {
             try {
@@ -200,6 +204,7 @@ class SoftApCredentialsProvider(
         autoEnableAttempts = 0
         lastAutoEnableAtMs = 0L
         reportedConfigUnreadable = false
+        notOnAirReportedFor = null
         lastNoApReportAtMs = 0L
         if (isReceiverRegistered) {
             // Reset even if unregister throws: a flag set in only one direction is how a
@@ -486,14 +491,20 @@ class SoftApCredentialsProvider(
 
         val apState = SoftApStateReader.read(context)
         if (!NativeCredentialsPolicy.shouldPublishCredentials(apState, chosen.namedByUser)) {
-            AppLog.w(
-                "SoftApCredentials: the system reports no access point running, so ${iface.name} " +
-                    "($ip) is some other network — a modem bridge or a wired link will look just " +
-                    "like this. Not handing the phone a network that is not on air. Switch the " +
-                    "hotspot on, or name the interface by hand if you know it is up."
-            )
+            // Said once per interface, not on every pass of the loop (about once a second): logd here holds 256 KiB.
+            val notOnAirKey = "${iface.name}|$ip"
+            if (notOnAirKey != notOnAirReportedFor) {
+                notOnAirReportedFor = notOnAirKey
+                AppLog.w(
+                    "SoftApCredentials: the system reports no access point running, so ${iface.name} " +
+                        "($ip) is some other network — a modem bridge or a wired link will look just " +
+                        "like this. Not handing the phone a network that is not on air. Switch the " +
+                        "hotspot on, or name the interface by hand if you know it is up."
+                )
+            }
             return SoftApCredentialsAttempt.NO_AP_YET
         }
+        notOnAirReportedFor = null
         if (apState == SoftApState.UNKNOWN) {
             AppLog.i("SoftApCredentials: This device does not let apps read the hotspot state; proceeding without confirming the access point is up.")
         } else if (apState == SoftApState.NOT_ENABLED) {
