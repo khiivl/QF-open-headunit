@@ -55,3 +55,6 @@
 
 # Instantiated by Shizuku in a separate process using its class name and public constructor.
 -keep class com.andrerinas.openheadunit.connection.wifi.scan.WifiScanUserService { *; }
+
+# Run by name through app_process from the installed APK.
+-keep class com.andrerinas.openheadunit.tools.** { *; }

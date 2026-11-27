@@ -213,6 +213,11 @@ object HomeUiHelper {
             ContextCompat.getColor(context, if (extreme) extremeDark else normal)
         fun surface(@ColorRes normal: Int, @ColorRes extremeDark: Int) =
             HomeSurfaceOpacityPolicy.apply(color(normal, extremeDark), surfaceOpacityPercent)
+        // The unit's accent, when it has one, is every connection's color and the app tile's; extreme dark dims it.
+        val accent = AccentColor.current?.let {
+            if (extreme) ColorUtils.darkenColor(it, EXTREME_CUSTOM_COLOR_DIM) else it
+        }
+        fun accented(@ColorInt own: Int): Int = accent ?: own
         return Palette(
             mode = mode,
             panel = surface(R.color.home_panel, R.color.home_extreme_panel),
@@ -229,10 +234,11 @@ object HomeUiHelper {
             appsTilePressed = HomeSurfaceOpacityPolicy.pressed(
                 color(R.color.home_apps_tile_pressed, R.color.home_extreme_apps_tile_pressed), surfaceOpacityPercent
             ),
-            appsIcon = color(R.color.home_apps_icon, R.color.home_extreme_apps_icon),
-            usb = color(R.color.home_usb, R.color.home_extreme_usb),
-            wifi = color(R.color.home_wifi, R.color.home_extreme_wifi),
-            self = color(R.color.home_self, R.color.home_extreme_self),
+            appsIcon = accent?.let { AccentColor.readable(it, color(R.color.home_apps_tile, R.color.home_extreme_apps_tile)) }
+                ?: color(R.color.home_apps_icon, R.color.home_extreme_apps_icon),
+            usb = accented(color(R.color.home_usb, R.color.home_extreme_usb)),
+            wifi = accented(color(R.color.home_wifi, R.color.home_extreme_wifi)),
+            self = accented(color(R.color.home_self, R.color.home_extreme_self)),
             monochrome = color(R.color.home_monochrome, R.color.home_extreme_monochrome),
             countdownRing = color(R.color.home_countdown_ring, R.color.home_extreme_countdown_ring),
             surfaceOpacityPercent = surfaceOpacityPercent
@@ -662,8 +668,10 @@ object HomeUiHelper {
         val strokePx = dp(context, 1)
         card.background = shape(palette.panel, panelRadius, palette.panelStroke, strokePx)
         iconTile?.background = rounded(withAlpha(color, ACCENT_WASH_ALPHA), tileRadius)
-        icon?.setColorFilter(color, PorterDuff.Mode.SRC_IN)
-        kicker?.setTextColor(color)
+        // Text and icons of the color on the card: with the unit's accent, which may be any color, kept readable on it.
+        val ink = if (AccentColor.current != null) AccentColor.readable(color, palette.panel) else color
+        icon?.setColorFilter(ink, PorterDuff.Mode.SRC_IN)
+        kicker?.setTextColor(ink)
         title?.setTextColor(palette.text)
         subtitle?.setTextColor(palette.textMuted)
         detail?.setTextColor(palette.textMuted)
@@ -677,8 +685,8 @@ object HomeUiHelper {
                     // A see-through button would hide its own ripple without a mask.
                     mask = { rounded(Color.WHITE, ctaRadius) }
                 )
-                setTextColor(color)
-                text = actionText(color)
+                setTextColor(ink)
+                text = actionText(ink)
             } else {
                 background = pressable(color, ctaRadius, palette)
                 setTextColor(textOn(color, palette))
@@ -1073,7 +1081,8 @@ object HomeUiHelper {
      * monochrome option takes the color out altogether. See [HomeColorPolicy].
      */
     fun connectionColor(settings: Settings, connection: Connection, palette: Palette): Int {
-        val customColor = customColor(settings, connection)
+        // With the unit's accent every connection wears it, whatever was picked for it; monochrome still applies.
+        val customColor = if (AccentColor.current != null) 0 else customColor(settings, connection)
         return when (HomeColorPolicy.source(customColor, palette.mode, settings.autoMonochromeButtonsAtNight)) {
             HomeColorPolicy.Source.MONOCHROME -> palette.monochrome
             HomeColorPolicy.Source.CUSTOM_DIMMED -> ColorUtils.darkenColor(customColor, EXTREME_CUSTOM_COLOR_DIM)

@@ -1383,6 +1383,17 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("hide-status-bar-buttons", false)
         set(value) { prefs.edit().putBoolean("hide-status-bar-buttons", value).apply() }
 
+    // The unit's own screen at 90 Hz instead of 60 (see ScreenRefresh). Off by default.
+    var screenFastRefresh: Boolean
+        get() = prefs.getBoolean("screen-fast-refresh", false)
+        set(value) { prefs.edit().putBoolean("screen-fast-refresh", value).apply() }
+
+    // Set while the screen is being switched at a start; found set at the next one, that switch never finished. Written
+    // at once: the unit may be powered off right after.
+    var screenRefreshSwitching: Boolean
+        get() = prefs.getBoolean("screen-refresh-switching", false)
+        set(value) { prefs.edit().putBoolean("screen-refresh-switching", value).commit() }
+
     // Keep the touch panel at its fastest report rate (see TouchPanelOverride). Off by default.
     var touchPanelOverride: Boolean
         get() = prefs.getBoolean("touch-panel-override", false)

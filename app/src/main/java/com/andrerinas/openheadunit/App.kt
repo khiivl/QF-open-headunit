@@ -60,6 +60,8 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         // The app fade, switched on again after a restart if the user chose it.
         com.andrerinas.openheadunit.utils.AppFadeOverlay.applyAtStart(this, delayMs = 15_000L)
         com.andrerinas.openheadunit.utils.StatusBarButtons.applyAtStart(this, delayMs = 17_000L)
+        // The screen comes up at 60 Hz after a reboot; back to 90 if the user chose that.
+        com.andrerinas.openheadunit.utils.ScreenRefresh.applyAtStart(this, delayMs = 20_000L)
         // Our own picture on CarPlay's car-maker tile, mounted again after each reboot.
         if (!com.andrerinas.openheadunit.BuildConfig.CODOS &&
             com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy.getInstalledPackages(this).isNotEmpty()) {

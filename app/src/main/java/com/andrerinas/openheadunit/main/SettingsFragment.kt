@@ -309,6 +309,15 @@ class SettingsFragment : Fragment() {
             revert = { com.andrerinas.openheadunit.utils.HardwareComposer.apply(app, false) })
     }
 
+    private fun tryFastRefresh() {
+        val app = requireContext().applicationContext
+        val refresh = com.andrerinas.openheadunit.utils.ScreenRefresh
+        runTrial(R.string.screen_fast_refresh_trial_title,
+            start = { refresh.set(app, true) == com.andrerinas.openheadunit.utils.ScreenRefresh.Result.DONE },
+            keep = { settings.screenFastRefresh = true },
+            revert = { refresh.apply(app, false) })
+    }
+
     private fun tryTouchPanelOverride() {
         val app = requireContext().applicationContext
         runTrial(R.string.touch_override_trial_title,
@@ -1796,6 +1805,24 @@ class SettingsFragment : Fragment() {
         if (!com.andrerinas.openheadunit.BuildConfig.CODOS &&
             com.andrerinas.openheadunit.connection.zlinkcarplay.ZlinkScreenPolicy
                 .getInstalledPackages(requireContext()).isNotEmpty()) {
+            items.add(SettingItem.ToggleSettingEntry(
+                stableId = "screenFastRefresh",
+                nameResId = R.string.screen_fast_refresh,
+                descriptionResId = R.string.screen_fast_refresh_summary,
+                helpResId = R.string.screen_fast_refresh_help,
+                isChecked = settings.screenFastRefresh,
+                searchKeywords = "90 hz screen display refresh rate smooth overclock",
+                // Takes effect at once, not on Save: turning it on is a trial that has to be confirmed.
+                onCheckedChanged = { isChecked ->
+                    if (isChecked) {
+                        tryFastRefresh()
+                    } else {
+                        settings.screenFastRefresh = false
+                        com.andrerinas.openheadunit.utils.ScreenRefresh.apply(requireContext(), false)
+                        updateSettingsList()
+                    }
+                }
+            ))
             items.add(SettingItem.ToggleSettingEntry(
                 stableId = "appFade",
                 nameResId = R.string.app_fade,
@@ -5912,15 +5939,15 @@ class SettingsFragment : Fragment() {
             when (backend) {
                 OemAppManager.ExecutionBackend.ROOT -> {
                     tvBackendStatus.setText(R.string.oem_app_backend_root)
-                    tvBackendStatus.setTextColor(ContextCompat.getColor(context, R.color.brand_primary))
+                    tvBackendStatus.setTextColor(com.andrerinas.openheadunit.utils.AccentColor.primary(context))
                 }
                 OemAppManager.ExecutionBackend.SYSTEM -> {
                     tvBackendStatus.setText(R.string.oem_app_backend_system)
-                    tvBackendStatus.setTextColor(ContextCompat.getColor(context, R.color.brand_primary))
+                    tvBackendStatus.setTextColor(com.andrerinas.openheadunit.utils.AccentColor.primary(context))
                 }
                 OemAppManager.ExecutionBackend.ADB -> {
                     tvBackendStatus.setText(R.string.oem_app_backend_adb)
-                    tvBackendStatus.setTextColor(ContextCompat.getColor(context, R.color.brand_primary))
+                    tvBackendStatus.setTextColor(com.andrerinas.openheadunit.utils.AccentColor.primary(context))
                 }
                 OemAppManager.ExecutionBackend.NONE -> {
                     tvBackendStatus.setText(R.string.oem_app_backend_none)

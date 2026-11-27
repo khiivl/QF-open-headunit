@@ -358,7 +358,7 @@ class OnboardingActivity : BaseActivity() {
         // Rebuild if the visible-step count changed (e.g. Self Mode just hid the GPS step).
         if (stepper.childCount != steps.size) buildStepperDots()
         val density = resources.displayMetrics.density
-        val active = resolveAttrColor(com.google.android.material.R.attr.colorPrimary)
+        val active = com.andrerinas.openheadunit.utils.AccentColor.primary(this)
         val inactive = 0x33808080
         val currentPos = steps.indexOf(step).coerceAtLeast(0)
         for (i in steps.indices) {

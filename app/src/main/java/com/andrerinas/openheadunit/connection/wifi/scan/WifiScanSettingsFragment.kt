@@ -66,7 +66,8 @@ class WifiScanSettingsFragment : Fragment() {
                 ColorUtils.calculateContrast(Color.BLACK, background)) Color.WHITE else Color.BLACK
         }
         val foreground = legibleText(surface, themeText)
-        val primary = MaterialColors.getColor(context, com.google.android.material.R.attr.colorPrimary, javaClass.simpleName)
+        val primary = com.andrerinas.openheadunit.utils.AccentColor.current?.let { com.andrerinas.openheadunit.utils.AccentColor.primary(context) }
+            ?: MaterialColors.getColor(context, com.google.android.material.R.attr.colorPrimary, javaClass.simpleName)
         val disabledSurface = ColorUtils.blendARGB(surface, foreground, 0.08f)
         val disabledText = legibleText(disabledSurface, ColorUtils.blendARGB(surface, foreground, 0.65f))
         fun colors(enabled: Int, disabled: Int) = ColorStateList(

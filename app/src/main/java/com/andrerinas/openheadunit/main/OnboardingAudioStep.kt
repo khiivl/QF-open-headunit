@@ -483,7 +483,7 @@ class OnboardingAudioStep(
         focusNever.isChecked = mode == PlaybackFocusPolicy.Mode.NEVER
         focusAuto.isChecked = mode == PlaybackFocusPolicy.Mode.AUTO
 
-        val primary = colorAttr(com.google.android.material.R.attr.colorPrimary)
+        val primary = com.andrerinas.openheadunit.utils.AccentColor.primary(activity)
         val outline = colorAttr(com.google.android.material.R.attr.colorOutlineVariant)
         val surface = ContextCompat.getColor(activity, R.color.onb_audio_option_selected)
         val surfaceVariant = ContextCompat.getColor(activity, R.color.onb_audio_option)

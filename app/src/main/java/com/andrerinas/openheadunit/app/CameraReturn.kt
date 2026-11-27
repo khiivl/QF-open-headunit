@@ -31,6 +31,11 @@ object CameraReturn {
 
     private val handler = Handler(Looper.getMainLooper())
 
+    /** Whether the unit's camera view is over the screen, as far as this process has been told. */
+    @Volatile
+    var isCameraShown = false
+        private set
+
     private var front: Class<out Activity>? = null
     private var last: Class<out Activity>? = null
     private var lastLeftAt = 0L
@@ -63,6 +68,7 @@ object CameraReturn {
 
     private fun onCameraView(app: Context, shown: Boolean) {
         handler.removeCallbacksAndMessages(null)
+        isCameraShown = shown
         if (shown) {
             // A view that comes back before the checks ran out keeps the screen noted the first time.
             wanted = wanted

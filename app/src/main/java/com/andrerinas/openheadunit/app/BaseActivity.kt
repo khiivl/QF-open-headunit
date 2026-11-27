@@ -16,6 +16,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import com.andrerinas.openheadunit.R
+import com.andrerinas.openheadunit.utils.AccentColor
+import com.andrerinas.openheadunit.utils.AccentTint
 import com.andrerinas.openheadunit.utils.ActivityState
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.AppThemeManager
@@ -40,6 +42,7 @@ open class BaseActivity : AppCompatActivity() {
     private var currentUseExtremeDarkMode: Boolean = false
     private var currentHudMirroring: Boolean = false
     private var currentHomeBackgroundImagePath: String? = null
+    private var currentAccent: Int? = null
     private var backgroundTarget: CustomTarget<Bitmap>? = null
 
     /** What the window's background was last made from, so that it is not loaded and drawn again unchanged. */
@@ -55,6 +58,12 @@ open class BaseActivity : AppCompatActivity() {
         delegate.localNightMode =
             if (night == Configuration.UI_MODE_NIGHT_YES) AppCompatDelegate.MODE_NIGHT_YES
             else AppCompatDelegate.MODE_NIGHT_NO
+        // Before AppCompat sets its own inflater, which it only does where there is none.
+        AccentColor.refresh()
+        currentAccent = AccentColor.current
+        if (currentAccent != null && layoutInflater.factory2 == null) {
+            layoutInflater.factory2 = AccentTint.Inflater(this)
+        }
         super.onCreate(savedInstanceState)
         val settings = Settings(this)
         currentLanguage = settings.appLanguage
@@ -104,7 +113,9 @@ open class BaseActivity : AppCompatActivity() {
         super.onResume()
         val settings = Settings(this)
         val actualNightMode = AppThemeManager.nightNow()
-        if (currentLanguage != settings.appLanguage ||
+        AccentColor.refresh()
+        if (currentAccent != AccentColor.current ||
+            currentLanguage != settings.appLanguage ||
             currentAppTheme != settings.appTheme ||
             currentNightMode != actualNightMode ||
             currentUseGradientBackground != settings.useGradientBackground ||

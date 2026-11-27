@@ -3090,7 +3090,7 @@ class HomeFragment : Fragment() {
         val deviceListView = dialogView.findViewById<ListView>(R.id.driverDeviceList)
         val btnToggleFilter = dialogView.findViewById<TextView>(R.id.btnToggleFilter)
 
-        val brandPrimary = ContextCompat.getColor(requireContext(), R.color.brand_primary)
+        val brandPrimary = com.andrerinas.openheadunit.utils.AccentColor.primary(requireContext())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             countdownProgress.progressTintList = ColorStateList.valueOf(brandPrimary)
         }
@@ -3116,7 +3116,7 @@ class HomeFragment : Fragment() {
                 when (NativeDriverSelectionPolicy.presenceOf(device.address, connectedMacSet, presenceReadable)) {
                     NativeDriverSelectionPolicy.DriverPresence.CONNECTED -> {
                         statusView.text = "🟢 " + context.getString(R.string.driver_device_connected)
-                        statusView.setTextColor(ContextCompat.getColor(context, R.color.brand_primary))
+                        statusView.setTextColor(com.andrerinas.openheadunit.utils.AccentColor.primary(context))
                     }
                     NativeDriverSelectionPolicy.DriverPresence.DISCONNECTED -> {
                         statusView.text = context.getString(R.string.driver_device_disconnected)
@@ -3424,7 +3424,7 @@ class HomeFragment : Fragment() {
         val connectionProgress = dialogView.findViewById<ProgressBar>(R.id.connectionProgress)
 
         // Ensure the loading spinner is visible in both Light and Dark modes by forcing our brand color.
-        val brandPrimary = ContextCompat.getColor(requireContext(), R.color.brand_primary)
+        val brandPrimary = com.andrerinas.openheadunit.utils.AccentColor.primary(requireContext())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             connectionProgress.indeterminateTintList = ColorStateList.valueOf(brandPrimary)
             connectionProgress.indeterminateTintMode = android.graphics.PorterDuff.Mode.SRC_IN

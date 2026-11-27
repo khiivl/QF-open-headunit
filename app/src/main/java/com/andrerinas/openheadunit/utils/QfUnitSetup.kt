@@ -68,6 +68,7 @@ object QfUnitSetup {
         val touchPanelOverride: Boolean,
         val hardwareComposer: Boolean,
         val hideStatusBarButtons: Boolean,
+        val screenFastRefresh: Boolean,
     )
 
     fun beforeReset(context: Context): BeforeReset {
@@ -79,6 +80,7 @@ object QfUnitSetup {
             touchPanelOverride = settings.touchPanelOverride,
             hardwareComposer = settings.hardwareComposer,
             hideStatusBarButtons = settings.hideStatusBarButtons,
+            screenFastRefresh = settings.screenFastRefresh,
         )
     }
 
@@ -96,6 +98,8 @@ object QfUnitSetup {
         settings.enableCarLauncher = before.carLauncher
         // The overlay stays on over a reset, so the switch has to go on saying so.
         settings.hideStatusBarButtons = before.hideStatusBarButtons
+        // The screen keeps its rate over a reset too.
+        settings.screenFastRefresh = before.screenFastRefresh
         val panel = DisplayMetrics()
         val displays = app.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         @Suppress("DEPRECATION")

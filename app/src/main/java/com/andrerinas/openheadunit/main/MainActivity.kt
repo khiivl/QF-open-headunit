@@ -219,6 +219,7 @@ class MainActivity : BaseActivity() {
                 ContextCompat.getColor(this, R.color.extreme_dark_background)
             )
         }
+        tintSplash(isExtremeDark)
         // Applied again now that the screen has its own theme.
         forgetAppliedBackground()
         applyCustomHomeBackground()
@@ -1739,6 +1740,19 @@ class MainActivity : BaseActivity() {
             HomeFragment.resetAutoStart()
             hasRequestedPermissionsThisSession = false
         }
+    }
+
+    /** The splash logo's blue and its blue word in the unit's accent, when it has one (see AccentColor). */
+    private fun tintSplash(extremeDark: Boolean) {
+        val accent = com.andrerinas.openheadunit.utils.AccentColor.current ?: return
+        val background = ContextCompat.getColor(
+            this, if (extremeDark) R.color.extreme_dark_background else R.color.splash_background
+        )
+        findViewById<TextView>(R.id.splash_revived)
+            ?.setTextColor(com.andrerinas.openheadunit.utils.AccentColor.readable(accent, background))
+        val logo = findViewById<ImageView>(R.id.splash_logo) ?: return
+        val source = android.graphics.BitmapFactory.decodeResource(resources, R.drawable.splash_logo) ?: return
+        logo.setImageBitmap(com.andrerinas.openheadunit.utils.AccentTint.logo(source, accent))
     }
 
     fun applyCustomHomeBackground() {

@@ -32,7 +32,8 @@ class DpiPreviewView @JvmOverloads constructor(
     private var panelWidthPx: Int = 0
     private var panelHeightPx: Int = 0
 
-    private val accent = resolveAttrColor(com.google.android.material.R.attr.colorPrimary, Color.parseColor("#009688"))
+    private val accent = com.andrerinas.openheadunit.utils.AccentColor.current?.let { com.andrerinas.openheadunit.utils.AccentColor.primary(context) }
+        ?: resolveAttrColor(com.google.android.material.R.attr.colorPrimary, Color.parseColor("#009688"))
     private val tilePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = withAlpha(accent, 60) }
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE

@@ -177,6 +177,7 @@ object SettingsBackupManager {
         "touch-panel-override" to ValueType.BOOLEAN,
         "touch-panel-stock-refresh" to ValueType.INT,
         "hardware-composer" to ValueType.BOOLEAN,
+        "screen-fast-refresh" to ValueType.BOOLEAN,
         "debug-paced-release" to ValueType.BOOLEAN,
         "debug-paced-lead-ms" to ValueType.INT,
         "touch-send-rate" to ValueType.INT,

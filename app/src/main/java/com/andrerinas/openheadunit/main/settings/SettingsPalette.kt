@@ -1,12 +1,15 @@
 package com.andrerinas.openheadunit.main.settings
 
 import android.content.Context
+import android.graphics.Color
 import android.util.TypedValue
 import androidx.annotation.AttrRes
 import androidx.annotation.ColorInt
 import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.andrerinas.openheadunit.R
+import com.andrerinas.openheadunit.utils.AccentColor
 
 /**
  * The settings screen's Material 3 colors, read once from the theme.
@@ -49,7 +52,7 @@ class SettingsPalette private constructor(
                     value.type == TypedValue.TYPE_INT_BOOLEAN
                 return if (resolved) value.data != 0 else fallback
             }
-            return SettingsPalette(
+            val palette = SettingsPalette(
                 surface = color(R.attr.settingsSurface, R.color.md_surface),
                 container = color(R.attr.settingsContainer, R.color.md_surface_container),
                 containerHigh = color(R.attr.settingsContainerHigh, R.color.md_surface_container_high),
@@ -65,6 +68,27 @@ class SettingsPalette private constructor(
                 outlinedGroups = flag(R.attr.settingsOutlinedGroups, false),
                 filledIcons = flag(R.attr.settingsFilledIcons, true)
             )
+            return AccentColor.current?.let { palette.withAccent(it) } ?: palette
         }
+
+        // Extreme dark, the look with outline icons, turns the accent down.
+        private const val EXTREME_DIM = 0.2f
+        private const val SELECTION_SHARE = 0.28f
+    }
+
+    /** These colors with the unit's accent in the place of the app's own, see [AccentColor]. */
+    private fun withAccent(accent: Int): SettingsPalette {
+        val base = if (filledIcons) accent else ColorUtils.blendARGB(accent, Color.BLACK, EXTREME_DIM)
+        val ink = AccentColor.readable(base, container)
+        val selection = ColorUtils.blendARGB(container, base, SELECTION_SHARE)
+        return SettingsPalette(
+            surface, container, containerHigh, containerHighest, onSurface, onSurfaceVariant, outline, outlineVariant,
+            primary = ink,
+            onPrimary = AccentColor.on(ink),
+            secondaryContainer = selection,
+            onSecondaryContainer = AccentColor.readable(onSurface, selection, minContrast = 4.5),
+            outlinedGroups = outlinedGroups,
+            filledIcons = filledIcons
+        )
     }
 }
