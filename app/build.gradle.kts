@@ -132,7 +132,10 @@ android {
         create("codos") {
             dimension = "distribution"
             minSdk = 21
-            versionNameSuffix = "-codos"
+            // Our own build counter on top of the author's code: versionCode = author's * 10 + build (129 -> 1291), so a rebuild of the
+            // same author version still installs over the last one and a later author version (130 -> 1301) always sorts above it.
+            versionNameSuffix = "-codos.3"
+            versionCode = (defaultConfig.versionCode ?: 0) * 10 + 3
             // The unit is ARM: x86 / x86_64 would be dead weight in a system partition image.
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             buildConfigField("boolean", "CODOS", "true")

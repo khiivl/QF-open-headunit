@@ -10,7 +10,6 @@ import com.andrerinas.openheadunit.connection.wifi.direct.P2pStackWedgePolicy
 import com.andrerinas.openheadunit.utils.adb.AdbManager
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -61,7 +60,11 @@ object WifiStackRecovery {
      * [automatic] is true when no user is looking: then only a route already proven at setup runs.
      */
     suspend fun restartWifi(context: Context, reason: String, automatic: Boolean = false): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        if (BuildConfig.CODOS) return@withContext restartWifiAsSystem(context, reason)
+        // CoD OS: the Wi-Fi client belongs to the system; this app does not switch it off and on (head lead, 27.11).
+        if (BuildConfig.CODOS) {
+            AppLog.w("WifiStackRecovery: not restarting WiFi ($reason): on CoD OS the Wi-Fi client is the system's.")
+            return@withContext false to "the Wi-Fi client belongs to the system on CoD OS"
+        }
         var route = availableRoute()
         // A fresh process has not opened a root shell yet, so libsu cannot say root is granted
         // until it asks - and asking raises the superuser prompt when no grant is saved. So only
@@ -103,33 +106,6 @@ object WifiStackRecovery {
         if (ok) AppLog.i("WifiStackRecovery: WiFi restarted via $route.")
         else AppLog.w("WifiStackRecovery: WiFi restart via $route failed (code=$code): ${out.take(200)}")
         ok to out
-    }
-
-    /**
-     * CoD OS: the app is a privileged system app, so `WifiManager.setWifiEnabled` is allowed even
-     * on Android 10+. There is no prompt to avoid, so the automatic path needs no proof first. If
-     * the API refuses, the same `svc` line the other flavors use runs as the system uid.
-     */
-    private suspend fun restartWifiAsSystem(context: Context, reason: String): Pair<Boolean, String> {
-        AppLog.w("WifiStackRecovery: restarting WiFi as the system uid ($reason).")
-        val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-        @Suppress("DEPRECATION")
-        val viaApi = try {
-            wifi != null && wifi.setWifiEnabled(false).also {
-                delay(3_000) // lets the supplicant exit, as in P2pStackWedgePolicy.RESTART_COMMAND
-            } && wifi.setWifiEnabled(true)
-        } catch (e: Exception) {
-            AppLog.w("WifiStackRecovery: WifiManager refused: ${e.message}")
-            false
-        }
-        if (viaApi) {
-            AppLog.i("WifiStackRecovery: WiFi restarted through WifiManager.")
-            return true to "WifiManager.setWifiEnabled"
-        }
-        val (code, out) = SystemUidShell.exec(P2pStackWedgePolicy.RESTART_COMMAND)
-        if (code == 0) AppLog.i("WifiStackRecovery: WiFi restarted through svc as the system uid.")
-        else AppLog.w("WifiStackRecovery: WiFi restart failed as the system uid (code=$code): ${out.take(200)}")
-        return (code == 0) to out
     }
 
     /** The system WiFi panel on Android 10+, the WiFi settings page before it. */

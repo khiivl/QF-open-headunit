@@ -56,6 +56,12 @@ object TouchPanelOverride {
 
     /** Sets the fastest rate, or the panel's own one back. True when the panel reads back as asked. */
     suspend fun set(context: Context, fast: Boolean): Boolean = withContext(Dispatchers.IO) {
+        // CoD OS: the touch rate is a system feature with one writer (the framework's trial manager); /proc/gt9xx_config is
+        // root-owned, so this app could not write it as uid 1000 anyway. Nothing is read or written here.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) {
+            AppLog.i("TouchPanelOverride: not set (CoD OS keeps one system switch for the touch rate)")
+            return@withContext false
+        }
         lock.withLock {
             val app = context.applicationContext
             val settings = Settings(app)

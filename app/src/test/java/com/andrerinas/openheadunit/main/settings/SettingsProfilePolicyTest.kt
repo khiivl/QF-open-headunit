@@ -86,6 +86,10 @@ class SettingsProfilePolicyTest {
         assertTrue("useLibusb" in hidden)
         assertTrue("autoStartSettings" in hidden)
         assertTrue("autoConnectSettings" in hidden)
+        assertTrue("rootOnlyDebug" in hidden)
+        assertTrue("hardwareComposer" in hidden)
+        assertTrue("touchPanelOverride" in hidden)
+        assertTrue("autoEnableHotspot" in hidden)
     }
 
     @Test fun otherBuildsKeepTheChoiceOfConnectionTypes() {

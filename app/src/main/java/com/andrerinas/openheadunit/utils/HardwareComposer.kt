@@ -22,6 +22,12 @@ object HardwareComposer {
 
     /** Sets it after [delayMs], which gives the shell time to come up at an app start. */
     fun apply(context: Context, enabled: Boolean, delayMs: Long = 0L) {
+        // CoD OS: the hardware composer has one switch, the system one (CarSettings, key persist.sys.qf001.hwc, written only by
+        // the framework's HwcTrial). This app neither calls SurfaceFlinger 1008 nor writes a property of its own there.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) {
+            AppLog.i("HardwareComposer: not set (CoD OS keeps one system switch for it)")
+            return
+        }
         val app = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
             delay(delayMs)

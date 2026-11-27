@@ -33,6 +33,8 @@ object EarlyHotspot {
         SoftApAutoEnablePolicy.comingUp(inFlight, lastSucceeded, lastEndedAtMs, nowMs)
 
     fun start(context: Context) {
+        // CoD OS: the access point is the system's (HotspotManager.setHotspotEnabled); nothing is asked for at process start.
+        if (com.andrerinas.openheadunit.BuildConfig.CODOS) return
         val app = context.applicationContext
         if (UserCancelHold.isHeld(app)) {
             AppLog.i("EarlyHotspot: the user cancelled the connection, leaving the hotspot alone.")

@@ -72,6 +72,14 @@ object SettingsProfilePolicy {
         // Owner, 24.11, asked directly: the auto-start and auto-connect rows go to the developer section (hidden from the person,
         // values kept as they are, nothing deleted).
         "autoStartSettings", "autoConnectSettings",
+        // The debug switch that forces every shell command through root: there is no root on CoD OS (uid 1000 shell instead).
+        "rootOnlyDebug",
+        // One place per function: the hardware composer is switched in CarSettings, not here.
+        "hardwareComposer",
+        // Same for the touch panel report rate: one writer, the system trial.
+        "touchPanelOverride",
+        // The access point is the system's on CoD OS: this app never switches it on (HotspotManager.setHotspotEnabled).
+        "autoEnableHotspot",
     )
 
     /** Settings that only mean something to CarPlay (zLink's own screens). */
